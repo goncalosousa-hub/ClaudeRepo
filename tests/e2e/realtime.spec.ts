@@ -45,6 +45,16 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   await expect(ana).toHaveURL(/\/r\/[a-z0-9]{8}$/);
   await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
   const roomUrl = ana.url();
+  const roomId = roomUrl.split('/r/')[1];
+
+  // Opened on 127.0.0.1: the invite dialog warns that "localhost" links only work on this computer
+  // and offers the local network address instead.
+  await ana.getByRole('button', { name: 'Convidar', exact: true }).click();
+  const share = ana.getByRole('dialog', { name: 'Convidar colegas' });
+  await expect(share.getByText(/só funciona neste computador/)).toBeVisible();
+  await expect(share.getByLabel('Link da sala')).toHaveValue(new RegExp(`/r/${roomId}$`));
+  await shot(ana, '00-share-localhost');
+  await ana.keyboard.press('Escape');
 
   // --- Rui opens the link ------------------------------------------------------------
   await rui.goto(roomUrl);

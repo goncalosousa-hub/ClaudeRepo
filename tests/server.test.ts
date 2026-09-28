@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises';
+import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -113,6 +114,24 @@ describe('HTTP API', () => {
     expect((await fetch(`${app.url}/api/rooms`, { method: 'POST', body: '{}' })).status).toBe(400);
     expect((await fetch(`${app.url}/api/img?url=${encodeURIComponent('https://evil.example/a.png')}`)).status).toBe(400);
     expect((await fetch(`${app.url}/api/whatever`)).status).toBe(404);
+  });
+
+  it('tells only the host machine its local network addresses', async () => {
+    const app = await start(await tmpDir());
+    const local = (await (await fetch(`${app.url}/api/network`)).json()) as { lan: { url: string }[] };
+    expect(Array.isArray(local.lan)).toBe(true);
+    for (const a of local.lan) expect(a.url).toMatch(/^http:\/\/\d+\.\d+\.\d+\.\d+:\d+$/);
+    // Through a tunnel the Host header is the public name: no addresses are revealed.
+    const viaTunnel = await new Promise<string>((resolve, reject) => {
+      const req = http.request(`${app.url}/api/network`, { headers: { host: 'abc.trycloudflare.com' } }, (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => resolve(body));
+      });
+      req.on('error', reject);
+      req.end();
+    });
+    expect(JSON.parse(viaTunnel)).toEqual({ lan: [] });
   });
 });
 

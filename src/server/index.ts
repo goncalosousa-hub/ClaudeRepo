@@ -1,5 +1,5 @@
-import os from 'node:os';
 import { createApp } from './app';
+import { lanAddresses } from './network';
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';
@@ -12,14 +12,18 @@ const { httpServer, storage, close } = await createApp({
 });
 
 httpServer.listen(port, host, () => {
-  const lan = Object.values(os.networkInterfaces())
-    .flat()
-    .filter((a) => a && a.family === 'IPv4' && !a.internal)
-    .map((a) => `http://${a!.address}:${port}`);
+  const lan = lanAddresses();
+  const real = lan.filter((a) => !a.virtual);
   console.log(`\n  🎌 Anime Tierlist Live${dev ? ' (dev)' : ''}`);
-  console.log(`  ➜ Local:       http://localhost:${port}`);
-  for (const url of lan) console.log(`  ➜ Rede local:  ${url}`);
-  console.log(`  ➜ Dados:       ${storage.kind === 'postgres' ? 'PostgreSQL (DATABASE_URL)' : 'ficheiros JSON'}\n`);
+  console.log(`  ➜ Local:       http://localhost:${port}   (só funciona neste computador)`);
+  real.forEach((a, i) =>
+    console.log(`  ➜ Rede local:  http://${a.address}:${port}${i === 0 ? '   ← envia este aos colegas na mesma rede' : ''}`),
+  );
+  for (const a of lan.filter((x) => x.virtual)) {
+    console.log(`    (virtual)    http://${a.address}:${port}   ${a.iface} — não serve para os colegas`);
+  }
+  console.log(`  ➜ Dados:       ${storage.kind === 'postgres' ? 'PostgreSQL (DATABASE_URL)' : 'ficheiros JSON'}`);
+  console.log(`\n  Colegas noutra rede? Cria um túnel:  cloudflared tunnel --url http://localhost:${port}\n`);
 });
 
 let stopping = false;

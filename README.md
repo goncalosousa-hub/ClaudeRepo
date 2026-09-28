@@ -66,19 +66,28 @@ O servidor tem de estar acessível a todos. Tens três opções, da mais rápida
 
 ### 1. Mesma rede Wi-Fi
 
-Quando arrancas o servidor, ele mostra um endereço **Rede local** (por exemplo `http://192.168.1.23:3000`). Partilha esse link com quem estiver na mesma rede.
-
-> Se não abrir, confirma que a firewall do teu PC deixa o Node.js receber ligações. Algumas redes (como a eduroam) isolam os dispositivos; nesse caso usa a opção 2.
+Quando arrancas o servidor, ele mostra um endereço **Rede local** (por exemplo `http://192.168.1.23:3000`). Envia esse link, ou o do botão **Convidar**, a quem estiver na mesma rede. Mesmo que tenhas aberto a app em `localhost`, o **Convidar** já usa o endereço da tua rede.
 
 ### 2. Pela internet em 1 minuto (grátis, sem conta)
 
-Com o servidor a correr, instala o [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) e faz:
+Com o servidor a correr, instala o [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (no Windows: `winget install --id Cloudflare.cloudflared`) e, noutra janela do terminal, faz:
 
 ```bash
 cloudflared tunnel --url http://localhost:3000
 ```
 
-Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funciona enquanto o teu PC estiver ligado, e as salas ficam guardadas na pasta `data/`.
+Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funciona enquanto o teu PC estiver ligado, e as salas ficam guardadas na pasta `data/`. Para os colegas carregarem a app mais depressa, usa `npm run build` e `npm start` em vez de `npm run dev`.
+
+### Os colegas não conseguem entrar?
+
+1. **Link errado.** Não envies links com `localhost`, nem os endereços que o terminal marca como `(virtual)`, por exemplo `192.168.56.1` (VirtualBox). Esses não funcionam noutros computadores. Usa o link do botão **Convidar**.
+2. **Redes diferentes.** Os colegas têm de estar na mesma rede Wi-Fi que o teu PC. Testa primeiro com o teu telemóvel.
+3. **Firewall do Windows.** Abre o PowerShell **como administrador** e corre:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Anime Tierlist" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+   ```
+   Em casa, também podes pôr a rede Wi-Fi como **Privada**: *Definições → Rede e Internet → Wi-Fi → (a tua rede) → Tipo de perfil de rede*.
+4. **Rede da escola ou universidade** (por exemplo, eduroam). Estas redes costumam bloquear ligações entre computadores. Usa o túnel da opção 2.
 
 ### 3. Alojar online (sempre disponível)
 

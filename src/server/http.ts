@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { isAllowedImageUrl } from '../shared/constants';
 import { createRoomSchema, ROOM_ID_RE } from '../shared/schema';
+import { lanAddresses } from './network';
 import type { RoomManager } from './rooms';
 
 /** Fixed-window rate limit per IP (in memory, good enough for a single server). */
@@ -55,6 +56,23 @@ export function apiRouter(rooms: RoomManager) {
 
   router.get('/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  // Local network addresses of this computer, so the invite link works for colleagues on the same
+  // Wi-Fi when the host opened the app on "localhost". Only answered to the host machine itself.
+  router.get('/network', (req, res) => {
+    const remote = req.socket.remoteAddress ?? '';
+    const host = (req.headers.host ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+    const fromHost =
+      ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) && ['localhost', '127.0.0.1', '::1'].includes(host);
+    if (!fromHost) {
+      res.json({ lan: [] });
+      return;
+    }
+    const port = req.socket.localPort;
+    res.json({
+      lan: lanAddresses().map((a) => ({ url: `http://${a.address}:${port}`, iface: a.iface, virtual: a.virtual })),
+    });
   });
 
   router.post('/rooms', rateLimit(30, 10 * 60_000), async (req, res) => {
