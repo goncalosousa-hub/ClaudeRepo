@@ -22,6 +22,7 @@ import {
 import { ChevronDown, ChevronUp, Plus, Search } from 'lucide-react';
 import { CONSENSUS_BOARD, POOL, type Board, type Member } from '../../shared/types';
 import { readableOn } from '../lib/format';
+import { allThe, none } from '../lib/words';
 import { AnimeCardView, CARD_SIZES, type AnimeCardProps } from './AnimeCard';
 import { RemoteCursors } from './RemoteCursors';
 import { useRoom } from './RoomContext';
@@ -69,7 +70,7 @@ export function TierBoard({
   votes?: Record<string, number>;
   onAdd: () => void;
 }) {
-  const { room, client, me, snap, dispatch, prefs, openAnime, titleOf, summaries } = useRoom();
+  const { room, client, me, snap, dispatch, prefs, openAnime, titleOf, summaries, noun } = useRoom();
   const size = prefs.cardSize;
   const cardH = CARD_SIZES[size].h;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -359,7 +360,7 @@ export function TierBoard({
               )}
               {boardId !== CONSENSUS_BOARD && (
                 <Button size="sm" variant="primary" onClick={onAdd}>
-                  <Plus size={15} /> Adicionar anime
+                  <Plus size={15} /> Adicionar {noun.one}
                 </Button>
               )}
             </div>
@@ -375,15 +376,19 @@ export function TierBoard({
                   <DraggableCard key={k} {...props} disabled={!editable} onOpen={openAnime} justDropped={justDropped} />
                 ) : null;
               })}
-              {shownPool.length === 0 && <p className="w-full px-3 py-3 text-center text-sm text-muted">Nenhum anime com esse nome.</p>}
+              {shownPool.length === 0 && (
+                <p className="w-full px-3 py-3 text-center text-sm text-muted">
+                  {none(noun)} {noun.one} com esse nome.
+                </p>
+              )}
             </div>
           )}
           {trayOpen && pool.length === 0 && (
             <p className="border-t border-line px-3 py-2.5 text-center text-sm text-muted">
               {Object.keys(room.anime).length === 0
-                ? 'A sala ainda não tem animes. Clica em «Adicionar anime» ou vai a Explorar.'
+                ? `A sala ainda não tem ${noun.many}. Clica em «Adicionar ${noun.one}» ou vai a Explorar.`
                 : boardId === CONSENSUS_BOARD
-                  ? 'Todos os animes já têm pelo menos um voto.'
+                  ? `${allThe(noun)} ${noun.many} já têm pelo menos um voto.`
                   : 'Tudo classificado! 🎉'}
             </p>
           )}

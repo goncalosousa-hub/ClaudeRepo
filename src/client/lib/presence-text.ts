@@ -1,4 +1,6 @@
+import { mediaTypeOf, roomKind } from '../../shared/media';
 import { CONSENSUS_BOARD, GROUP_BOARD, type AnimeMeta, type PresenceState, type RoomState } from '../../shared/types';
+import { an, kindNoun, mediaNoun } from './words';
 
 /** Human name of a board, e.g. "do Grupo", "da Ana". */
 export function boardName(board: string, room: RoomState, me: string): string {
@@ -15,14 +17,18 @@ export function describePresence(
   me: string,
   titleOf: (a: AnimeMeta) => string,
 ): string {
-  const t = (key: string) => (room.anime[key] ? titleOf(room.anime[key]) : 'um anime');
+  const t = (key: string) => {
+    if (room.anime[key]) return titleOf(room.anime[key]);
+    const noun = mediaNoun(mediaTypeOf(key));
+    return `${an(noun)} ${noun.one}`;
+  };
   if (p.dragging) return `A mover ${t(p.dragging.key)}`;
   if (p.typing === 'chat') return 'A escrever no chat…';
   if (p.typing) return `A escrever sobre ${t(p.typing)}`;
   if (p.viewing) return `A ver ${t(p.viewing)}`;
   switch (p.tab) {
     case 'explore':
-      return 'A explorar animes';
+      return `A explorar ${kindNoun(roomKind(room)).many}`;
     case 'ranking':
       return 'A ver o ranking';
     case 'members':

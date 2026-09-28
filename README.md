@@ -1,6 +1,6 @@
-# 🎌 Anime Tierlist Live
+# 🎬 Tierlist Live
 
-Uma **webapp** para fazeres tierlists de anime **com os teus colegas, em tempo real**: pesquisas qualquer anime, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade.
+Uma **webapp** para fazeres tierlists de **anime, séries e filmes** **com os teus colegas, em tempo real**: pesquisas qualquer título, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -8,14 +8,14 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 
 ## ✨ Funcionalidades
 
-**Catálogo completo de anime**
-- Pesquisa em **todo** o catálogo do [AniList](https://anilist.co) (dezenas de milhares de títulos), com scroll infinito.
-- Filtros por género, ano, temporada e formato, e atalhos para "Em alta", "Esta temporada", "Melhores de sempre" e "Mais populares".
-- Se o AniList estiver em baixo ou a limitar pedidos, a app passa sozinha para o **MyAnimeList** (através da API [Jikan](https://jikan.moe)).
-- Detalhes de cada anime: sinopse, episódios, estúdio, trailer e animes semelhantes.
+**Anime, séries e filmes**
+- Ao criar uma sala escolhes o que vão classificar: **Anime**, **Séries**, **Filmes** ou **Tudo** (os três na mesma tierlist).
+- **Anime**: pesquisa em **todo** o catálogo do [AniList](https://anilist.co), com filtros por género, ano, temporada e formato. Se o AniList estiver em baixo ou a limitar pedidos, a app passa sozinha para o **MyAnimeList** (através da API [Jikan](https://jikan.moe)).
+- **Séries e filmes**: catálogo completo do [TMDB](https://www.themoviedb.org), com títulos e sinopses em português (quando existem), filtros por género e ano, e atalhos como "Em alta", "Em exibição", "Nos cinemas", "Brevemente" e "Melhores de sempre". Precisa de uma chave grátis do TMDB ([vê como](#-séries-e-filmes-chave-do-tmdb)).
+- Scroll infinito, e detalhes de cada título: sinopse, episódios ou temporadas, duração, estúdio, canal ou realização, elenco, trailer e títulos semelhantes.
 
 **Tierlists**
-- **Grupo**: uma tierlist partilhada onde todos arrastam animes ao mesmo tempo.
+- **Grupo**: uma tierlist partilhada onde todos arrastam títulos ao mesmo tempo.
 - **A minha**: cada pessoa tem a sua tierlist pessoal, que todos podem ver em direto.
 - **Média**: gerada automaticamente a partir das tierlists pessoais de todos (o consenso da turma).
 - Arrastar e largar com o rato ou com o dedo (toque longo no telemóvel). Também podes mover pelo detalhe do anime.
@@ -99,7 +99,7 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 | Onde | Como | Custo |
 |---|---|---|
 | **Railway** | *New Project → Deploy from GitHub repo*. Adiciona um **Volume** montado em `/data` e a variável `DATA_DIR=/data`. | Período de teste; depois ~5 USD/mês |
-| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`) e cola a string em `DATABASE_URL`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
+| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
 | **Docker / VPS** | `docker build -t anime-tierlist .` e `docker run -d -p 3000:3000 -v tierlist-data:/data anime-tierlist` | Depende do servidor |
 
 > Os planos grátis sem disco persistente (como o do Render) apagam os ficheiros quando reiniciam. Nesses casos usa sempre `DATABASE_URL` (PostgreSQL). Como estudante, o [GitHub Student Developer Pack](https://education.github.com/pack) também te dá créditos em vários serviços de alojamento.
@@ -119,6 +119,22 @@ Algumas notas:
 - Os perfis criados antes, noutros links, continuam nas salas como membros offline: eram pessoas "diferentes" para a app.
 - **Esqueceste-te da palavra-passe?** Não há recuperação por email. Quem gere o servidor pode apagar a conta: o ficheiro `data/accounts/<utilizador>.json`, ou `DELETE FROM accounts WHERE username = '<utilizador>';` no PostgreSQL. Depois, num dispositivo onde ainda tenhas a sessão aberta, cria a conta outra vez com o mesmo utilizador e ficas com o mesmo perfil.
 - As palavras-passe nunca são guardadas: o servidor guarda só um *hash* (scrypt).
+
+---
+
+## 🎬 Séries e filmes (chave do TMDB)
+
+As séries e os filmes vêm do [TMDB](https://www.themoviedb.org) (The Movie Database), que é grátis mas pede uma chave. Sem ela, a app funciona na mesma, só com salas de anime.
+
+1. Cria uma conta em [themoviedb.org](https://www.themoviedb.org/signup) e confirma o email.
+2. Abre [Definições → API](https://www.themoviedb.org/settings/api) e pede uma chave de *Developer*. No formulário escolhe um uso pessoal ou educativo; no nome da aplicação põe "Tierlist Live" e no URL o teu link do Render (ou `http://localhost:3000`). A chave aparece logo.
+3. Copia a **API Key** (também serve o **API Read Access Token**, o texto comprido).
+4. **No teu PC**: no ficheiro `.env`, acrescenta `TMDB_API_KEY=a-tua-chave` e reinicia o servidor. O terminal deve mostrar `Séries e filmes: ativados (TMDB)`.
+5. **No Render**: no serviço, abre *Environment → Add Environment Variable*, põe `TMDB_API_KEY` com a chave e guarda. O Render publica outra vez sozinho.
+
+A chave fica só no servidor: os browsers pedem as séries e os filmes ao teu servidor, que fala com o TMDB e guarda as respostas em memória durante uns minutos.
+
+> Este produto usa a API do TMDB mas não é endossado nem certificado pelo TMDB.
 
 ---
 
@@ -159,6 +175,7 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `HOST` | `0.0.0.0` | Interface onde o servidor escuta |
 | `DATA_DIR` | `./data` | Pasta onde as salas e as contas são guardadas (um ficheiro JSON por sala e por conta) |
 | `DATABASE_URL` | — | Se definida, as salas e as contas são guardadas em **PostgreSQL** em vez de ficheiros (Neon, Supabase, Railway…) |
+| `TMDB_API_KEY` | — | Chave do TMDB (API Key ou API Read Access Token) para as salas de séries e filmes |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 
 ---
@@ -170,9 +187,11 @@ flowchart LR
   subgraph B["Browser de cada colega"]
     UI["React + dnd-kit"] --> RC["RoomClient<br/>(atualizações otimistas)"]
   end
-  UI -- pesquisa --> AL[("AniList GraphQL")]
+  UI -- "pesquisa de anime" --> AL[("AniList GraphQL")]
   UI -. "se o AniList falhar" .-> JK[("Jikan / MyAnimeList")]
   RC <-- "Socket.IO (WebSocket)" --> S["Servidor Node.js<br/>Express + Socket.IO"]
+  UI -- "séries e filmes" --> S
+  S -- "com a chave" --> TM[("TMDB")]
   S --> DB[("JSON em ./data<br/>ou PostgreSQL")]
 ```
 
@@ -182,14 +201,17 @@ flowchart LR
 - **Persistência.** Cada sala ativa vive em memória no servidor e é gravada cerca de 1 segundo depois de cada alteração: um ficheiro JSON por sala, ou uma linha JSONB em PostgreSQL.
 - **Identidade.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). Cada sala guarda só o *hash* do segredo, para ninguém se fazer passar por ti.
 - **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
-- **Anime.** As pesquisas vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. Quando se adiciona um anime à sala, os dados principais (título, capa, género…) ficam guardados na sala.
+- **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes passam pelo servidor, que tem a chave do TMDB e guarda as respostas em cache. Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
+- **Tipos de sala.** Cada sala tem um tipo (anime, séries, filmes ou tudo) e só aceita títulos desse tipo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries e `mv:` são filmes. As salas antigas, sem tipo, são salas de anime.
 
 ### Estrutura do projeto
 
 ```
 src/
   shared/        código usado pelo servidor e pelo browser
-    types.ts     tipos (sala, anime, avaliação, presença…)
+    types.ts     tipos (sala, título, avaliação, presença…)
+    media.ts     tipos de sala (anime, séries, filmes, tudo) e de cada título
+    catalog.ts   géneros do TMDB e respostas das rotas de séries e filmes
     ops.ts       reducer das operações (a lógica central)
     schema.ts    validação de tudo o que o servidor recebe
     stats.ts     médias, tierlist "Média", afinidade, recomendações
@@ -200,10 +222,12 @@ src/
     rooms.ts     salas em memória, gravação e autenticação
     accounts.ts  contas: palavras-passe (scrypt), perfil e "As tuas salas"
     account-routes.ts  API das contas (criar, entrar, perfil, palavra-passe)
+    tmdb.ts      séries e filmes: pedidos ao TMDB, cache e conversão para o formato da app
+    catalog-routes.ts  API das séries e filmes para os browsers
     http.ts      API REST (criar sala, info, proxy de imagens para o PNG)
     storage/     gravação em ficheiros JSON ou PostgreSQL
   client/
-    lib/         API de anime, ligação à sala, perfil, exportar PNG…
+    lib/         catálogos (anime, séries e filmes), ligação à sala, perfil, exportar PNG…
     components/  interface (tierlist, explorar, ranking, membros, chat…)
 tests/           testes unitários, de integração e E2E (Playwright)
 ```
@@ -218,7 +242,7 @@ npm run typecheck      # verificação de tipos (TypeScript)
 npm run build && npm run test:e2e   # dois browsers a usar a mesma sala (Playwright)
 ```
 
-- Os testes E2E simulam a API do AniList, por isso correm sem internet. Na primeira vez instala o browser com `npx playwright install chromium`.
+- Os testes E2E simulam a API do AniList e o TMDB (`tests/fake-tmdb.ts`), por isso correm sem internet e sem chave. Na primeira vez instala o browser com `npx playwright install chromium`.
 - Para testar também a gravação em PostgreSQL: `TEST_DATABASE_URL=postgres://utilizador:senha@localhost:5432/base npm test`.
 
 ---

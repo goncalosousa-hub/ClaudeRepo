@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { applyOp, createRoomState, OpError, tierOf } from '../src/shared/ops';
 import { GROUP_BOARD, POOL, type Op, type OpMeta, type RoomState } from '../src/shared/types';
-import { anime } from './fixtures';
+import { anime, title } from './fixtures';
 
 let seq = 0;
 const meta = (by = 'ana', at = 1_000): OpMeta => ({ by, at, seq: ++seq });
@@ -59,6 +59,37 @@ describe('anime.add / anime.remove', () => {
     // Re-adding brings the opinion back.
     apply(s, { type: 'anime.add', anime: anime(1) });
     expect(s.reviews['al:1'].rui.rating).toBe(9);
+  });
+});
+
+describe('room kinds', () => {
+  const kinds = (kind?: RoomState['kind']) => {
+    const s = createRoomState('room02', 'Sala', 0, null, kind ?? 'anime');
+    if (!kind) delete s.kind; // rooms created before series and movies existed
+    return s;
+  };
+  const add = (s: RoomState, a: ReturnType<typeof anime>) => () => apply(s, { type: 'anime.add', anime: a });
+
+  it('only takes the titles the room is about', () => {
+    const old = kinds();
+    expect(add(old, anime(1))).not.toThrow();
+    expect(add(old, title('tv', 1396, 'Breaking Bad'))).toThrow(new OpError('media_not_allowed'));
+
+    const series = kinds('series');
+    expect(add(series, title('tv', 1396, 'Breaking Bad'))).not.toThrow();
+    expect(add(series, title('movie', 238, 'O Padrinho'))).toThrow(new OpError('media_not_allowed'));
+    expect(add(series, anime(1))).toThrow(new OpError('media_not_allowed'));
+
+    const movies = kinds('movies');
+    expect(add(movies, title('movie', 238, 'O Padrinho'))).not.toThrow();
+    expect(add(movies, title('tv', 1396))).toThrow(new OpError('media_not_allowed'));
+
+    const all = kinds('all');
+    for (const a of [anime(1), title('tv', 1396), title('movie', 238)]) expect(add(all, a)).not.toThrow();
+    expect(Object.keys(all.anime).sort()).toEqual(['al:1', 'mv:238', 'tv:1396']);
+    // A series and a movie can share the same TMDB id: they are different titles.
+    expect(add(all, title('movie', 1396))).not.toThrow();
+    expect(Object.keys(all.anime)).toContain('mv:1396');
   });
 });
 

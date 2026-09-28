@@ -169,7 +169,10 @@ export async function exportTierlistImage(opts: {
 
   ctx.fillStyle = '#6e6e89';
   ctx.font = `500 12px ${FONT}`;
-  ctx.fillText('Anime Tierlist Live · dados: AniList', PAD, H - 16);
+  const fromTmdb = allKeys.some((k) => anime[k].source === 'tmdb');
+  const fromAniList = allKeys.some((k) => anime[k].source !== 'tmdb');
+  const credits = [fromAniList ? 'AniList' : null, fromTmdb ? 'TMDB' : null].filter(Boolean).join(' e ');
+  ctx.fillText(credits ? `Tierlist Live · dados: ${credits}` : 'Tierlist Live', PAD, H - 16);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('could not encode PNG');

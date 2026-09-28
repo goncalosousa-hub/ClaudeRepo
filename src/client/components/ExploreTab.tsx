@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Plus, Search, X } from 'lucide-react';
-import type { AnimeMeta } from '../../shared/types';
+import { mediaOfKind, mediaTypeOf } from '../../shared/media';
+import type { AnimeMeta, MediaType } from '../../shared/types';
 import {
   FORMATS,
   GENRES,
@@ -13,15 +14,21 @@ import {
   type Season,
   type SortKey,
 } from '../lib/anime-api';
+import { TMDB_PRESETS, TMDB_SORTS, catalogName, tmdbGenres } from '../lib/catalog';
 import { formatNumber, formatRating, ratingColor } from '../lib/format';
+import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
 import { useBrowse, useDebounced, useInView } from '../hooks/useBrowse';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
-import { Button, Select, Spinner, cn, inputClass } from './ui';
+import { Button, Segmented, Select, Spinner, cn, inputClass } from './ui';
 
 const YEARS = Array.from({ length: new Date().getFullYear() + 2 - 1960 }, (_, i) => new Date().getFullYear() + 1 - i);
+const MOVIE_YEARS = Array.from({ length: new Date().getFullYear() + 2 - 1920 }, (_, i) => new Date().getFullYear() + 1 - i);
 
 export function ExploreTab() {
+  const { kind } = useRoom();
+  const catalogs = mediaOfKind(kind);
+  const [media, setMedia] = useState<MediaType>(catalogs[0]);
   const [text, setText] = useState('');
   const [sort, setSort] = useState<SortKey | ''>('');
   const [genre, setGenre] = useState('');
@@ -29,35 +36,21 @@ export function ExploreTab() {
   const [season, setSeason] = useState('');
   const [format, setFormat] = useState('');
   const search = useDebounced(text.trim(), 400);
+  const isAnime = media === 'anime';
+  const noun = mediaNoun(media);
 
   const params: BrowseParams = {
     search: search || undefined,
     sort: (sort || (search ? 'relevance' : 'popularity')) as SortKey,
     genre: genre || undefined,
     year: year ? Number(year) : undefined,
-    season: year && season ? (season as Season) : undefined,
-    format: format || undefined,
+    season: isAnime && year && season ? (season as Season) : undefined,
+    format: isAnime ? format || undefined : undefined,
   };
-  const { items, loading, error, hasMore, total, source, loadMore, retry } = useBrowse(params);
+  const { items, loading, error, hasMore, total, source, loadMore, retry } = useBrowse(media, params);
   const sentinel = useInView(loadMore, hasMore && !loading && !error);
 
-  const now = currentSeason();
-  const presets: { label: string; apply: () => void; active: boolean }[] = [
-    {
-      label: '🔥 Em alta',
-      active: !search && sort === 'trending' && !year && !genre,
-      apply: () => reset({ sort: 'trending' }),
-    },
-    {
-      label: '📅 Esta temporada',
-      active: !search && year === String(now.year) && season === now.season,
-      apply: () => reset({ sort: 'popularity', year: String(now.year), season: now.season }),
-    },
-    { label: '🏆 Melhores de sempre', active: !search && sort === 'score' && !year && !genre, apply: () => reset({ sort: 'score' }) },
-    { label: '👑 Mais populares', active: !search && (sort === 'popularity' || sort === '') && !year && !genre && !format, apply: () => reset({}) },
-  ];
-
-  function reset(p: { sort?: SortKey; year?: string; season?: string }) {
+  function reset(p: { sort?: SortKey; year?: string; season?: string } = {}) {
     setText('');
     setGenre('');
     setFormat('');
@@ -66,19 +59,48 @@ export function ExploreTab() {
     setSeason(p.season ?? '');
   }
 
+  const now = currentSeason();
+  const noFilters = !search && !year && !genre && !format;
+  const presets: { label: string; apply: () => void; active: boolean }[] = isAnime
+    ? [
+        { label: '🔥 Em alta', active: noFilters && sort === 'trending', apply: () => reset({ sort: 'trending' }) },
+        {
+          label: '📅 Esta temporada',
+          active: !search && year === String(now.year) && season === now.season,
+          apply: () => reset({ sort: 'popularity', year: String(now.year), season: now.season }),
+        },
+        { label: '🏆 Melhores de sempre', active: noFilters && sort === 'score', apply: () => reset({ sort: 'score' }) },
+        { label: '👑 Mais populares', active: noFilters && (sort === 'popularity' || sort === ''), apply: () => reset() },
+      ]
+    : TMDB_PRESETS[media].map((p) => ({
+        label: p.label,
+        active: noFilters && (sort || 'popularity') === p.sort,
+        apply: () => reset({ sort: p.sort === 'popularity' ? undefined : p.sort }),
+      }));
+
   const filtersActive = !!(genre || year || format || sort);
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
+        {catalogs.length > 1 && (
+          <Segmented
+            value={media}
+            onChange={(m) => {
+              setMedia(m);
+              reset();
+            }}
+            options={catalogs.map((m) => ({ value: m, label: `${MEDIA_TABS[m].emoji} ${MEDIA_TABS[m].label}` }))}
+          />
+        )}
         <label className="relative block">
           <Search size={18} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-faint" />
           <input
             className={`${inputClass} h-12 pl-11 text-base`}
-            placeholder="Pesquisar em todos os animes…"
+            placeholder={`Pesquisar em ${noun.f ? 'todas as' : 'todos os'} ${noun.many}…`}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            aria-label="Pesquisar animes"
+            aria-label={`Pesquisar ${noun.many}`}
           />
           {text && (
             <button
@@ -107,9 +129,9 @@ export function ExploreTab() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select label="Ordenar" value={sort} onChange={(v) => setSort(v as SortKey | '')}>
+          <Select label="Ordenar" value={isAnime || ['', 'score', 'newest'].includes(sort) ? sort : ''} onChange={(v) => setSort(v as SortKey | '')}>
             <option value="">{search ? 'Relevância' : 'Mais populares'}</option>
-            {SORTS.filter((s) => s.id !== 'popularity' || search).map((s) => (
+            {(isAnime ? SORTS.filter((s) => s.id !== 'popularity' || search) : TMDB_SORTS).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
               </option>
@@ -117,21 +139,27 @@ export function ExploreTab() {
           </Select>
           <Select label="Género" value={genre} onChange={setGenre}>
             <option value="">Todos os géneros</option>
-            {GENRES.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.label}
-              </option>
-            ))}
+            {isAnime
+              ? GENRES.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.label}
+                  </option>
+                ))
+              : tmdbGenres(media).map((g) => (
+                  <option key={g.id} value={String(g.id)}>
+                    {g.label}
+                  </option>
+                ))}
           </Select>
           <Select label="Ano" value={year} onChange={setYear}>
             <option value="">Qualquer ano</option>
-            {YEARS.map((y) => (
+            {(media === 'movie' ? MOVIE_YEARS : YEARS).map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
             ))}
           </Select>
-          {year && (
+          {isAnime && year && (
             <Select label="Temporada" value={season} onChange={setSeason}>
               <option value="">Ano inteiro</option>
               {SEASONS.map((s) => (
@@ -141,23 +169,29 @@ export function ExploreTab() {
               ))}
             </Select>
           )}
-          <Select label="Formato" value={format} onChange={setFormat}>
-            <option value="">Todos os formatos</option>
-            {FORMATS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </Select>
+          {isAnime && (
+            <Select label="Formato" value={format} onChange={setFormat}>
+              <option value="">Todos os formatos</option>
+              {FORMATS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </Select>
+          )}
           {filtersActive && (
-            <Button size="sm" variant="ghost" onClick={() => reset({})}>
+            <Button size="sm" variant="ghost" onClick={() => reset()}>
               <X size={14} /> Limpar filtros
             </Button>
           )}
         </div>
         <p className="text-xs text-faint">
-          {total != null && items.length > 0 && <>≈ {formatNumber(total)} animes · </>}
-          Fonte: {source === 'jikan' ? 'MyAnimeList (o AniList não está a responder)' : 'AniList'}
+          {total != null && items.length > 0 && (
+            <>
+              ≈ {formatNumber(total)} {noun.many} ·{' '}
+            </>
+          )}
+          Fonte: {source === 'jikan' ? 'MyAnimeList (o AniList não está a responder)' : catalogName(media)}
         </p>
       </div>
 
@@ -176,7 +210,9 @@ export function ExploreTab() {
         </div>
       )}
       {!loading && !error && items.length === 0 && (
-        <p className="py-10 text-center text-sm text-muted">Nenhum anime encontrado com estes filtros.</p>
+        <p className="py-10 text-center text-sm text-muted">
+          {none(noun)} {noun.one} {agree('encontrad', noun)} com estes filtros.
+        </p>
       )}
       {loading && (
         <div className="flex justify-center py-6 text-muted">
@@ -193,6 +229,11 @@ export function ExploreTab() {
       <div ref={sentinel} />
     </div>
   );
+}
+
+/** "2019 · Série TV · 12 ep." */
+export function metaLine(a: AnimeMeta) {
+  return [a.year, formatLabel(a.format), a.episodes ? `${a.episodes} ep.` : null].filter(Boolean).join(' · ');
 }
 
 function ExploreCard({ anime }: { anime: AnimeMeta }) {
@@ -227,9 +268,7 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
         </div>
         <div className="p-2.5">
           <p className="line-clamp-2 text-sm leading-snug font-semibold">{title}</p>
-          <p className="mt-1 truncate text-xs text-faint">
-            {[anime.year, formatLabel(anime.format), anime.episodes ? `${anime.episodes} ep.` : null].filter(Boolean).join(' · ')}
-          </p>
+          <p className="mt-1 truncate text-xs text-faint">{metaLine(anime)}</p>
           <p className="mt-1 truncate text-[11px] text-muted">{anime.genres.slice(0, 3).map(genreLabel).join(' · ')}</p>
         </div>
       </button>
@@ -244,7 +283,9 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
             variant="subtle"
             className="w-full"
             onClick={() => {
-              if (dispatch({ type: 'anime.add', anime })) toast(`«${title}» adicionado à sala.`, 'success');
+              if (dispatch({ type: 'anime.add', anime })) {
+                toast(`«${title}» ${agree('adicionad', mediaNoun(mediaTypeOf(anime.key)))} à sala.`, 'success');
+              }
             }}
           >
             <Plus size={14} /> Adicionar à sala

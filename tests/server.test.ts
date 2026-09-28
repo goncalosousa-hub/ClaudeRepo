@@ -17,7 +17,8 @@ import {
   type RoomState,
   type SyncAck,
 } from '../src/shared/types';
-import { anime } from './fixtures';
+import { FAKE_TMDB_KEY, startFakeTmdb } from './fake-tmdb';
+import { anime, title } from './fixtures';
 
 type App = Awaited<ReturnType<typeof createApp>> & { url: string };
 const cleanups: (() => Promise<void>)[] = [];
@@ -32,13 +33,14 @@ async function tmpDir() {
   return dir;
 }
 
-async function start(dataDir: string, databaseUrl?: string): Promise<App> {
+async function start(dataDir: string, databaseUrl?: string, extra: Partial<Parameters<typeof createApp>[0]> = {}): Promise<App> {
   const app = await createApp({
     dev: false,
     dataDir,
     databaseUrl,
     clientDir: dataDir,
     rooms: { saveDelayMs: 5, maxSaveDelayMs: 20 },
+    ...extra,
   });
   await new Promise<void>((resolve) => app.httpServer.listen(0, '127.0.0.1', resolve));
   const { port } = app.httpServer.address() as AddressInfo;
@@ -85,11 +87,11 @@ const user = (id: string, name = id) => ({
   avatar: '🦊',
 });
 
-async function createRoom(app: App, name = 'Turma') {
+async function createRoom(app: App, name = 'Turma', kind?: string) {
   const res = await fetch(`${app.url}/api/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, kind }),
   });
   expect(res.status).toBe(201);
   return ((await res.json()) as { id: string }).id;
@@ -499,5 +501,73 @@ describe('accounts', () => {
     const again = (await login(pg2, `p${suffix}`)).body;
     expect(again.user).toEqual(ana.user);
     expect(again.rooms.map((r) => [r.id, r.name])).toEqual([[roomId, 'Sala PG']]);
+  });
+});
+
+describe('series and movies', () => {
+  it('creates rooms for anime, series, movies or all of them', async () => {
+    const app = await start(await tmpDir());
+    const info = async (id: string) => (await (await fetch(`${app.url}/api/rooms/${id}`)).json()) as { kind: string };
+    expect((await info(await createRoom(app, 'Anime'))).kind).toBe('anime');
+    for (const kind of ['series', 'movies', 'all']) expect((await info(await createRoom(app, kind, kind))).kind).toBe(kind);
+    const bad = await fetch(`${app.url}/api/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Livros', kind: 'books' }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it('a series room only takes series', async () => {
+    const app = await start(await tmpDir());
+    const roomId = await createRoom(app, 'Séries da turma', 'series');
+    const a = await join(app, roomId);
+    expect(a.ack.state.kind).toBe('series');
+    expect(await op(a.s, { type: 'anime.add', anime: title('tv', 1396, 'Breaking Bad') })).toMatchObject({ ok: true });
+    expect(await op(a.s, { type: 'anime.add', anime: title('movie', 238, 'O Padrinho') })).toEqual({ ok: false, error: 'media_not_allowed' });
+    expect(await op(a.s, { type: 'anime.add', anime: anime(1) })).toEqual({ ok: false, error: 'media_not_allowed' });
+    // A title with a key that does not match its source is refused before reaching the room.
+    expect(await op(a.s, { type: 'anime.add', anime: { ...title('tv', 5), key: 'al:5' } })).toMatchObject({ ok: false });
+    expect(await op(a.s, { type: 'board.move', board: GROUP_BOARD, key: 'tv:1396', to: 's', index: 0 })).toMatchObject({ ok: true });
+  });
+
+  it('serves the TMDB catalogue without giving the key to the browsers', async () => {
+    const tmdb = await startFakeTmdb();
+    cleanups.push(tmdb.close);
+    const app = await start(await tmpDir(), undefined, { tmdb: { key: FAKE_TMDB_KEY, baseUrl: tmdb.url } });
+    const get = async (path: string) => {
+      const res = await fetch(`${app.url}${path}`);
+      return { status: res.status, body: (await res.json()) as Record<string, any> };
+    };
+    expect((await get('/api/catalogs')).body).toEqual({ anime: true, tmdb: true });
+
+    const trending = await get('/api/tmdb/tv?sort=trending');
+    expect(trending.status).toBe(200);
+    expect(trending.body.items.length).toBeGreaterThan(3);
+    expect(JSON.stringify(trending.body)).not.toContain(FAKE_TMDB_KEY);
+    expect((await get('/api/tmdb/movie?search=origem')).body.items.map((i: { title: string }) => i.title)).toEqual(['A Origem']);
+    expect((await get('/api/tmdb/movie?genre=16&page=1')).body.items.map((i: { key: string }) => i.key)).toEqual(['mv:12']);
+
+    const details = await get('/api/tmdb/tv/1396');
+    expect(details.body).toMatchObject({ seasons: 5, meta: { key: 'tv:1396', studio: 'AMC' } });
+    expect((await get('/api/tmdb/movie/424242')).status).toBe(404);
+    for (const bad of ['/api/tmdb/books', '/api/tmdb/tv?sort=random', '/api/tmdb/tv?page=0', '/api/tmdb/tv/abc']) {
+      expect((await get(bad)).status).toBe(400);
+    }
+  });
+
+  it('says clearly when the server has no (valid) TMDB key', async () => {
+    const tmdb = await startFakeTmdb();
+    cleanups.push(tmdb.close);
+    const none = await start(await tmpDir());
+    expect(await (await fetch(`${none.url}/api/catalogs`)).json()).toEqual({ anime: true, tmdb: false });
+    const res = await fetch(`${none.url}/api/tmdb/tv`);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'tmdb_not_configured' });
+
+    const wrong = await start(await tmpDir(), undefined, { tmdb: { key: 'not-the-key', baseUrl: tmdb.url } });
+    const res2 = await fetch(`${wrong.url}/api/tmdb/movie?sort=trending`);
+    expect(res2.status).toBe(503);
+    expect(await res2.json()).toEqual({ error: 'tmdb_key_invalid' });
   });
 });

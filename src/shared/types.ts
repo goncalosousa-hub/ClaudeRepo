@@ -13,17 +13,26 @@ export interface Tier {
   color: string;
 }
 
+/** Catalogue a title comes from: anime (AniList / MyAnimeList), or a TV series / movie (TMDB). */
+export type MediaType = 'anime' | 'tv' | 'movie';
+
+/** What a room is about. Rooms created before series and movies existed are anime rooms. */
+export type RoomKind = 'anime' | 'series' | 'movies' | 'all';
+
 export type Recommend = 'yes' | 'maybe' | 'no';
 export type WatchStatus = 'watched' | 'watching' | 'plan' | 'dropped';
 
-/** Normalised anime data (from AniList, or MyAnimeList via Jikan as a fallback). */
+/**
+ * Normalised data of a title: an anime (from AniList, or MyAnimeList via Jikan as a fallback) or a
+ * TV series / movie (from TMDB). Named after the first catalogue the app supported.
+ */
 export interface AnimeMeta {
-  /** "al:<anilist id>" or "mal:<myanimelist id>" */
+  /** "al:<anilist id>", "mal:<myanimelist id>", "tv:<tmdb id>" or "mv:<tmdb id>" */
   key: string;
-  source: 'anilist' | 'jikan';
+  source: 'anilist' | 'jikan' | 'tmdb';
   sourceId: number;
   idMal: number | null;
-  /** Romaji / default title */
+  /** Romaji (anime) or Portuguese (series / movies) title */
   title: string;
   titleEnglish: string | null;
   titleNative: string | null;
@@ -34,10 +43,12 @@ export interface AnimeMeta {
   status: string | null;
   episodes: number | null;
   year: number | null;
+  /** Anime season (WINTER…); null for series and movies */
   season: string | null;
   genres: string[];
   /** Community score 0-100 */
   score: number | null;
+  /** Anime studio, TV network or movie director */
   studio: string | null;
   synopsis: string;
   url: string | null;
@@ -105,9 +116,12 @@ export interface Activity {
 export interface RoomState {
   id: string;
   name: string;
+  /** Missing in rooms created before series and movies existed: those are anime rooms. */
+  kind?: RoomKind;
   createdAt: number;
   createdBy: string | null;
   tiers: Tier[];
+  /** Every title in the room (anime, series or movies), by key */
   anime: Record<string, RoomAnime>;
   /** "group" or a member id -> board */
   boards: Record<string, Board>;

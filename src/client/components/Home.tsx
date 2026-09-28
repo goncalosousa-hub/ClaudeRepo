@@ -1,20 +1,24 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, History, KeyRound, LogIn, MessagesSquare, Plus, Radio, Search, Sparkles, Trash2, Users } from 'lucide-react';
 import { LIMITS } from '../../shared/constants';
-import type { AnimeMeta } from '../../shared/types';
+import type { AnimeMeta, RoomKind } from '../../shared/types';
 import { browseAnime } from '../lib/anime-api';
+import { browseTmdb, tmdbAvailable } from '../lib/tmdb-api';
 import { timeAgo } from '../lib/format';
 import { AccountError, fetchAccount, forgetAccountRoom, hasAccount, type AccountRoom } from '../lib/account-api';
 import { saveUser, type LocalUser } from '../lib/identity';
 import { forgetRoom, recentRooms, type RecentRoom } from '../lib/recent-rooms';
 import { navigate, parseRoomInput } from '../lib/router';
-import { Avatar, Button, Spinner, inputClass } from './ui';
+import { KINDS } from '../lib/words';
+import { Avatar, Button, Segmented, Spinner, inputClass } from './ui';
 import { ProfileDialog, type ProfileDialogMode } from './ProfileDialog';
 import { Logo } from './Logo';
 import { useToast } from './Toasts';
 
 export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: LocalUser) => void }) {
   const [roomName, setRoomName] = useState('');
+  const [kind, setKind] = useState<RoomKind>('anime');
+  const [tmdb, setTmdb] = useState<boolean | null>(null);
   const [code, setCode] = useState('');
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<{ mode: ProfileDialogMode; focusAccount?: boolean } | null>(null);
@@ -59,11 +63,25 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
   const visibleRooms = showAllRooms ? rooms : rooms.slice(0, 9);
 
   useEffect(() => {
-    document.title = 'Anime Tierlist Live';
+    document.title = 'Tierlist Live';
     let alive = true;
-    browseAnime({ sort: 'trending' })
-      .then((r) => alive && setCovers(r.items.slice(0, 24)))
-      .catch(() => {});
+    const trending = (p: Promise<{ items: AnimeMeta[] }>) => p.then((r) => r.items).catch(() => [] as AnimeMeta[]);
+    void (async () => {
+      const [anime, available] = await Promise.all([trending(browseAnime({ sort: 'trending' })), tmdbAvailable()]);
+      if (!alive) return;
+      setTmdb(available);
+      setCovers(anime.slice(0, 24));
+      if (!available) return;
+      // Series and movies in the background too, mixed with the anime.
+      const [tv, movies] = await Promise.all([
+        trending(browseTmdb('tv', { sort: 'trending' })),
+        trending(browseTmdb('movie', { sort: 'trending' })),
+      ]);
+      if (!alive || (!tv.length && !movies.length)) return;
+      const mixed: AnimeMeta[] = [];
+      for (let i = 0; mixed.length < 24 && i < 24; i++) for (const list of [anime, tv, movies]) if (list[i]) mixed.push(list[i]);
+      setCovers(mixed.slice(0, 24));
+    })();
     return () => {
       alive = false;
     };
@@ -92,7 +110,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         const res = await fetch('/api/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, kind }),
         });
         if (res.status === 429) throw new Error('Criaste muitas salas seguidas. Espera uns minutos.');
         if (!res.ok) throw new Error('Não foi possível criar a sala.');
@@ -146,11 +164,11 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             <Radio size={13} className="animate-pulse" /> Em tempo real com os teus colegas
           </p>
           <h1 className="text-4xl leading-[1.08] font-extrabold tracking-tight sm:text-6xl">
-            A tierlist de anime <span className="text-gradient">da tua turma</span>
+            A tierlist <span className="text-gradient">da tua turma</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
-            Pesquisa qualquer anime, arrasta-o para o tier certo e dá a tua nota, opinião e recomendação. Todos veem
-            tudo a acontecer ao vivo.
+            Anime, séries ou filmes: pesquisa qualquer título, arrasta-o para o tier certo e dá a tua nota, opinião e
+            recomendação. Todos veem tudo a acontecer ao vivo.
           </p>
         </div>
 
@@ -162,7 +180,13 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
               </span>
               <h2 className="font-semibold">Criar uma sala</h2>
             </div>
-            <p className="mb-3 text-sm text-muted">Cria a sala e partilha o link com quem quiseres.</p>
+            <p className="mb-3 text-sm text-muted">Escolhe o que vão classificar e partilha o link com quem quiseres.</p>
+            <Segmented
+              className="mb-3 max-w-full overflow-x-auto"
+              value={kind}
+              onChange={setKind}
+              options={KINDS.map((k) => ({ value: k.id, label: `${k.emoji} ${k.label}` }))}
+            />
             <div className="flex gap-2">
               <input
                 className={inputClass}
@@ -171,11 +195,20 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
               />
-              <Button type="submit" variant="primary" disabled={creating}>
+              <Button type="submit" variant="primary" disabled={creating || (kind !== 'anime' && tmdb === false)}>
                 {creating ? <Spinner size={16} /> : <ArrowRight size={18} />}
                 Criar
               </Button>
             </div>
+            {kind !== 'anime' && tmdb === false && (
+              <p className="mt-2 text-xs text-amber-200">
+                As séries e os filmes ainda não estão ativos neste servidor: falta a chave do TMDB (TMDB_API_KEY). O
+                README explica como a obter, de graça.
+              </p>
+            )}
+            {kind === 'all' && tmdb !== false && (
+              <p className="mt-2 text-xs text-faint">Anime, séries e filmes na mesma tierlist.</p>
+            )}
           </form>
 
           <form onSubmit={joinRoom} className="rounded-2xl border border-line bg-surface/85 p-5 backdrop-blur">
@@ -254,7 +287,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
 
         <section className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: <Search size={18} />, title: 'Todos os animes', text: 'Pesquisa no catálogo completo do AniList: dezenas de milhares de títulos.' },
+            { icon: <Search size={18} />, title: 'Anime, séries e filmes', text: 'Catálogos completos do AniList e do TMDB: centenas de milhares de títulos.' },
             { icon: <Users size={18} />, title: 'Tierlist do grupo e tua', text: 'Uma tierlist partilhada, uma pessoal para cada um e a média de todos.' },
             { icon: <Sparkles size={18} />, title: 'Notas e recomendações', text: 'Dá nota de 1 a 10, escreve a tua opinião e diz se recomendas.' },
             { icon: <MessagesSquare size={18} />, title: 'Ao vivo', text: 'Vê os cursores, quem está a mover o quê, o chat e a atividade em direto.' },
@@ -270,6 +303,11 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         <footer className="mt-12 text-xs text-faint">
           Dados de anime: <a className="underline hover:text-muted" href="https://anilist.co" target="_blank" rel="noreferrer">AniList</a>{' '}
           (com <a className="underline hover:text-muted" href="https://jikan.moe" target="_blank" rel="noreferrer">Jikan/MyAnimeList</a> como alternativa).
+          Séries e filmes:{' '}
+          <a className="underline hover:text-muted" href="https://www.themoviedb.org" target="_blank" rel="noreferrer">
+            TMDB
+          </a>
+          . Este produto usa a API do TMDB mas não é endossado nem certificado pelo TMDB.
         </footer>
       </main>
 

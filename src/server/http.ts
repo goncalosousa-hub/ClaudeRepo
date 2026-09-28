@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { isAllowedImageUrl } from '../shared/constants';
 import { createRoomSchema, ROOM_ID_RE } from '../shared/schema';
+import { roomKind } from '../shared/media';
 import { lanAddresses } from './network';
 import type { RoomManager } from './rooms';
 
@@ -81,7 +82,7 @@ export function apiRouter(rooms: RoomManager) {
       res.status(400).json({ error: 'invalid_name' });
       return;
     }
-    const id = await rooms.create(parsed.data.name);
+    const id = await rooms.create(parsed.data.name, parsed.data.kind);
     res.status(201).json({ id });
   });
 
@@ -96,13 +97,14 @@ export function apiRouter(rooms: RoomManager) {
     res.json({
       id,
       name: state.name,
+      kind: roomKind(state),
       members: Object.keys(state.members).length,
       anime: Object.keys(state.anime).length,
       online: rooms.onlineCount(room),
     });
   });
 
-  // Same-origin copy of AniList / MyAnimeList images so they can be drawn on a <canvas>.
+  // Same-origin copy of AniList / MyAnimeList / TMDB images so they can be drawn on a <canvas>.
   router.get('/img', rateLimit(600, 60_000), async (req, res) => {
     const url = typeof req.query.url === 'string' ? req.query.url : '';
     if (!isAllowedImageUrl(url)) {

@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { Activity as ActivityIcon, MessagesSquare, SendHorizontal } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { LIMITS } from '../../shared/constants';
+import { mediaTypeOf } from '../../shared/media';
 import { GROUP_BOARD, POOL, type Activity } from '../../shared/types';
 import { RECOMMEND, WATCH_STATUS, clockTime, timeAgo } from '../lib/format';
+import { an, mediaNoun } from '../lib/words';
 import { useRoom } from './RoomContext';
 import { Avatar, cn } from './ui';
 
@@ -210,13 +212,14 @@ function ActivityItem({ a }: { a: Activity }) {
   const m = room.members[a.by];
   if (!m) return null;
   const anime = a.key ? room.anime[a.key] : undefined;
+  const noun = mediaNoun(mediaTypeOf(a.key ?? ''));
   const animeName = (fallback?: string): ReactNode =>
     anime ? (
       <button className="font-semibold text-fg hover:underline" onClick={() => openAnime(anime.key)}>
         {titleOf(anime)}
       </button>
     ) : (
-      <span className="font-semibold text-fg">{fallback ?? 'um anime'}</span>
+      <span className="font-semibold text-fg">{fallback ?? `${an(noun)} ${noun.one}`}</span>
     );
   const where = a.board === GROUP_BOARD ? 'no Grupo' : 'na tierlist pessoal';
 

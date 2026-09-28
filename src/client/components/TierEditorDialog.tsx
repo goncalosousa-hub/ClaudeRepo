@@ -8,7 +8,7 @@ import { useRoom } from './RoomContext';
 import { Button, Modal, ModalHeader, Select, cn } from './ui';
 
 export function TierEditorDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { room, dispatch } = useRoom();
+  const { room, dispatch, noun } = useRoom();
   const [tiers, setTiers] = useState<Tier[]>(room.tiers);
   const [picking, setPicking] = useState<string | null>(null);
 
@@ -37,7 +37,9 @@ export function TierEditorDialog({ open, onClose }: { open: boolean; onClose: ()
     const removed = room.tiers.filter((t) => !tiers.some((x) => x.id === t.id) && used(t.id));
     if (
       removed.length &&
-      !confirm(`Os animes em ${removed.map((t) => t.label).join(', ')} voltam para «Por classificar» em todas as tierlists. Continuar?`)
+      !confirm(
+        `${noun.f ? 'As' : 'Os'} ${noun.many} em ${removed.map((t) => t.label).join(', ')} voltam para «Por classificar» em todas as tierlists. Continuar?`,
+      )
     )
       return;
     if (dispatch({ type: 'tiers.set', tiers: tiers.map((t) => ({ ...t, label: t.label.trim() })) })) onClose();

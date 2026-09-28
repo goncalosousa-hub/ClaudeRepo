@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
 import { applyOp, createRoomState } from '../shared/ops';
-import type { Op, OpEnvelope, PresencePatch, PresenceState } from '../shared/types';
+import type { Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
 import type { RoomDoc, Storage } from './storage';
 
 // No 0/o, 1/l/i: codes are easy to read aloud or type from a phone.
@@ -51,11 +51,11 @@ export class RoomManager {
     this.evictTimer.unref();
   }
 
-  async create(name: string): Promise<string> {
+  async create(name: string, kind: RoomKind = 'anime'): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt++) {
       const id = newRoomId();
       if (this.live.has(id) || (await this.storage.load(id))) continue;
-      const doc: RoomDoc = { v: 1, seq: 0, state: createRoomState(id, name, Date.now()), secrets: {}, lastSeen: {} };
+      const doc: RoomDoc = { v: 1, seq: 0, state: createRoomState(id, name, Date.now(), null, kind), secrets: {}, lastSeen: {} };
       await this.storage.save(id, doc);
       return id;
     }

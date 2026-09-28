@@ -8,7 +8,7 @@ import { useRoom } from './RoomContext';
 import { Avatar, Button } from './ui';
 
 export function MembersTab() {
-  const { room, me, snap, titleOf, setTab, setBoard, openAnime } = useRoom();
+  const { room, me, snap, titleOf, setTab, setBoard, openAnime, noun } = useRoom();
 
   const members = useMemo(
     () =>
@@ -92,7 +92,9 @@ export function MembersTab() {
                   />
                 </div>
                 {aff.score == null && (
-                  <p className="mt-1 text-[11px] text-faint">Avaliem pelo menos 2 animes em comum para ver a afinidade.</p>
+                  <p className="mt-1 text-[11px] text-faint">
+                    Avaliem pelo menos 2 {noun.many} em comum para ver a afinidade.
+                  </p>
                 )}
               </div>
             )}
