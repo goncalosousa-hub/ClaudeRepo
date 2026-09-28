@@ -1,7 +1,9 @@
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { USERNAME_RE } from '../../shared/constants';
+import { communitySummary } from '../../shared/media';
 import { ROOM_ID_RE } from '../../shared/schema';
+import type { CommunityRoom } from '../../shared/types';
 import type { AccountDoc, RoomDoc, Storage } from './types';
 
 async function readJson<T>(file: string): Promise<T | null> {
@@ -76,6 +78,18 @@ export class FileStorage implements Storage {
 
   async save(id: string, doc: RoomDoc) {
     return writeJson(this.file(id), doc);
+  }
+
+  async listedRooms(): Promise<Omit<CommunityRoom, 'online'>[]> {
+    const out: Omit<CommunityRoom, 'online'>[] = [];
+    for (const id of await this.list()) {
+      const doc = await this.load(id).catch(() => null);
+      if (!doc?.state.listed) continue;
+      const saved = await stat(this.file(id)).then((s) => s.mtimeMs, () => 0);
+      const summary = communitySummary(doc.state);
+      out.push({ ...summary, updatedAt: Math.max(summary.updatedAt, Math.round(saved)) });
+    }
+    return out;
   }
 
   async loadAccount(username: string) {

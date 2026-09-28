@@ -1,15 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, History, KeyRound, LogIn, MessagesSquare, Plus, Radio, Search, Sparkles, Trash2, Users } from 'lucide-react';
+import { ArrowRight, Globe, History, KeyRound, LogIn, MessagesSquare, Plus, Radio, Search, Sparkles, Trash2 } from 'lucide-react';
+import { APP_NAME, COMMUNITY, COMPANY } from '../../shared/brand';
 import { LIMITS } from '../../shared/constants';
-import type { AnimeMeta, RoomKind } from '../../shared/types';
+import type { AnimeMeta, CommunityRoom, RoomKind } from '../../shared/types';
 import { browseAnime } from '../lib/anime-api';
 import { browseTmdb, tmdbAvailable } from '../lib/tmdb-api';
-import { timeAgo } from '../lib/format';
+import { plural, timeAgo } from '../lib/format';
 import { AccountError, fetchAccount, forgetAccountRoom, hasAccount, type AccountRoom } from '../lib/account-api';
 import { saveUser, type LocalUser } from '../lib/identity';
 import { forgetRoom, recentRooms, type RecentRoom } from '../lib/recent-rooms';
 import { navigate, parseRoomInput } from '../lib/router';
-import { KINDS } from '../lib/words';
+import { KINDS, kindInfo } from '../lib/words';
 import { Avatar, Button, Segmented, Spinner, inputClass } from './ui';
 import { ProfileDialog, type ProfileDialogMode } from './ProfileDialog';
 import { Logo } from './Logo';
@@ -18,6 +19,9 @@ import { useToast } from './Toasts';
 export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: LocalUser) => void }) {
   const [roomName, setRoomName] = useState('');
   const [kind, setKind] = useState<RoomKind>('anime');
+  const [listed, setListed] = useState(true);
+  const [community, setCommunity] = useState<CommunityRoom[] | null>(null);
+  const [showAllCommunity, setShowAllCommunity] = useState(false);
   const [tmdb, setTmdb] = useState<boolean | null>(null);
   const [code, setCode] = useState('');
   const [creating, setCreating] = useState(false);
@@ -41,8 +45,10 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         if (!alive) return;
         setAccountRooms(info.rooms);
         // The profile may have been changed on another device.
-        const { name, color, avatar } = info.profile;
-        if (name !== user.name || color !== user.color || avatar !== user.avatar) saveUser({ ...user, name, color, avatar });
+        const { name, color, avatar, unit = '' } = info.profile;
+        if (name !== user.name || color !== user.color || avatar !== user.avatar || unit !== (user.unit ?? '')) {
+          saveUser({ ...user, name, color, avatar, unit });
+        }
       })
       .catch((err) => {
         if (!alive || !(err instanceof AccountError) || err.code !== 'unauthorized') return;
@@ -58,12 +64,28 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, secret]);
 
+  // Rooms open to every colleague, refreshed now and then to show who is in them.
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch('/api/community/rooms')
+        .then((r) => (r.ok ? (r.json() as Promise<{ rooms: CommunityRoom[] }>) : null))
+        .then((d) => alive && d && setCommunity(d.rooms))
+        .catch(() => {});
+    void load();
+    const timer = setInterval(() => document.visibilityState === 'visible' && void load(), 30_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+
   // Signed in: the account's list (this browser's history only until it loads, or without account).
   const rooms = accountRooms ?? recent;
   const visibleRooms = showAllRooms ? rooms : rooms.slice(0, 9);
 
   useEffect(() => {
-    document.title = 'Tierlist Live';
+    document.title = APP_NAME;
     let alive = true;
     const trending = (p: Promise<{ items: AnimeMeta[] }>) => p.then((r) => r.items).catch(() => [] as AnimeMeta[]);
     void (async () => {
@@ -110,7 +132,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         const res = await fetch('/api/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, kind }),
+          body: JSON.stringify({ name, kind, listed }),
         });
         if (res.status === 429) throw new Error('Criaste muitas salas seguidas. Espera uns minutos.');
         if (!res.ok) throw new Error('Não foi possível criar a sala.');
@@ -164,11 +186,11 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             <Radio size={13} className="animate-pulse" /> Em tempo real com os teus colegas
           </p>
           <h1 className="text-4xl leading-[1.08] font-extrabold tracking-tight sm:text-6xl">
-            A tierlist <span className="text-gradient">da tua turma</span>
+            A tierlist <span className="text-gradient">de toda a {COMPANY}</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
-            Anime, séries ou filmes: pesquisa qualquer título, arrasta-o para o tier certo e dá a tua nota, opinião e
-            recomendação. Todos veem tudo a acontecer ao vivo.
+            Anime, séries e filmes: partilha o que andas a ver com colegas de todas as empresas do grupo. Classifica, dá a
+            tua opinião e descobre o que os outros recomendam, tudo ao vivo.
           </p>
         </div>
 
@@ -209,6 +231,18 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             {kind === 'all' && tmdb !== false && (
               <p className="mt-2 text-xs text-faint">Anime, séries e filmes na mesma tierlist.</p>
             )}
+            <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+                checked={listed}
+                onChange={(e) => setListed(e.target.checked)}
+              />
+              <span>
+                Mostrar nas salas da comunidade
+                <span className="block text-xs text-faint">Qualquer colega a encontra aqui, sem precisar do link.</span>
+              </span>
+            </label>
           </form>
 
           <form onSubmit={joinRoom} className="rounded-2xl border border-line bg-surface/85 p-5 backdrop-blur">
@@ -285,10 +319,54 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
           </section>
         )}
 
+        {community && (
+          <section className="mt-8" aria-label="Salas da comunidade">
+            <h2 className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-muted">
+              <Globe size={15} /> Salas da comunidade
+              <span className="text-xs font-normal text-faint">· abertas a todos os colaboradores</span>
+            </h2>
+            {community.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line-2 bg-surface/60 px-4 py-3 text-sm text-muted">
+                Ainda não há salas abertas à comunidade. Cria uma e deixa marcado «Mostrar nas salas da comunidade».
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {(showAllCommunity ? community : community.slice(0, 9)).map((r) => (
+                  <button
+                    key={r.id}
+                    className="flex items-center gap-3 rounded-xl border border-line bg-surface/85 px-4 py-3 text-left backdrop-blur transition hover:border-line-2"
+                    onClick={() => withProfile(() => navigate(`/r/${r.id}`))}
+                  >
+                    <span className="text-2xl" aria-hidden>
+                      {kindInfo(r.kind).emoji}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{r.name}</span>
+                      <span className="block text-xs text-faint">
+                        {plural(r.members, 'membro', 'membros')} · {plural(r.titles, 'título', 'títulos')}
+                      </span>
+                    </span>
+                    {r.online > 0 && (
+                      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-ok">
+                        <span className="h-1.5 w-1.5 rounded-full bg-ok" /> {r.online} online
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!showAllCommunity && community.length > 9 && (
+              <Button size="sm" variant="ghost" className="mt-2" onClick={() => setShowAllCommunity(true)}>
+                Ver todas ({community.length})
+              </Button>
+            )}
+          </section>
+        )}
+
         <section className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { icon: <Search size={18} />, title: 'Anime, séries e filmes', text: 'Catálogos completos do AniList e do TMDB: centenas de milhares de títulos.' },
-            { icon: <Users size={18} />, title: 'Tierlist do grupo e tua', text: 'Uma tierlist partilhada, uma pessoal para cada um e a média de todos.' },
+            { icon: <Globe size={18} />, title: 'Salas da comunidade', text: 'Encontra salas abertas a todos os colaboradores do grupo e junta-te à conversa.' },
             { icon: <Sparkles size={18} />, title: 'Notas e recomendações', text: 'Dá nota de 1 a 10, escreve a tua opinião e diz se recomendas.' },
             { icon: <MessagesSquare size={18} />, title: 'Ao vivo', text: 'Vê os cursores, quem está a mover o quê, o chat e a atividade em direto.' },
           ].map((f) => (
@@ -301,6 +379,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         </section>
 
         <footer className="mt-12 text-xs text-faint">
+          Um espaço para os colaboradores do {COMMUNITY}: sê simpático, é tudo entre colegas.{' '}
           Dados de anime: <a className="underline hover:text-muted" href="https://anilist.co" target="_blank" rel="noreferrer">AniList</a>{' '}
           (com <a className="underline hover:text-muted" href="https://jikan.moe" target="_blank" rel="noreferrer">Jikan/MyAnimeList</a> como alternativa).
           Séries e filmes:{' '}

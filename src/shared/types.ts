@@ -75,6 +75,8 @@ export interface Member {
   name: string;
   color: string;
   avatar: string;
+  /** Company or unit of the group where the person works (missing in older rooms) */
+  unit?: string;
   joinedAt: number;
 }
 
@@ -83,6 +85,7 @@ export interface MemberInput {
   name: string;
   color: string;
   avatar: string;
+  unit?: string;
 }
 
 /** tier id -> ordered anime keys */
@@ -95,7 +98,18 @@ export interface ChatMessage {
   text: string;
 }
 
-export type ActivityKind = 'join' | 'add' | 'remove' | 'move' | 'review' | 'tiers' | 'rename' | 'copy' | 'clear' | 'owner';
+export type ActivityKind =
+  | 'join'
+  | 'add'
+  | 'remove'
+  | 'move'
+  | 'review'
+  | 'tiers'
+  | 'rename'
+  | 'copy'
+  | 'clear'
+  | 'owner'
+  | 'listed';
 
 export interface Activity {
   id: string;
@@ -111,6 +125,8 @@ export interface Activity {
   status?: WatchStatus | null;
   opinion?: boolean;
   text?: string;
+  /** room.listed: shown in (true) or removed from (false) the community rooms */
+  listed?: boolean;
 }
 
 export interface RoomState {
@@ -118,6 +134,8 @@ export interface RoomState {
   name: string;
   /** Missing in rooms created before series and movies existed: those are anime rooms. */
   kind?: RoomKind;
+  /** Shown in the community rooms on the home page, so any colleague can find and join it */
+  listed?: boolean;
   createdAt: number;
   /** The room's owner: whoever created it (the first member to join), or whoever they handed it to */
   createdBy: string | null;
@@ -151,11 +169,25 @@ export type Op =
   | { type: 'tiers.set'; tiers: Tier[] }
   | { type: 'room.rename'; name: string }
   | { type: 'room.owner'; to: string }
+  | { type: 'room.listed'; listed: boolean }
   | { type: 'member.join'; member: MemberInput }
-  | { type: 'member.update'; name: string; color: string; avatar: string }
+  | { type: 'member.update'; name: string; color: string; avatar: string; unit?: string }
   | { type: 'chat.send'; id: string; text: string };
 
 export type OpType = Op['type'];
+
+/** A room in the community rooms (home page). */
+export interface CommunityRoom {
+  id: string;
+  name: string;
+  kind: RoomKind;
+  members: number;
+  titles: number;
+  /** People in the room right now */
+  online: number;
+  /** Last change (ms) */
+  updatedAt: number;
+}
 
 /** What the server broadcasts for every accepted op. */
 export interface OpEnvelope {
@@ -209,6 +241,7 @@ export interface JoinUser {
   name: string;
   color: string;
   avatar: string;
+  unit?: string;
 }
 
 export interface JoinOk {

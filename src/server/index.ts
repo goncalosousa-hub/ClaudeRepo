@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { APP_NAME } from '../shared/brand';
 import { createApp } from './app';
 import { lanAddresses } from './network';
 
@@ -13,7 +14,13 @@ const tmdbOptions = { key: process.env.TMDB_API_KEY?.trim() || undefined, baseUr
 
 let app: Awaited<ReturnType<typeof createApp>>;
 try {
-  app = await createApp({ dev, dataDir: process.env.DATA_DIR ?? 'data', databaseUrl, tmdb: tmdbOptions });
+  app = await createApp({
+    dev,
+    dataDir: process.env.DATA_DIR ?? 'data',
+    databaseUrl,
+    tmdb: tmdbOptions,
+    communityCode: process.env.COMMUNITY_CODE,
+  });
 } catch (err) {
   if (!databaseUrl) throw err;
   console.error('\n  ❌ Não foi possível ligar à base de dados (DATABASE_URL).');
@@ -21,12 +28,12 @@ try {
   console.error('     Confirma o link no ficheiro .env, ou apaga essa linha para voltar a guardar na pasta data/.\n');
   process.exit(1);
 }
-const { httpServer, storage, tmdb, imported, importedAccounts, close } = app;
+const { httpServer, storage, tmdb, gate, imported, importedAccounts, close } = app;
 
 httpServer.listen(port, host, () => {
   const lan = lanAddresses();
   const real = lan.filter((a) => !a.virtual);
-  console.log(`\n  🎌 Tierlist Live${dev ? ' (dev)' : ''}`);
+  console.log(`\n  🎌 ${APP_NAME}${dev ? ' (dev)' : ''}`);
   console.log(`  ➜ Local:       http://localhost:${port}   (só funciona neste computador)`);
   real.forEach((a, i) =>
     console.log(`  ➜ Rede local:  http://${a.address}:${port}${i === 0 ? '   ← envia este aos colegas na mesma rede' : ''}`),
@@ -41,6 +48,11 @@ httpServer.listen(port, host, () => {
     tmdb.configured
       ? '  ➜ Séries e filmes: ativados (TMDB)'
       : '  ➜ Séries e filmes: desativados — falta TMDB_API_KEY no .env (vê o README)',
+  );
+  console.log(
+    gate.enabled
+      ? '  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)'
+      : '  ➜ Acesso: aberto a quem tiver o link (define COMMUNITY_CODE para ser só para colaboradores)',
   );
   console.log(`\n  Colegas noutra rede? Cria um túnel:  cloudflared tunnel --url http://localhost:${port}\n`);
 });

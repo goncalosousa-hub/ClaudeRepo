@@ -35,13 +35,14 @@ export function createRoomState(
   name: string,
   at: number,
   createdBy: string | null = null,
-  kind: RoomKind = 'anime',
+  opts: { kind?: RoomKind; listed?: boolean } = {},
 ): RoomState {
   const tiers = DEFAULT_TIERS.map((t) => ({ ...t }));
   return {
     id,
     name,
-    kind,
+    kind: opts.kind ?? 'anime',
+    listed: opts.listed ?? false,
     createdAt: at,
     createdBy,
     tiers,
@@ -277,6 +278,13 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       return;
     }
 
+    case 'room.listed': {
+      if (!!s.listed === op.listed) return;
+      s.listed = op.listed;
+      pushActivity(s, m, { kind: 'listed', listed: op.listed });
+      return;
+    }
+
     case 'room.owner': {
       if (!s.members[op.to]) throw new OpError('not_member');
       if (s.createdBy === op.to) return;
@@ -287,15 +295,17 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
 
     case 'member.join': {
       const { id, name, color, avatar } = op.member;
+      const unit = op.member.unit ?? '';
       const existing = s.members[id];
       if (existing) {
         existing.name = name;
         existing.color = color;
         existing.avatar = avatar;
+        existing.unit = unit;
         return;
       }
       if (Object.keys(s.members).length >= LIMITS.maxMembers) throw new OpError('limit_members');
-      s.members[id] = { id, name, color, avatar, joinedAt: m.at };
+      s.members[id] = { id, name, color, avatar, unit, joinedAt: m.at };
       s.createdBy ??= id;
       pushActivity(s, m, { kind: 'join' });
       return;
@@ -307,6 +317,7 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       me.name = op.name;
       me.color = op.color;
       me.avatar = op.avatar;
+      me.unit = op.unit ?? '';
       return;
     }
 

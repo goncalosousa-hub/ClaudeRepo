@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, Copy, Share2, TriangleAlert } from 'lucide-react';
+import { Check, ChevronDown, Copy, Globe, Lock, Share2, TriangleAlert } from 'lucide-react';
 import { encode } from 'uqr';
 import { copyText } from '../lib/clipboard';
 import { roomUrl } from '../lib/router';
@@ -33,7 +33,7 @@ interface LanUrl {
 const onLocalhost = () => ['localhost', '127.0.0.1', '[::1]', '::1'].includes(location.hostname);
 
 export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { room } = useRoom();
+  const { room, me, dispatch } = useRoom();
   const [copied, setCopied] = useState(false);
   const [lan, setLan] = useState<LanUrl[] | null>(null);
   const [help, setHelp] = useState(false);
@@ -95,6 +95,31 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
             ))}
           </p>
         )}
+
+        <div className="rounded-xl border border-line bg-surface-2 p-3">
+          {room.createdBy === me ? (
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-[var(--color-accent)]"
+                checked={!!room.listed}
+                onChange={(e) => dispatch({ type: 'room.listed', listed: e.target.checked })}
+              />
+              <span className="text-sm">
+                <span className="font-medium">Mostrar nas salas da comunidade</span>
+                <span className="block text-xs text-muted">
+                  Qualquer colega encontra esta sala na página inicial, sem precisar do link.
+                </span>
+              </span>
+            </label>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-muted">
+              {room.listed ? <Globe size={16} className="shrink-0 text-accent" /> : <Lock size={16} className="shrink-0" />}
+              {room.listed ? 'Esta sala aparece nas salas da comunidade.' : 'Só entra quem tiver o link.'}
+              <span className="text-xs text-faint">(só o dono muda isto)</span>
+            </p>
+          )}
+        </div>
 
         <div className="flex flex-col items-center gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:flex-row sm:items-start">
           <QrCode text={url} />

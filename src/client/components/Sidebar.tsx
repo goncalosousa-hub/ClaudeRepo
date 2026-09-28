@@ -286,6 +286,9 @@ function ActivityItem({ a }: { a: Activity }) {
     case 'clear':
       body = <>limpou a sua tierlist</>;
       break;
+    case 'listed':
+      body = a.listed ? <>mostrou a sala nas salas da comunidade 🌍</> : <>tirou a sala das salas da comunidade</>;
+      break;
     case 'owner':
       body =
         a.to === a.by ? (

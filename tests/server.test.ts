@@ -97,7 +97,7 @@ async function createRoom(app: App, name = 'Turma', kind?: string) {
   return ((await res.json()) as { id: string }).id;
 }
 
-async function join(app: App, roomId: string, u = user('ana')) {
+async function join(app: App, roomId: string, u: ReturnType<typeof user> & { unit?: string } = user('ana')) {
   const s = client(app);
   const ack = await emit<JoinAck>(s, 'join', { roomId, user: u });
   if (!ack.ok) throw new Error(ack.error);
@@ -316,7 +316,7 @@ async function api<T = Record<string, unknown>>(
 
 interface LoginResult {
   username: string;
-  user: { id: string; secret: string; name: string; color: string; avatar: string; account: string };
+  user: { id: string; secret: string; name: string; color: string; avatar: string; unit?: string; account: string };
   rooms: { id: string; name: string; visitedAt: number }[];
 }
 
@@ -501,6 +501,129 @@ describe('accounts', () => {
     const again = (await login(pg2, `p${suffix}`)).body;
     expect(again.user).toEqual(ana.user);
     expect(again.rooms.map((r) => [r.id, r.name])).toEqual([[roomId, 'Sala PG']]);
+  });
+});
+
+async function communityRooms(app: App) {
+  const res = await fetch(`${app.url}/api/community/rooms`);
+  return ((await res.json()) as { rooms: { id: string; name: string; kind: string; members: number; titles: number; online: number }[] }).rooms;
+}
+
+async function createListedRoom(app: App, name: string, kind = 'anime') {
+  const res = await fetch(`${app.url}/api/rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, kind, listed: true }),
+  });
+  return ((await res.json()) as { id: string }).id;
+}
+
+describe('community rooms', () => {
+  it('lists the open rooms with who is in them, and only the owner opens or closes a room', async () => {
+    const dir = await tmpDir();
+    const app = await start(dir);
+    const open = await createListedRoom(app, 'Filmes do mês', 'movies');
+    const hidden = await createRoom(app, 'Só com link');
+    expect((await communityRooms(app)).map((r) => r.id)).toEqual([open]);
+
+    const a = await join(app, open, user('ana'));
+    const b = await join(app, open, user('rui'));
+    await op(a.s, { type: 'anime.add', anime: title('movie', 238, 'O Padrinho') });
+    expect((await communityRooms(app))[0]).toMatchObject({ name: 'Filmes do mês', kind: 'movies', members: 2, titles: 1, online: 2 });
+
+    // Only the owner decides who can find the room.
+    expect(await op(b.s, { type: 'room.listed', listed: false })).toEqual({ ok: false, error: 'not_owner' });
+    const h = await join(app, hidden, user('ana'));
+    expect(await op(h.s, { type: 'room.listed', listed: true })).toMatchObject({ ok: true });
+    expect((await communityRooms(app)).map((r) => r.id).sort()).toEqual([open, hidden].sort());
+    expect(await op(a.s, { type: 'room.listed', listed: false })).toMatchObject({ ok: true });
+    expect((await communityRooms(app)).map((r) => r.id)).toEqual([hidden]);
+    a.s.disconnect();
+    b.s.disconnect();
+    h.s.disconnect();
+    await app.close();
+
+    // After a restart the list is read from what was saved.
+    const again = await start(dir);
+    expect((await communityRooms(again)).map((r) => [r.name, r.online])).toEqual([['Só com link', 0]]);
+  });
+
+  it.runIf(process.env.TEST_DATABASE_URL)('reads the community rooms from PostgreSQL', async () => {
+    const url = process.env.TEST_DATABASE_URL!;
+    const app1 = await start(await tmpDir(), url);
+    const name = `Comunidade ${Date.now()}`;
+    const id = await createListedRoom(app1, name, 'series');
+    const a = await join(app1, id, user('ana'));
+    await op(a.s, { type: 'anime.add', anime: title('tv', 1396, 'Breaking Bad') });
+    a.s.disconnect();
+    await app1.close();
+
+    const app2 = await start(await tmpDir(), url);
+    const found = (await communityRooms(app2)).find((r) => r.id === id);
+    expect(found).toMatchObject({ name, kind: 'series', members: 1, titles: 1, online: 0 });
+  });
+});
+
+describe('community code', () => {
+  it('keeps everyone without the code out of the API and the live rooms', async () => {
+    const app = await start(await tmpDir(), undefined, { communityCode: 'frango-2026' });
+    const call = (path: string, init: RequestInit = {}) => fetch(`${app.url}${path}`, init);
+    expect((await call('/api/health')).status).toBe(200);
+    expect(await (await call('/api/community/status')).json()).toEqual({ required: true, unlocked: false });
+    const blocked = await call('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"name":"x"}' });
+    expect(blocked.status).toBe(401);
+    expect(await blocked.json()).toEqual({ error: 'community_locked' });
+    expect((await call('/api/community/rooms')).status).toBe(401);
+    expect((await call('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status).toBe(401);
+
+    // Live connections are refused too.
+    const outsider = connect(app.url, { transports: ['websocket'], forceNew: true, reconnection: false });
+    cleanups.push(async () => void outsider.disconnect());
+    expect(await new Promise((resolve) => outsider.on('connect_error', (err) => resolve(err.message)))).toBe('community_locked');
+
+    const unlock = (code: string) =>
+      call('/api/community/unlock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    const wrong = await unlock('galinha');
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get('set-cookie')).toBeNull();
+    const right = await unlock(' frango-2026 ');
+    expect(right.status).toBe(200);
+    const cookie = right.headers.get('set-cookie')!.split(';')[0];
+    expect(right.headers.get('set-cookie')).toMatch(/HttpOnly/);
+
+    // With the cookie everything works.
+    expect(await (await call('/api/community/status', { headers: { cookie } })).json()).toEqual({ required: true, unlocked: true });
+    const res = await call('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: '{"name":"Colegas"}' });
+    expect(res.status).toBe(201);
+    const { id: roomId } = (await res.json()) as { id: string };
+    const colleague = connect(app.url, { transports: ['websocket'], forceNew: true, reconnection: false, extraHeaders: { cookie } });
+    cleanups.push(async () => void colleague.disconnect());
+    const ack = await emit<JoinAck>(colleague, 'join', { roomId, user: user('ana') });
+    expect(ack.ok).toBe(true);
+  });
+
+  it('is off when no code is set', async () => {
+    const app = await start(await tmpDir());
+    expect(await (await fetch(`${app.url}/api/community/status`)).json()).toEqual({ required: false, unlocked: true });
+  });
+});
+
+describe('company or unit', () => {
+  it('travels with the profile: rooms and accounts', async () => {
+    const app = await start(await tmpDir());
+    const roomId = await createRoom(app);
+    const a = await join(app, roomId, { ...user('ana'), unit: '  Lusiaves, Marinha das Ondas ' });
+    expect(a.ack.state.members[a.userId].unit).toBe('Lusiaves, Marinha das Ondas');
+    expect(await op(a.s, { type: 'member.update', name: 'Ana', color: '#3366ff', avatar: '🦊', unit: 'x'.repeat(41) })).toEqual({
+      ok: false,
+      error: 'invalid_op',
+    });
+
+    const created = await register(app, 'ana', 'pass-1234', { unit: 'Leiria' });
+    expect(created.body.user.unit).toBe('Leiria');
+    const auth = { username: 'ana', secret: created.body.user.secret };
+    expect((await api(app, 'PATCH', '/api/account', { ...profile('Ana'), unit: 'Coimbra' }, auth)).status).toBe(200);
+    expect((await login(app, 'ana')).body.user.unit).toBe('Coimbra');
   });
 });
 

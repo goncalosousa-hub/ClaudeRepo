@@ -1,3 +1,4 @@
+import { APP_NAME } from '../../shared/brand';
 import { navigate } from '../lib/router';
 import { cn } from './ui';
 
@@ -34,7 +35,8 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       <LogoMark size={compact ? 28 : 32} />
       {!compact && (
         <span className="text-[15px] leading-none">
-          Tierlist <span className="text-gradient">Live</span>
+          {APP_NAME.slice(0, APP_NAME.lastIndexOf(' '))}{' '}
+          <span className="text-gradient">{APP_NAME.slice(APP_NAME.lastIndexOf(' ') + 1)}</span>
         </span>
       )}
     </a>

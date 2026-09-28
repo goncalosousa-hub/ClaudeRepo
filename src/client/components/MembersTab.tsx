@@ -60,6 +60,7 @@ export function MembersTab() {
                       </span>
                     )}
                   </p>
+                  {m.unit && <p className="truncate text-xs text-faint">🏢 {m.unit}</p>}
                   <p className="truncate text-xs text-muted">
                     {m.id === me
                       ? 'Online'

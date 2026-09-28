@@ -77,6 +77,7 @@ const ERRORS: Record<string, string> = {
   auth_failed: 'Este perfil está protegido por outra chave. Cria um perfil novo neste dispositivo.',
   forbidden: 'Só podes mexer na tierlist do grupo ou na tua.',
   not_owner: 'Só o dono da sala pode fazer isto.',
+  community_locked: 'Esta app é só para colaboradores: volta à página inicial e escreve o código da comunidade.',
   not_member: 'Essa pessoa não é membro da sala.',
   rate_limited: 'Calma! Estás a fazer alterações depressa demais.',
   limit_anime: 'A sala chegou ao limite de títulos.',

@@ -60,9 +60,9 @@ export function accountRouter(accounts: AccountManager, rooms: RoomManager) {
       res.status(400).json({ error });
       return;
     }
-    const { username, password, name, color, avatar, id, secret } = parsed.data;
+    const { username, password, name, color, avatar, unit, id, secret } = parsed.data;
     const identity = id && secret ? { id, secret } : undefined;
-    let doc = await accounts.register(username, password, { name, color, avatar }, identity);
+    let doc = await accounts.register(username, password, { name, color, avatar, unit }, identity);
     if (!doc) {
       res.status(409).json({ error: 'username_taken' });
       return;

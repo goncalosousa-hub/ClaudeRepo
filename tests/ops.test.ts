@@ -64,7 +64,7 @@ describe('anime.add / anime.remove', () => {
 
 describe('room kinds', () => {
   const kinds = (kind?: RoomState['kind']) => {
-    const s = createRoomState('room02', 'Sala', 0, null, kind ?? 'anime');
+    const s = createRoomState('room02', 'Sala', 0, null, { kind: kind ?? 'anime' });
     if (!kind) delete s.kind; // rooms created before series and movies existed
     return s;
   };
@@ -254,6 +254,36 @@ describe('members, chat and rename', () => {
     apply(s, { type: 'room.rename', name: '  ESTG 2º ano ' });
     expect(s.name).toBe('ESTG 2º ano');
     expect(() => apply(s, { type: 'room.rename', name: '   ' })).toThrow(OpError);
+  });
+});
+
+describe('community rooms', () => {
+  it('rooms start hidden and can be shown in (or removed from) the community rooms', () => {
+    const s = room();
+    expect(s.listed).toBe(false);
+    expect(createRoomState('r', 'Aberta', 0, null, { listed: true }).listed).toBe(true);
+    apply(s, { type: 'room.listed', listed: true });
+    expect(s.listed).toBe(true);
+    expect(s.activity.at(-1)).toMatchObject({ kind: 'listed', listed: true });
+    const before = s.activity.length;
+    apply(s, { type: 'room.listed', listed: true }); // no change, no activity
+    expect(s.activity).toHaveLength(before);
+    apply(s, { type: 'room.listed', listed: false });
+    expect(s.listed).toBe(false);
+  });
+});
+
+describe('company or unit', () => {
+  it('is part of the member profile', () => {
+    const s = room();
+    expect(s.members.ana.unit).toBe('');
+    apply(s, { type: 'member.update', name: 'Ana', color: '#ff0000', avatar: '🦊', unit: 'Lusiaves, Marinha das Ondas' });
+    expect(s.members.ana.unit).toBe('Lusiaves, Marinha das Ondas');
+    apply(s, { type: 'member.join', member: { id: 'ana', name: 'Ana', color: '#ff0000', avatar: '🦊', unit: 'Leiria' } }, 'ana');
+    expect(s.members.ana.unit).toBe('Leiria');
+    // Older browsers do not send it.
+    apply(s, { type: 'member.update', name: 'Ana', color: '#ff0000', avatar: '🦊' });
+    expect(s.members.ana.unit).toBe('');
   });
 });
 

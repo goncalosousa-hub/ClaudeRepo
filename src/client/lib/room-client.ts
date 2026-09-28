@@ -133,7 +133,13 @@ export class RoomClient {
       if (this.destroyed || this.snapshot.status === 'error') return;
       this.set({ status: this.everJoined ? 'reconnecting' : 'connecting', presence: {} });
     });
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', (err) => {
+      // The community code changed (or was never given): no point in retrying.
+      if (err.message === 'community_locked') {
+        this.socket.disconnect();
+        this.set({ status: 'error', error: 'community_locked' });
+        return;
+      }
       if (this.snapshot.status === 'joined') this.set({ status: 'reconnecting' });
     });
     this.socket.on('op', (env: OpEnvelope) => this.handleOp(env));
@@ -199,8 +205,8 @@ export class RoomClient {
   // --- protocol ------------------------------------------------------------------
 
   private join() {
-    const { id, secret, name, color, avatar, account } = this.user;
-    const payload = { roomId: this.roomId, user: { id, secret, name, color, avatar }, account };
+    const { id, secret, name, color, avatar, unit = '', account } = this.user;
+    const payload = { roomId: this.roomId, user: { id, secret, name, color, avatar, unit }, account };
     this.socket.emit('join', payload, (ack: JoinAck) => {
       if (this.destroyed) return;
       if (!ack?.ok) {
@@ -354,10 +360,15 @@ export class RoomClient {
 
   /** Profile changed (name, colour, avatar). */
   updateUser(user: LocalUser) {
-    const changed = user.name !== this.user.name || user.color !== this.user.color || user.avatar !== this.user.avatar;
+    const changed =
+      user.name !== this.user.name ||
+      user.color !== this.user.color ||
+      user.avatar !== this.user.avatar ||
+      (user.unit ?? '') !== (this.user.unit ?? '');
     this.user = user;
     if (changed && this.snapshot.room?.members[user.id]) {
-      this.dispatch({ type: 'member.update', name: user.name, color: user.color, avatar: user.avatar });
+      const { name, color, avatar, unit = '' } = user;
+      this.dispatch({ type: 'member.update', name, color, avatar, unit });
     }
   }
 

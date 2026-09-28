@@ -37,6 +37,9 @@ class MemoryStorage implements Storage {
   async save(id: string, d: RoomDoc) {
     this.rooms.set(id, d);
   }
+  async listedRooms() {
+    return [];
+  }
   async loadAccount(username: string) {
     return this.accounts.get(username) ?? null;
   }
@@ -98,6 +101,23 @@ describe('storage helpers', () => {
     expect(target.accounts.get('ana')?.profile.name).toBe('Ana Sofia');
     expect(target.accounts.get('bruno')?.profile.name).toBe('Already in the database');
     expect(await importFileAccounts(dir, target)).toBe(0);
+  });
+
+  it('lists the rooms shown in the community rooms', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'atl-storage-'));
+    dirs.push(dir);
+    const files = new FileStorage(dir);
+    await files.init();
+    const open = doc('room0001', 'Aberta');
+    open.state.listed = true;
+    open.state.kind = 'movies';
+    open.state.members.ana = { id: 'ana', name: 'Ana', color: '#ff0000', avatar: '🦊', joinedAt: 0 };
+    await files.save('room0001', open);
+    await files.save('room0002', doc('room0002', 'Privada'));
+    const rows = await files.listedRooms();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: 'room0001', name: 'Aberta', kind: 'movies', members: 1, titles: 0 });
+    expect(rows[0].updatedAt).toBeGreaterThan(0);
   });
 
   it('spells out sslmode=verify-full so node-postgres does not print a warning', () => {

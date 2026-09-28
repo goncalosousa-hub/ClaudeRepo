@@ -11,6 +11,7 @@ import { RoomManager, type RoomManagerOptions } from './rooms';
 import { AccountManager } from './accounts';
 import { accountRouter } from './account-routes';
 import { catalogRouter } from './catalog-routes';
+import { CommunityGate } from './community';
 import { Tmdb, type TmdbOptions } from './tmdb';
 import { createStorage, importFileAccounts, importFileRooms } from './storage';
 
@@ -23,6 +24,8 @@ export interface AppOptions {
   rooms?: RoomManagerOptions;
   /** Series and movies catalogue (off without an API key) */
   tmdb?: TmdbOptions;
+  /** When set, only people who know this code (colleagues) can use the app */
+  communityCode?: string;
 }
 
 const CSP = [
@@ -52,6 +55,7 @@ export async function createApp(opts: AppOptions) {
   const rooms = new RoomManager(storage, opts.rooms);
   const accounts = new AccountManager(storage);
   const tmdb = new Tmdb(opts.tmdb);
+  const gate = new CommunityGate(opts.communityCode);
 
   const app = express();
   app.disable('x-powered-by');
@@ -65,6 +69,8 @@ export async function createApp(opts: AppOptions) {
   });
   app.use(compression());
   app.use(express.json({ limit: '64kb' }));
+  app.use('/api', gate.router());
+  app.use('/api', gate.middleware());
   app.use('/api', accountRouter(accounts, rooms));
   app.use('/api', catalogRouter(tmdb));
   app.use('/api', apiRouter(rooms));
@@ -74,6 +80,7 @@ export async function createApp(opts: AppOptions) {
     maxHttpBufferSize: 256 * 1024,
     perMessageDeflate: { threshold: 4096 },
   });
+  io.use((socket, next) => (gate.allows(socket.request.headers.cookie) ? next() : next(new Error('community_locked'))));
   attachRealtime(io, rooms, accounts);
 
   let closeVite: (() => Promise<void>) | undefined;
@@ -121,5 +128,5 @@ export async function createApp(opts: AppOptions) {
     await storage.close();
   }
 
-  return { app, httpServer, io, rooms, accounts, tmdb, storage, imported, importedAccounts, close };
+  return { app, httpServer, io, rooms, accounts, tmdb, gate, storage, imported, importedAccounts, close };
 }
