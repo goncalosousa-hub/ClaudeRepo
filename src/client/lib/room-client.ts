@@ -199,8 +199,9 @@ export class RoomClient {
   // --- protocol ------------------------------------------------------------------
 
   private join() {
-    const { id, secret, name, color, avatar } = this.user;
-    this.socket.emit('join', { roomId: this.roomId, user: { id, secret, name, color, avatar } }, (ack: JoinAck) => {
+    const { id, secret, name, color, avatar, account } = this.user;
+    const payload = { roomId: this.roomId, user: { id, secret, name, color, avatar }, account };
+    this.socket.emit('join', payload, (ack: JoinAck) => {
       if (this.destroyed) return;
       if (!ack?.ok) {
         const error = ack?.error ?? 'server_error';

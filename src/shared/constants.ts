@@ -14,6 +14,14 @@ export const LIMITS = {
   synopsis: 1500,
 } as const;
 
+export const ROOM_ID_RE = /^[a-z0-9]{6,16}$/;
+
+/** Account usernames: 3-24 chars, lowercase letters/digits and _ . - (safe as a file name on every OS). */
+export const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_.-]{1,22}[a-z0-9])$/;
+const RESERVED_USERNAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
+export const isValidUsername = (username: string) => USERNAME_RE.test(username) && !RESERVED_USERNAMES.test(username);
+export const PASSWORD_MIN = 6;
+
 export const DEFAULT_TIERS: Tier[] = [
   { id: 's', label: 'S', color: '#ff5d73' },
   { id: 'a', label: 'A', color: '#ff9f43' },

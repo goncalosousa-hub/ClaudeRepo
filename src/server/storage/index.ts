@@ -2,7 +2,7 @@ import { FileStorage } from './file';
 import { PostgresStorage } from './postgres';
 import type { Storage } from './types';
 
-export type { RoomDoc, Storage } from './types';
+export type { AccountDoc, RoomDoc, Storage } from './types';
 
 export function createStorage(opts: { dataDir: string; databaseUrl?: string }): Storage {
   if (opts.databaseUrl) return new PostgresStorage(opts.databaseUrl);
@@ -22,6 +22,17 @@ export async function importFileRooms(dataDir: string, target: Storage): Promise
     if (!doc) continue;
     await target.save(id, doc);
     imported++;
+  }
+  return imported;
+}
+
+/** Same as importFileRooms, for the accounts saved as JSON files. */
+export async function importFileAccounts(dataDir: string, target: Storage): Promise<number> {
+  const files = new FileStorage(dataDir);
+  let imported = 0;
+  for (const username of await files.listAccounts()) {
+    const doc = await files.loadAccount(username);
+    if (doc && (await target.createAccount(doc))) imported++;
   }
   return imported;
 }

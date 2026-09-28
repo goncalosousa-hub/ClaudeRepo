@@ -2,7 +2,7 @@
 
 Uma **webapp** para fazeres tierlists de anime **com os teus colegas, em tempo real**: pesquisas qualquer anime, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade.
 
-Não é preciso criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto.
+Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
 ---
 
@@ -35,6 +35,11 @@ Não é preciso criar conta: crias uma sala, partilhas o link (ou o QR code) e p
 - Aviso "está a escrever…" nas opiniões e no chat.
 - **Chat** da sala e **feed de atividade**.
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
+
+**Contas (opcionais)**
+- Utilizador e palavra-passe para seres **sempre a mesma pessoa** nas salas, mesmo quando o link muda ou usas outro dispositivo.
+- **As tuas salas** ficam guardadas na conta: aparecem na página inicial de qualquer dispositivo.
+- Crias a conta a partir do perfil que já usas: continuas a ser o mesmo membro, com as mesmas notas e tierlists.
 
 Funciona em computador e telemóvel.
 
@@ -101,9 +106,25 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 
 ---
 
+## 👤 Contas: sempre a mesma pessoa
+
+Sem conta, o teu perfil fica guardado só no browser e **só para aquele endereço**. Quando o link do túnel muda (ou abres a app noutro dispositivo), o browser não te reconhece e entras como uma pessoa nova. Com uma conta isso deixa de acontecer.
+
+1. **Cria a conta a partir do perfil que já tens.** Na página inicial carrega em **Criar conta** (ou abre o teu perfil) e escolhe um utilizador e uma palavra-passe. A conta fica com o teu perfil atual, por isso continuas a ser o mesmo membro nas salas onde já entraste, com as mesmas notas e tierlists. Essas salas passam logo para **As tuas salas**.
+2. **Noutro link ou dispositivo, entra na conta.** Na página inicial carrega em **Entrar**; se abrires o link de uma sala, escolhe **Já tenho conta**. Recuperas o teu perfil e a lista das tuas salas.
+3. Cada sala em que entras com a conta fica guardada em **As tuas salas**, na página inicial de qualquer dispositivo.
+
+Algumas notas:
+- **Primeiro cria a conta, depois entra nos outros sítios.** Se entrares numa conta num dispositivo que já tinha outro perfil sem conta, esse dispositivo passa a usar o perfil da conta.
+- Os perfis criados antes, noutros links, continuam nas salas como membros offline: eram pessoas "diferentes" para a app.
+- **Esqueceste-te da palavra-passe?** Não há recuperação por email. Quem gere o servidor pode apagar a conta: o ficheiro `data/accounts/<utilizador>.json`, ou `DELETE FROM accounts WHERE username = '<utilizador>';` no PostgreSQL. Depois, num dispositivo onde ainda tenhas a sessão aberta, cria a conta outra vez com o mesmo utilizador e ficas com o mesmo perfil.
+- As palavras-passe nunca são guardadas: o servidor guarda só um *hash* (scrypt).
+
+---
+
 ## 💾 Onde ficam guardadas as coisas
 
-**Por omissão, tudo fica guardado automaticamente** na pasta `data/rooms/` do projeto, com um ficheiro por sala. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia essa pasta.
+**Por omissão, tudo fica guardado automaticamente** na pasta `data/` do projeto: `data/rooms/` tem um ficheiro por sala e `data/accounts/` um ficheiro por conta. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia a pasta `data/`.
 
 ### Usar uma base de dados PostgreSQL (grátis, no Neon)
 
@@ -116,11 +137,12 @@ Faz sentido se quiseres os dados fora do teu PC, ou para mais tarde pores o site
    ```
    DATABASE_URL=postgresql://neondb_owner:…@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
    ```
-4. Reinicia o servidor. O terminal deve mostrar `Dados: PostgreSQL (ep-xxxx…neon.tech)`. As salas que já tinhas na pasta `data/` são **copiadas automaticamente** para a base de dados na primeira vez.
+4. Reinicia o servidor. O terminal deve mostrar `Dados: PostgreSQL (ep-xxxx…neon.tech)`. As salas e as contas que já tinhas na pasta `data/` são **copiadas automaticamente** para a base de dados na primeira vez.
 
 Para ver os dados, abre o **SQL Editor** do Neon e corre:
 ```sql
 SELECT id, doc->'state'->>'name' AS sala, updated_at FROM rooms;
+SELECT username, doc->'profile'->>'name' AS nome, created_at FROM accounts;
 ```
 
 > O ficheiro `.env` tem a password da base de dados: não o partilhes. Já está no `.gitignore`, por isso não vai para o GitHub. Para voltares a guardar em ficheiros, apaga a linha `DATABASE_URL` do `.env`.
@@ -135,8 +157,8 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 |---|---|---|
 | `PORT` | `3000` | Porta HTTP |
 | `HOST` | `0.0.0.0` | Interface onde o servidor escuta |
-| `DATA_DIR` | `./data` | Pasta onde as salas são guardadas (um ficheiro JSON por sala) |
-| `DATABASE_URL` | — | Se definida, as salas são guardadas em **PostgreSQL** em vez de ficheiros (Neon, Supabase, Railway…) |
+| `DATA_DIR` | `./data` | Pasta onde as salas e as contas são guardadas (um ficheiro JSON por sala e por conta) |
+| `DATABASE_URL` | — | Se definida, as salas e as contas são guardadas em **PostgreSQL** em vez de ficheiros (Neon, Supabase, Railway…) |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 
 ---
@@ -158,7 +180,8 @@ flowchart LR
 - **Otimista.** O browser aplica a tua operação na hora e envia-a ao servidor. O servidor valida-a (com `zod`), aplica-a, dá-lhe um número de sequência e envia-a a toda a gente. Se for recusada (por exemplo, mexer na tierlist pessoal de outra pessoa), o browser desfaz. Se faltar alguma operação, o browser pede o estado completo.
 - **Presença.** Cursores, cartas a ser arrastadas, "está a escrever…" e quem está a ver o quê são mensagens efémeras: não ficam guardadas.
 - **Persistência.** Cada sala ativa vive em memória no servidor e é gravada cerca de 1 segundo depois de cada alteração: um ficheiro JSON por sala, ou uma linha JSONB em PostgreSQL.
-- **Identidade sem contas.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). O servidor guarda só o *hash* do segredo, para ninguém se fazer passar por ti. No teu perfil há um link para usares a mesma identidade noutro dispositivo.
+- **Identidade.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). Cada sala guarda só o *hash* do segredo, para ninguém se fazer passar por ti.
+- **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
 - **Anime.** As pesquisas vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. Quando se adiciona um anime à sala, os dados principais (título, capa, género…) ficam guardados na sala.
 
 ### Estrutura do projeto
@@ -175,6 +198,8 @@ src/
     app.ts       Express + Socket.IO (+ Vite em desenvolvimento)
     realtime.ts  eventos em tempo real (entrar, operações, presença, cursores)
     rooms.ts     salas em memória, gravação e autenticação
+    accounts.ts  contas: palavras-passe (scrypt), perfil e "As tuas salas"
+    account-routes.ts  API das contas (criar, entrar, perfil, palavra-passe)
     http.ts      API REST (criar sala, info, proxy de imagens para o PNG)
     storage/     gravação em ficheiros JSON ou PostgreSQL
   client/

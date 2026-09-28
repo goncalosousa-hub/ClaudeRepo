@@ -227,3 +227,90 @@ test('drag with a finger on a phone (long press) and tap to open', async ({ brow
   await placed.tap();
   await expect(page.getByRole('dialog', { name: 'Sousou no Frieren' })).toBeVisible();
 });
+
+test('an account keeps the same profile and rooms on any link or device', async ({ browser }) => {
+  // The e2e data folder is kept between runs: a new username each time.
+  const username = `ana${Date.now().toString(36)}`;
+  const password = 'segredo-123';
+
+  // --- On her laptop Ana starts without an account: creates a room and rates an anime ---
+  const laptop = await newPerson(browser);
+  await laptop.goto('/');
+  await laptop.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Clube de anime');
+  await laptop.getByRole('button', { name: 'Criar', exact: true }).click();
+  await fillProfile(laptop, 'Ana');
+  await expect(laptop.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  const roomUrl = laptop.url();
+  await laptop.getByRole('button', { name: 'Adicionar anime' }).click();
+  const quick = laptop.getByRole('dialog', { name: 'Adicionar anime' });
+  await quick.locator('[data-anime="al:154587"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(quick.locator('[data-anime="al:154587"]').getByText('Na sala')).toBeVisible();
+  await laptop.keyboard.press('Escape');
+  await card(laptop.getByTestId('pool'), 'Sousou no Frieren').click();
+  const review = laptop.getByRole('dialog', { name: 'Sousou no Frieren' });
+  await review.getByRole('radio', { name: '8', exact: true }).click();
+  await expect(review.getByRole('radio', { name: '8', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await laptop.keyboard.press('Escape');
+
+  // --- Back home, she saves that profile in an account ------------------------------------
+  await laptop.goto('/');
+  const laptopRooms = laptop.getByRole('region', { name: 'As tuas salas' });
+  await laptopRooms.getByRole('button', { name: 'Criar conta' }).click();
+  const create = laptop.getByRole('dialog', { name: 'Perfil' });
+  await create.getByLabel('Utilizador').fill(username.toUpperCase());
+  await expect(create.getByLabel('Utilizador')).toHaveValue(username);
+  await create.getByLabel('Palavra-passe').fill(password);
+  await shot(laptop, '11-create-account');
+  await create.getByRole('button', { name: 'Criar conta e guardar' }).click();
+  await expect(laptopRooms.getByText(`guardadas na conta @${username}`)).toBeVisible();
+  await expect(laptopRooms.getByText('Clube de anime')).toBeVisible();
+
+  // --- Another device (or a new tunnel link): she opens the room and signs in -------------
+  const phone = await newPerson(browser);
+  await phone.goto(roomUrl);
+  const who = phone.getByRole('dialog', { name: 'Perfil' });
+  await who.getByRole('radio', { name: 'Já tenho conta' }).click();
+  await who.getByLabel('Utilizador').fill(username);
+  await who.getByLabel('Palavra-passe').fill('palavra-errada');
+  await who.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(who.getByRole('alert')).toHaveText('Utilizador ou palavra-passe errados.');
+  await who.getByLabel('Palavra-passe').fill(password);
+  await shot(phone, '12-sign-in');
+  await who.getByRole('button', { name: 'Entrar', exact: true }).click();
+
+  // Same member as on the laptop: still one member, and the rating is hers.
+  await expect(phone.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(phone.getByText(/online · 1 membro$/)).toBeVisible();
+  await card(phone.getByTestId('pool'), 'Sousou no Frieren').click();
+  const phoneReview = phone.getByRole('dialog', { name: 'Sousou no Frieren' });
+  await expect(phoneReview.getByRole('radio', { name: '8', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await phone.keyboard.press('Escape');
+
+  // Her rooms are listed on the home page of any device.
+  await phone.goto('/');
+  const phoneRooms = phone.getByRole('region', { name: 'As tuas salas' });
+  await expect(phoneRooms.getByText(`guardadas na conta @${username}`)).toBeVisible();
+  await expect(phoneRooms.getByText('Clube de anime')).toBeVisible();
+  await expect(phone.getByRole('button', { name: 'O teu perfil' })).toContainText(`@${username}`);
+  await shot(phone, '13-account-rooms');
+
+  // Renaming herself on the phone reaches the laptop the next time it opens the home page.
+  await phone.getByRole('button', { name: 'O teu perfil' }).click();
+  const edit = phone.getByRole('dialog', { name: 'Perfil' });
+  await expect(edit.getByText(`@${username}`)).toBeVisible();
+  await edit.getByLabel('Nome', { exact: true }).fill('Ana Sofia');
+  await edit.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(phone.getByRole('button', { name: 'O teu perfil' })).toContainText('Ana Sofia');
+  await expect
+    .poll(async () => {
+      await laptop.reload();
+      return laptop.getByRole('button', { name: 'O teu perfil' }).textContent();
+    })
+    .toContain('Ana Sofia');
+
+  // Signing out leaves nothing of her on the phone.
+  await phone.getByRole('button', { name: 'O teu perfil' }).click();
+  await phone.getByRole('dialog', { name: 'Perfil' }).getByRole('button', { name: 'Terminar sessão' }).click();
+  await expect(phone.getByRole('button', { name: 'Entrar na conta' })).toBeVisible();
+  await expect(phone.getByRole('region', { name: 'As tuas salas' })).toHaveCount(0);
+});

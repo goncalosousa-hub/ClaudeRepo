@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { AVATARS, MEMBER_COLORS } from '../../shared/constants';
-import { readJSON, writeJSON } from './storage';
+import { readJSON, removeKey, writeJSON } from './storage';
 
-/** The local profile. There are no accounts: the secret proves to the server that this browser owns the id. */
+/**
+ * The profile used in rooms. The secret proves to the server that this browser owns the id; with an
+ * account (username + password) the same profile can be recovered on any link or device.
+ */
 export interface LocalUser {
   id: string;
   secret: string;
   name: string;
   color: string;
   avatar: string;
+  /** Username of the account this profile belongs to (none for a profile without account). */
+  account?: string;
 }
 
 const KEY = 'atl:user';
@@ -17,7 +22,14 @@ const EVENT = 'atl:user-changed';
 
 function isValid(u: unknown): u is LocalUser {
   const x = u as LocalUser | null;
-  return !!x && typeof x.id === 'string' && typeof x.secret === 'string' && typeof x.name === 'string' && !!x.name;
+  return (
+    !!x &&
+    typeof x.id === 'string' &&
+    typeof x.secret === 'string' &&
+    typeof x.name === 'string' &&
+    !!x.name &&
+    (x.account === undefined || typeof x.account === 'string')
+  );
 }
 
 export function loadUser(): LocalUser | null {
@@ -27,6 +39,12 @@ export function loadUser(): LocalUser | null {
 
 export function saveUser(u: LocalUser) {
   writeJSON(KEY, u);
+  window.dispatchEvent(new Event(EVENT));
+}
+
+/** Signs out: the profile stays safe in the account and comes back when signing in again. */
+export function clearUser() {
+  removeKey(KEY);
   window.dispatchEvent(new Event(EVENT));
 }
 

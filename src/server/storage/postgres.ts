@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { RoomDoc, Storage } from './types';
+import type { AccountDoc, RoomDoc, Storage } from './types';
 
 /**
  * node-postgres currently treats `sslmode=require` (what Neon & co. put in their links) as
@@ -54,6 +54,14 @@ export class PostgresStorage implements Storage {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        username TEXT PRIMARY KEY,
+        doc JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
   }
 
   async load(id: string): Promise<RoomDoc | null> {
@@ -66,6 +74,27 @@ export class PostgresStorage implements Storage {
       `INSERT INTO rooms (id, doc) VALUES ($1, $2::jsonb)
        ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
       [id, JSON.stringify(doc)],
+    );
+  }
+
+  async loadAccount(username: string): Promise<AccountDoc | null> {
+    const res = await this.pool.query<{ doc: AccountDoc }>('SELECT doc FROM accounts WHERE username = $1', [username]);
+    return res.rows[0]?.doc ?? null;
+  }
+
+  async createAccount(doc: AccountDoc) {
+    const res = await this.pool.query(
+      'INSERT INTO accounts (username, doc) VALUES ($1, $2::jsonb) ON CONFLICT (username) DO NOTHING',
+      [doc.username, JSON.stringify(doc)],
+    );
+    return res.rowCount === 1;
+  }
+
+  async saveAccount(doc: AccountDoc) {
+    await this.pool.query(
+      `INSERT INTO accounts (username, doc) VALUES ($1, $2::jsonb)
+       ON CONFLICT (username) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
+      [doc.username, JSON.stringify(doc)],
     );
   }
 
