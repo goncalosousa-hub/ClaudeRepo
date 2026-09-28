@@ -1,0 +1,15 @@
+# Blueprint para o Render (https://render.com). O plano gratuito não guarda ficheiros entre
+# reinícios, por isso define DATABASE_URL (ex.: PostgreSQL gratuito do Neon) para não perder as salas.
+services:
+  - type: web
+    name: anime-tierlist-live
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false

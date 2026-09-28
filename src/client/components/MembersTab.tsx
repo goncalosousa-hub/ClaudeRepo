@@ -1,0 +1,121 @@
+import { useMemo } from 'react';
+import { LayoutGrid } from 'lucide-react';
+import { affinity, memberStats } from '../../shared/stats';
+import { genreLabel } from '../lib/anime-api';
+import { formatRating, ratingColor, timeAgo } from '../lib/format';
+import { describePresence } from '../lib/presence-text';
+import { useRoom } from './RoomContext';
+import { Avatar, Button } from './ui';
+
+export function MembersTab() {
+  const { room, me, snap, titleOf, setTab, setBoard, openAnime } = useRoom();
+
+  const members = useMemo(
+    () =>
+      Object.values(room.members).sort(
+        (a, b) =>
+          Number(b.id === me) - Number(a.id === me) ||
+          Number(!!snap.presence[b.id]) - Number(!!snap.presence[a.id]) ||
+          a.name.localeCompare(b.name),
+      ),
+    [room.members, snap.presence, me],
+  );
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+      {members.map((m) => {
+        const stats = memberStats(room, m.id);
+        const online = m.id === me || !!snap.presence[m.id];
+        const p = snap.presence[m.id];
+        const aff = m.id === me ? null : affinity(room, me, m.id);
+        return (
+          <div key={m.id} className="rounded-2xl border border-line bg-surface p-4">
+            <div className="flex items-center gap-3">
+              <Avatar member={m} size={44} online={online} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">
+                  {m.name} {m.id === me && <span className="text-xs font-normal text-faint">(tu)</span>}
+                  {room.createdBy === m.id && <span className="ml-1 text-xs" title="Criou a sala">👑</span>}
+                </p>
+                <p className="truncate text-xs text-muted">
+                  {m.id === me
+                    ? 'Online'
+                    : p
+                      ? describePresence(p, room, me, titleOf)
+                      : snap.lastSeen[m.id]
+                        ? `Visto ${timeAgo(snap.lastSeen[m.id])}`
+                        : 'Offline'}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setBoard(m.id);
+                  setTab('tierlist');
+                }}
+                title="Ver a tierlist"
+              >
+                <LayoutGrid size={15} />
+              </Button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-4 gap-2 text-center">
+              {[
+                { label: 'avaliados', value: stats.rated },
+                { label: 'média', value: formatRating(stats.avg != null ? Math.round(stats.avg * 10) / 10 : null), color: ratingColor(stats.avg) },
+                { label: 'recomenda', value: stats.recommended },
+                { label: 'opiniões', value: stats.opinions },
+              ].map((s) => (
+                <div key={s.label} className="rounded-lg bg-surface-2 px-1 py-2">
+                  <p className="text-base font-bold" style={s.color ? { color: s.color } : undefined}>
+                    {s.value}
+                  </p>
+                  <p className="text-[10px] text-faint">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {aff && (
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="text-muted">Afinidade contigo</span>
+                  <span className="font-semibold">
+                    {aff.score != null ? `${aff.score}%` : '—'}
+                    <span className="font-normal text-faint"> · {aff.common} em comum</span>
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-all"
+                    style={{ width: `${aff.score ?? 0}%` }}
+                  />
+                </div>
+                {aff.score == null && (
+                  <p className="mt-1 text-[11px] text-faint">Avaliem pelo menos 2 animes em comum para ver a afinidade.</p>
+                )}
+              </div>
+            )}
+
+            {(stats.favourites.length > 0 || stats.topGenres.length > 0) && (
+              <div className="mt-3 flex items-end gap-3">
+                <div className="flex gap-1.5">
+                  {stats.favourites.map((k) => (
+                    <button key={k} onClick={() => openAnime(k)} title={titleOf(room.anime[k])}>
+                      <img src={room.anime[k].cover} alt="" loading="lazy" className="h-14 w-10 rounded-md object-cover" />
+                    </button>
+                  ))}
+                </div>
+                {stats.topGenres.length > 0 && (
+                  <p className="min-w-0 text-[11px] leading-snug text-muted">
+                    Gosta de <span className="text-fg">{stats.topGenres.map(genreLabel).join(', ')}</span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

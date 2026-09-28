@@ -1,0 +1,240 @@
+import { describe, expect, it } from 'vitest';
+import { produce } from 'immer';
+import { applyOp, createRoomState, OpError, tierOf } from '../src/shared/ops';
+import { GROUP_BOARD, POOL, type Op, type OpMeta, type RoomState } from '../src/shared/types';
+import { anime } from './fixtures';
+
+let seq = 0;
+const meta = (by = 'ana', at = 1_000): OpMeta => ({ by, at, seq: ++seq });
+
+function room(): RoomState {
+  const s = createRoomState('room01', 'Turma', 0);
+  applyOp(s, { type: 'member.join', member: { id: 'ana', name: 'Ana', color: '#ff0000', avatar: '🦊' } }, meta('ana'));
+  applyOp(s, { type: 'member.join', member: { id: 'rui', name: 'Rui', color: '#00ff00', avatar: '🐼' } }, meta('rui'));
+  return s;
+}
+
+function apply(s: RoomState, op: Op, by = 'ana', at = 1_000) {
+  applyOp(s, op, meta(by, at));
+}
+
+describe('anime.add / anime.remove', () => {
+  it('adds anime to the room pool, idempotently', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1, 'Frieren') });
+    apply(s, { type: 'anime.add', anime: anime(1, 'Frieren') });
+    expect(Object.keys(s.anime)).toEqual(['al:1']);
+    expect(s.anime['al:1'].addedBy).toBe('ana');
+    expect(tierOf(s, GROUP_BOARD, 'al:1')).toBeNull();
+    expect(s.activity.filter((a) => a.kind === 'add')).toHaveLength(1);
+  });
+
+  it('ignores the same anime coming from another source (same MAL id)', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1, 'Frieren', { idMal: 52991 }) });
+    apply(s, {
+      type: 'anime.add',
+      anime: { ...anime(52991, 'Frieren'), key: 'mal:52991', source: 'jikan', sourceId: 52991, idMal: 52991 },
+    });
+    expect(Object.keys(s.anime)).toEqual(['al:1']);
+  });
+
+  it('can add and place in one op', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(2), place: { board: GROUP_BOARD, to: 's' } });
+    expect(s.boards[GROUP_BOARD].s).toEqual(['al:2']);
+  });
+
+  it('removes the anime from every board but keeps the reviews', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 'a', index: 0 });
+    apply(s, { type: 'board.move', board: 'rui', key: 'al:1', to: 'b', index: 0 }, 'rui');
+    apply(s, { type: 'review.set', key: 'al:1', patch: { rating: 9 } }, 'rui');
+    apply(s, { type: 'anime.remove', key: 'al:1' });
+    expect(s.anime['al:1']).toBeUndefined();
+    expect(s.boards[GROUP_BOARD].a).toEqual([]);
+    expect(s.boards.rui.b).toEqual([]);
+    expect(s.reviews['al:1'].rui.rating).toBe(9);
+    // Re-adding brings the opinion back.
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    expect(s.reviews['al:1'].rui.rating).toBe(9);
+  });
+});
+
+describe('board.move', () => {
+  it('moves between tiers and reorders', () => {
+    const s = room();
+    for (const id of [1, 2, 3]) apply(s, { type: 'anime.add', anime: anime(id) });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 's', index: 0 });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:2', to: 's', index: 5 });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:3', to: 's', index: 0 });
+    expect(s.boards[GROUP_BOARD].s).toEqual(['al:3', 'al:1', 'al:2']);
+    // reorder inside the same tier
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:3', to: 's', index: 2 });
+    expect(s.boards[GROUP_BOARD].s).toEqual(['al:1', 'al:2', 'al:3']);
+    // move to another tier
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:2', to: 'c', index: 0 });
+    expect(s.boards[GROUP_BOARD].s).toEqual(['al:1', 'al:3']);
+    expect(s.boards[GROUP_BOARD].c).toEqual(['al:2']);
+    // back to the pool
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:2', to: POOL, index: 0 });
+    expect(tierOf(s, GROUP_BOARD, 'al:2')).toBeNull();
+  });
+
+  it('creates personal boards lazily and keeps them independent', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'board.move', board: 'rui', key: 'al:1', to: 'f', index: 0 }, 'rui');
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 's', index: 0 }, 'rui');
+    expect(tierOf(s, 'rui', 'al:1')).toBe('f');
+    expect(tierOf(s, GROUP_BOARD, 'al:1')).toBe('s');
+    expect(tierOf(s, 'ana', 'al:1')).toBeNull();
+  });
+
+  it('rejects unknown anime, tiers and boards without touching the state', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    const before = JSON.stringify(s);
+    expect(() => apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:9', to: 's', index: 0 })).toThrow(OpError);
+    expect(() => apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 'zz', index: 0 })).toThrow(OpError);
+    expect(() => apply(s, { type: 'board.move', board: 'nobody', key: 'al:1', to: 's', index: 0 })).toThrow(OpError);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('coalesces repeated moves of the same card in the activity feed', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 's', index: 0 }, 'ana', 2_000);
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 'a', index: 0 }, 'ana', 3_000);
+    const moves = s.activity.filter((a) => a.kind === 'move');
+    expect(moves).toHaveLength(1);
+    expect(moves[0]).toMatchObject({ to: 'a', toLabel: 'A' });
+  });
+});
+
+describe('board.copy / board.clear', () => {
+  it('copies the group tier list into a personal one and clears it', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'anime.add', anime: anime(2) });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 's', index: 0 });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:2', to: 'b', index: 0 });
+    apply(s, { type: 'board.copy', board: 'rui', from: GROUP_BOARD }, 'rui');
+    expect(s.boards.rui.s).toEqual(['al:1']);
+    expect(s.boards.rui.b).toEqual(['al:2']);
+    // copies are independent
+    apply(s, { type: 'board.move', board: 'rui', key: 'al:1', to: 'f', index: 0 }, 'rui');
+    expect(s.boards[GROUP_BOARD].s).toEqual(['al:1']);
+    apply(s, { type: 'board.clear', board: 'rui' }, 'rui');
+    expect(Object.values(s.boards.rui).flat()).toEqual([]);
+  });
+});
+
+describe('review.set', () => {
+  it('merges patches, and deletes the review when everything is cleared', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'review.set', key: 'al:1', patch: { rating: 8 } }, 'rui', 5_000);
+    apply(s, { type: 'review.set', key: 'al:1', patch: { recommend: 'yes', opinion: 'Muito bom!' } }, 'rui', 6_000);
+    expect(s.reviews['al:1'].rui).toEqual({
+      rating: 8,
+      recommend: 'yes',
+      status: null,
+      opinion: 'Muito bom!',
+      updatedAt: 6_000,
+    });
+    // one coalesced activity entry
+    const reviews = s.activity.filter((a) => a.kind === 'review');
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0]).toMatchObject({ rating: 8, recommend: 'yes', opinion: true });
+
+    apply(s, { type: 'review.set', key: 'al:1', patch: { rating: null, recommend: null, opinion: '  ' } }, 'rui');
+    expect(s.reviews['al:1']).toBeUndefined();
+  });
+
+  it('rejects invalid ratings and unknown anime', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    expect(() => apply(s, { type: 'review.set', key: 'al:1', patch: { rating: 11 } })).toThrow('invalid_rating');
+    expect(() => apply(s, { type: 'review.set', key: 'al:1', patch: { rating: 7.5 } })).toThrow('invalid_rating');
+    expect(() => apply(s, { type: 'review.set', key: 'al:2', patch: { rating: 5 } })).toThrow('anime_not_found');
+  });
+});
+
+describe('tiers.set', () => {
+  it('renames, adds and removes tiers; anime in removed tiers go back to the pool', () => {
+    const s = room();
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'anime.add', anime: anime(2) });
+    apply(s, { type: 'board.move', board: GROUP_BOARD, key: 'al:1', to: 's', index: 0 });
+    apply(s, { type: 'board.move', board: 'rui', key: 'al:2', to: 'f', index: 0 }, 'rui');
+    apply(s, {
+      type: 'tiers.set',
+      tiers: [
+        { id: 's', label: 'GOAT', color: '#ff0000' },
+        { id: 'new', label: 'Novo', color: '#00ff00' },
+      ],
+    });
+    expect(s.tiers.map((t) => t.label)).toEqual(['GOAT', 'Novo']);
+    expect(s.boards[GROUP_BOARD]).toEqual({ s: ['al:1'], new: [] });
+    expect(s.boards.rui).toEqual({ s: [], new: [] });
+  });
+
+  it('rejects duplicate ids and the reserved pool id', () => {
+    const s = room();
+    expect(() =>
+      apply(s, {
+        type: 'tiers.set',
+        tiers: [
+          { id: 'x', label: 'X', color: '#ff0000' },
+          { id: 'x', label: 'Y', color: '#ff0000' },
+        ],
+      }),
+    ).toThrow(OpError);
+    expect(() => apply(s, { type: 'tiers.set', tiers: [{ id: POOL, label: 'P', color: '#ff0000' }] })).toThrow(OpError);
+  });
+});
+
+describe('members, chat and rename', () => {
+  it('records joins once and updates profiles', () => {
+    const s = room();
+    apply(s, { type: 'member.join', member: { id: 'ana', name: 'Ana M.', color: '#123456', avatar: '🐱' } });
+    expect(s.members.ana.name).toBe('Ana M.');
+    expect(s.activity.filter((a) => a.kind === 'join')).toHaveLength(2);
+    apply(s, { type: 'member.update', name: 'Rui P.', color: '#654321', avatar: '🐸' }, 'rui');
+    expect(s.members.rui).toMatchObject({ name: 'Rui P.', avatar: '🐸' });
+    expect(() => apply(s, { type: 'member.update', name: 'X', color: '#000000', avatar: '' }, 'ghost')).toThrow(OpError);
+  });
+
+  it('chat messages are idempotent by id and capped', () => {
+    const s = room();
+    apply(s, { type: 'chat.send', id: 'm1', text: '  olá  ' });
+    apply(s, { type: 'chat.send', id: 'm1', text: 'olá' });
+    expect(s.chat).toHaveLength(1);
+    expect(s.chat[0].text).toBe('olá');
+    for (let i = 0; i < 400; i++) apply(s, { type: 'chat.send', id: `x${i}`, text: `msg ${i}` });
+    expect(s.chat).toHaveLength(300);
+    expect(s.chat.at(-1)?.text).toBe('msg 399');
+  });
+
+  it('renames the room', () => {
+    const s = room();
+    apply(s, { type: 'room.rename', name: '  ESTG 2º ano ' });
+    expect(s.name).toBe('ESTG 2º ano');
+    expect(() => apply(s, { type: 'room.rename', name: '   ' })).toThrow(OpError);
+  });
+});
+
+describe('works on immutable (Immer) state too', () => {
+  it('produces a new state without mutating the frozen original', () => {
+    const base = produce(room(), () => {});
+    const next = produce(base, (d) => {
+      applyOp(d, { type: 'anime.add', anime: anime(7) }, meta());
+      applyOp(d, { type: 'board.move', board: GROUP_BOARD, key: 'al:7', to: 'a', index: 0 }, meta());
+    });
+    expect(base.anime['al:7']).toBeUndefined();
+    expect(next.boards[GROUP_BOARD].a).toEqual(['al:7']);
+    expect(Object.isFrozen(next)).toBe(true);
+  });
+});
