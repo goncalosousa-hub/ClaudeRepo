@@ -1,4 +1,4 @@
-import { readJSON, writeJSON } from './storage';
+import { readJSON, removeKey, writeJSON } from './storage';
 
 export interface RecentRoom {
   id: string;
@@ -24,4 +24,8 @@ export function forgetRoom(id: string) {
     KEY,
     recentRooms().filter((r) => r.id !== id),
   );
+}
+
+export function clearRecentRooms() {
+  removeKey(KEY);
 }

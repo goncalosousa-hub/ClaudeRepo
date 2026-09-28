@@ -5,7 +5,7 @@ import { lanAddresses } from './network';
 import type { RoomManager } from './rooms';
 
 /** Fixed-window rate limit per IP (in memory, good enough for a single server). */
-function rateLimit(max: number, windowMs: number) {
+export function rateLimit(max: number, windowMs: number) {
   const hits = new Map<string, { count: number; reset: number }>();
   return (req: Request, res: Response, next: () => void) => {
     const now = Date.now();

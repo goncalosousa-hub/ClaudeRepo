@@ -20,7 +20,7 @@ try {
   console.error('     Confirma o link no ficheiro .env, ou apaga essa linha para voltar a guardar na pasta data/.\n');
   process.exit(1);
 }
-const { httpServer, storage, imported, close } = app;
+const { httpServer, storage, imported, importedAccounts, close } = app;
 
 httpServer.listen(port, host, () => {
   const lan = lanAddresses();
@@ -35,6 +35,7 @@ httpServer.listen(port, host, () => {
   }
   console.log(`  ➜ Dados:       ${storage.label}`);
   if (imported) console.log(`                 (${imported} sala${imported === 1 ? '' : 's'} da pasta data/ copiada${imported === 1 ? '' : 's'} para a base de dados)`);
+  if (importedAccounts) console.log(`                 (${importedAccounts} conta${importedAccounts === 1 ? '' : 's'} da pasta data/ copiada${importedAccounts === 1 ? '' : 's'} para a base de dados)`);
   console.log(`\n  Colegas noutra rede? Cria um túnel:  cloudflared tunnel --url http://localhost:${port}\n`);
 });
 

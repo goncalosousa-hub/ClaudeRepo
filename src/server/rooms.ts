@@ -113,6 +113,14 @@ export class RoomManager {
     return timingSafeEqual(Buffer.from(known), Buffer.from(hash));
   }
 
+  /** The room's name when `userId` is a member of it and `secret` is theirs (null otherwise). */
+  async memberRoomName(id: string, userId: string, secret: string): Promise<string | null> {
+    const room = await this.get(id);
+    const known = room?.doc.secrets[userId];
+    if (!room || !known || !room.doc.state.members[userId]) return null;
+    return timingSafeEqual(Buffer.from(known), Buffer.from(sha256(secret))) ? room.doc.state.name : null;
+  }
+
   /** Returns true when this is the user's first open socket in the room (they just came online). */
   addSocket(room: LiveRoom, socketId: string, userId: string): boolean {
     let sockets = room.userSockets.get(userId);

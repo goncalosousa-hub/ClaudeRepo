@@ -8,7 +8,9 @@ import { Server } from 'socket.io';
 import { apiRouter } from './http';
 import { attachRealtime } from './realtime';
 import { RoomManager, type RoomManagerOptions } from './rooms';
-import { createStorage, importFileRooms } from './storage';
+import { AccountManager } from './accounts';
+import { accountRouter } from './account-routes';
+import { createStorage, importFileAccounts, importFileRooms } from './storage';
 
 export interface AppOptions {
   /** Serve the client through Vite (hot reload) instead of the built files. */
@@ -40,9 +42,11 @@ export async function createApp(opts: AppOptions) {
     await storage.close().catch(() => {});
     throw err;
   }
-  // Switching from JSON files to PostgreSQL: bring the rooms that already exist along.
+  // Switching from JSON files to PostgreSQL: bring the rooms and accounts that already exist along.
   const imported = storage.kind === 'postgres' ? await importFileRooms(opts.dataDir, storage) : 0;
+  const importedAccounts = storage.kind === 'postgres' ? await importFileAccounts(opts.dataDir, storage) : 0;
   const rooms = new RoomManager(storage, opts.rooms);
+  const accounts = new AccountManager(storage);
 
   const app = express();
   app.disable('x-powered-by');
@@ -56,6 +60,7 @@ export async function createApp(opts: AppOptions) {
   });
   app.use(compression());
   app.use(express.json({ limit: '64kb' }));
+  app.use('/api', accountRouter(accounts, rooms));
   app.use('/api', apiRouter(rooms));
 
   const httpServer = createServer(app);
@@ -63,7 +68,7 @@ export async function createApp(opts: AppOptions) {
     maxHttpBufferSize: 256 * 1024,
     perMessageDeflate: { threshold: 4096 },
   });
-  attachRealtime(io, rooms);
+  attachRealtime(io, rooms, accounts);
 
   let closeVite: (() => Promise<void>) | undefined;
   if (opts.dev) {
@@ -110,5 +115,5 @@ export async function createApp(opts: AppOptions) {
     await storage.close();
   }
 
-  return { app, httpServer, io, rooms, storage, imported, close };
+  return { app, httpServer, io, rooms, accounts, storage, imported, importedAccounts, close };
 }

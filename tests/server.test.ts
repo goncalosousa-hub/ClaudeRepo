@@ -297,3 +297,207 @@ describe('realtime rooms', () => {
     expect(pg2.imported).toBe(0);
   });
 });
+
+async function api<T = Record<string, unknown>>(
+  app: App,
+  method: string,
+  url: string,
+  body?: unknown,
+  auth?: { username: string; secret: string },
+) {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (auth) headers.Authorization = `Account ${auth.username}:${auth.secret}`;
+  const res = await fetch(`${app.url}${url}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  return { status: res.status, body: (await res.json()) as T };
+}
+
+interface LoginResult {
+  username: string;
+  user: { id: string; secret: string; name: string; color: string; avatar: string; account: string };
+  rooms: { id: string; name: string; visitedAt: number }[];
+}
+
+const profile = (name: string) => ({ name, color: '#3366ff', avatar: '🦊' });
+const register = (app: App, username: string, password = 'pass-1234', extra: object = {}) =>
+  api<LoginResult>(app, 'POST', '/api/auth/register', { username, password, ...profile(username), ...extra });
+const login = (app: App, username: string, password = 'pass-1234') =>
+  api<LoginResult>(app, 'POST', '/api/auth/login', { username, password });
+const auth = (r: LoginResult) => ({ username: r.username, secret: r.user.secret });
+
+/** Waits until "As tuas salas" of the account matches (visits are saved right after the join ack). */
+async function accountRooms(app: App, r: LoginResult, expected: number) {
+  for (let i = 0; i < 50; i++) {
+    const res = await api<{ rooms: LoginResult['rooms'] }>(app, 'GET', '/api/account', undefined, auth(r));
+    if (res.body.rooms.length === expected) return res.body.rooms;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`the account never had ${expected} room(s)`);
+}
+
+describe('accounts', () => {
+  it('registers, refuses taken or invalid usernames and logs in with the same identity', async () => {
+    const app = await start(await tmpDir());
+    const created = await register(app, 'Ana.Sofia');
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ username: 'ana.sofia', rooms: [], user: { name: 'Ana.Sofia', account: 'ana.sofia' } });
+    expect(created.body.user.id).toMatch(/^u_/);
+
+    expect((await register(app, 'ANA.SOFIA')).body).toEqual({ error: 'username_taken' });
+    expect((await register(app, 'ANA.SOFIA')).status).toBe(409);
+    expect((await register(app, 'a')).body).toEqual({ error: 'invalid_username' });
+    expect((await register(app, 'com1')).body).toEqual({ error: 'invalid_username' });
+    expect((await register(app, '../etc')).body).toEqual({ error: 'invalid_username' });
+    expect((await register(app, 'bruno', '123')).body).toEqual({ error: 'invalid_password' });
+    // An identity must come with its secret.
+    expect((await register(app, 'bruno', 'pass-1234', { id: 'u_abcdefgh1234' })).status).toBe(400);
+
+    expect(await login(app, 'ana.sofia', 'wrong-pass')).toEqual({ status: 401, body: { error: 'invalid_credentials' } });
+    expect(await login(app, 'nobody', 'pass-1234')).toEqual({ status: 401, body: { error: 'invalid_credentials' } });
+    const again = await login(app, '  Ana.Sofia ');
+    expect(again.status).toBe(200);
+    expect(again.body.user).toEqual(created.body.user);
+  });
+
+  it('keeps the profile someone already uses in rooms when they create an account', async () => {
+    const app = await start(await tmpDir());
+    const roomId = await createRoom(app, 'Turma A');
+    const guest = user('ana', 'Ana');
+    const a = await join(app, roomId, guest);
+    await op(a.s, { type: 'anime.add', anime: anime(5, 'Frieren') });
+    await op(a.s, { type: 'review.set', key: 'al:5', patch: { rating: 10 } });
+    a.s.disconnect();
+
+    const created = await register(app, 'ana', 'pass-1234', { id: guest.id, secret: guest.secret });
+    expect(created.status).toBe(201);
+    expect(created.body.user).toMatchObject({ id: guest.id, secret: guest.secret });
+
+    // Another device / another link: log in and enter the room as the same member.
+    const device = (await login(app, 'ana')).body.user;
+    const b = await join(app, roomId, device);
+    expect(Object.keys(b.ack.state.members)).toEqual([guest.id]);
+    expect(b.ack.state.reviews['al:5'][guest.id]).toMatchObject({ rating: 10 });
+  });
+
+  it('starts "As tuas salas" with the rooms the profile was already in', async () => {
+    const app = await start(await tmpDir());
+    const guest = user('ana', 'Ana');
+    const mine = await createRoom(app, 'Turma A');
+    const notMine = await createRoom(app, 'Sala dos outros');
+    (await join(app, mine, guest)).s.disconnect();
+    (await join(app, notMine, user('bruno'))).s.disconnect();
+
+    const created = await register(app, 'ana', 'pass-1234', {
+      id: guest.id,
+      secret: guest.secret,
+      rooms: [
+        { id: mine, visitedAt: 1000 },
+        { id: notMine, visitedAt: 2000 }, // never joined with this profile: ignored
+        { id: 'zzzz0000', visitedAt: 3000 }, // does not exist: ignored
+      ],
+    });
+    expect(created.body.rooms).toEqual([{ id: mine, name: 'Turma A', visitedAt: 1000 }]);
+    // A stolen room list cannot be attached to a new identity either.
+    const other = await register(app, 'eve', 'pass-1234', { rooms: [{ id: mine, visitedAt: 1 }] });
+    expect(other.body.rooms).toEqual([]);
+  });
+
+  it('remembers the rooms each account has been in', async () => {
+    const app = await start(await tmpDir());
+    const ana = (await register(app, 'ana')).body;
+    const bruno = (await register(app, 'bruno')).body;
+    const room1 = await createRoom(app, 'Turma A');
+    const room2 = await createRoom(app, 'Clube de anime');
+
+    const s1 = client(app);
+    expect((await emit<JoinAck>(s1, 'join', { roomId: room1, user: ana.user, account: 'ana' })).ok).toBe(true);
+    await accountRooms(app, ana, 1);
+    const s2 = client(app);
+    expect((await emit<JoinAck>(s2, 'join', { roomId: room2, user: ana.user, account: 'ana' })).ok).toBe(true);
+    const rooms = await accountRooms(app, ana, 2);
+    expect(rooms.map((r) => [r.id, r.name])).toEqual([
+      [room2, 'Clube de anime'],
+      [room1, 'Turma A'],
+    ]);
+    expect((await login(app, 'ana')).body.rooms.map((r) => r.id)).toEqual([room2, room1]);
+
+    // Joining with someone else's account name does not add rooms to that account.
+    const s3 = client(app);
+    expect((await emit<JoinAck>(s3, 'join', { roomId: room1, user: bruno.user, account: 'ana' })).ok).toBe(true);
+    // A broken account name never stops anyone from joining.
+    const s4 = client(app);
+    expect((await emit<JoinAck>(s4, 'join', { roomId: room2, user: bruno.user, account: '../x' })).ok).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect((await accountRooms(app, ana, 2)).map((r) => r.id)).toEqual([room2, room1]);
+    expect(await accountRooms(app, bruno, 0)).toEqual([]);
+
+    expect((await api(app, 'DELETE', `/api/account/rooms/${room1}`, undefined, auth(ana))).status).toBe(200);
+    expect((await accountRooms(app, ana, 1)).map((r) => r.id)).toEqual([room2]);
+  });
+
+  it('updates the profile and the password, and only with the right credentials', async () => {
+    const app = await start(await tmpDir());
+    const ana = (await register(app, 'ana')).body;
+    expect((await api(app, 'GET', '/api/account')).status).toBe(401);
+    expect((await api(app, 'GET', '/api/account', undefined, { username: 'ana', secret: 'x'.repeat(32) })).status).toBe(401);
+    expect((await api(app, 'PATCH', '/api/account', profile('Hacker'), { username: 'ana', secret: 'x'.repeat(32) })).status).toBe(401);
+
+    const renamed = { name: 'Ana Sofia', color: '#ff0066', avatar: '🐙' };
+    expect((await api(app, 'PATCH', '/api/account', renamed, auth(ana))).status).toBe(200);
+    expect((await api(app, 'PATCH', '/api/account', { name: '' }, auth(ana))).status).toBe(400);
+    expect((await api(app, 'GET', '/api/account', undefined, auth(ana))).body).toMatchObject({ username: 'ana', profile: renamed });
+
+    const change = (current: string, next: string) =>
+      api(app, 'POST', '/api/account/password', { current, next }, auth(ana));
+    expect(await change('wrong-pass', 'new-pass-5678')).toEqual({ status: 403, body: { error: 'wrong_password' } });
+    expect((await change('pass-1234', '123')).status).toBe(400);
+    expect((await change('pass-1234', 'new-pass-5678')).status).toBe(200);
+    expect((await login(app, 'ana')).status).toBe(401);
+    const again = await login(app, 'ana', 'new-pass-5678');
+    expect(again.body.user).toMatchObject({ id: ana.user.id, ...renamed });
+  });
+
+  it('slows down password guessing', async () => {
+    const app = await start(await tmpDir());
+    await register(app, 'ana');
+    for (let i = 0; i < 10; i++) expect((await login(app, 'ana', `guess-${i}`)).status).toBe(401);
+    // Even the right password is refused for a while.
+    expect(await login(app, 'ana')).toEqual({ status: 429, body: { error: 'rate_limited' } });
+  });
+
+  it('keeps accounts after a restart (JSON files)', async () => {
+    const dir = await tmpDir();
+    const app1 = await start(dir);
+    const ana = (await register(app1, 'ana')).body;
+    await app1.close();
+    const app2 = await start(dir);
+    expect((await login(app2, 'ana')).body.user).toEqual(ana.user);
+    expect((await register(app2, 'ana')).status).toBe(409);
+  });
+
+  it.runIf(process.env.TEST_DATABASE_URL)('keeps accounts in PostgreSQL and copies the ones saved as files', async () => {
+    const dir = await tmpDir();
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+    const files = await start(dir);
+    const before = (await register(files, `f${suffix}`)).body;
+    await files.close();
+
+    const pg1 = await start(dir, process.env.TEST_DATABASE_URL!);
+    expect(pg1.importedAccounts).toBeGreaterThanOrEqual(1);
+    expect((await login(pg1, `f${suffix}`)).body.user).toEqual(before.user);
+    const ana = (await register(pg1, `p${suffix}`)).body;
+    const roomId = await createRoom(pg1, 'Sala PG');
+    const s = client(pg1);
+    expect((await emit<JoinAck>(s, 'join', { roomId, user: ana.user, account: ana.username })).ok).toBe(true);
+    await accountRooms(pg1, ana, 1);
+    s.disconnect();
+    await pg1.close();
+
+    const pg2 = await start(dir, process.env.TEST_DATABASE_URL!);
+    expect(pg2.importedAccounts).toBe(0);
+    expect((await register(pg2, `p${suffix}`)).status).toBe(409);
+    const again = (await login(pg2, `p${suffix}`)).body;
+    expect(again.user).toEqual(ana.user);
+    expect(again.rooms.map((r) => [r.id, r.name])).toEqual([[roomId, 'Sala PG']]);
+  });
+});

@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { OpError } from '../shared/ops';
 import { cursorSchema, joinSchema, opMessageSchema, presencePatchSchema } from '../shared/schema';
 import { GROUP_BOARD, type AckError, type JoinAck, type Op, type OpAck, type SyncAck } from '../shared/types';
+import type { AccountManager } from './accounts';
 import type { LiveRoom, RoomManager } from './rooms';
 
 /** Simple token bucket to stop a misbehaving client from flooding the room. */
@@ -43,7 +44,7 @@ type Ack<T> = (res: T) => void;
 const noop = () => {};
 const asAck = <T>(fn: unknown): Ack<T> => (typeof fn === 'function' ? (fn as Ack<T>) : noop);
 
-export function attachRealtime(io: Server, rooms: RoomManager) {
+export function attachRealtime(io: Server, rooms: RoomManager, accounts?: AccountManager) {
   io.on('connection', (socket: Socket) => {
     let ctx: { room: LiveRoom; userId: string } | null = null;
     let joining = false;
@@ -56,7 +57,7 @@ export function attachRealtime(io: Server, rooms: RoomManager) {
       if (ctx || joining) return ack({ ok: false, error: 'already_joined' });
       const parsed = joinSchema.safeParse(payload);
       if (!parsed.success) return ack({ ok: false, error: 'invalid_payload' });
-      const { roomId, user } = parsed.data;
+      const { roomId, user, account } = parsed.data;
 
       joining = true;
       let room: LiveRoom | null;
@@ -97,6 +98,12 @@ export function attachRealtime(io: Server, rooms: RoomManager) {
         presence: [...room.presence.values()],
         lastSeen: room.doc.lastSeen,
       });
+      if (account && accounts) {
+        const visit = { id: roomId, name: room.doc.state.name };
+        accounts.recordVisits(account, user.id, user.secret, [visit]).catch((err) => {
+          console.error('[realtime] could not update the rooms of', account, err);
+        });
+      }
     });
 
     socket.on('op', (payload: unknown, ackFn: unknown) => {

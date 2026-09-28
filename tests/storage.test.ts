@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRoomState } from '../src/shared/ops';
-import { importFileRooms, type RoomDoc, type Storage } from '../src/server/storage';
+import { importFileAccounts, importFileRooms, type AccountDoc, type RoomDoc, type Storage } from '../src/server/storage';
 import { FileStorage } from '../src/server/storage/file';
 import { normalizeConnectionString } from '../src/server/storage/postgres';
 
@@ -14,16 +14,39 @@ afterEach(async () => {
 
 const doc = (id: string, name = id): RoomDoc => ({ v: 1, seq: 0, state: createRoomState(id, name, 0), secrets: {}, lastSeen: {} });
 
+const account = (username: string, name = username): AccountDoc => ({
+  v: 1,
+  username,
+  userId: `u_${username}_id`,
+  secret: `${username}-secret-0123456789`,
+  password: 'scrypt$16384$8$1$c2FsdA==$aGFzaA==',
+  profile: { name, color: '#8b5cf6', avatar: '🦊' },
+  rooms: {},
+  createdAt: 0,
+});
+
 class MemoryStorage implements Storage {
   readonly kind = 'memory';
   readonly label = 'memory';
   rooms = new Map<string, RoomDoc>();
+  accounts = new Map<string, AccountDoc>();
   async init() {}
   async load(id: string) {
     return this.rooms.get(id) ?? null;
   }
   async save(id: string, d: RoomDoc) {
     this.rooms.set(id, d);
+  }
+  async loadAccount(username: string) {
+    return this.accounts.get(username) ?? null;
+  }
+  async createAccount(d: AccountDoc) {
+    if (this.accounts.has(d.username)) return false;
+    this.accounts.set(d.username, d);
+    return true;
+  }
+  async saveAccount(d: AccountDoc) {
+    this.accounts.set(d.username, d);
   }
   async close() {}
 }
@@ -47,6 +70,34 @@ describe('storage helpers', () => {
     // Existing rooms are never overwritten by the (older) files.
     expect(target.rooms.get('room0002')?.state.name).toBe('Already in the database');
     expect(await importFileRooms(dir, target)).toBe(0);
+  });
+
+  it('stores accounts as files, never lets two accounts share a username, and copies them to another storage', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'atl-storage-'));
+    dirs.push(dir);
+    const files = new FileStorage(dir);
+    expect(await files.listAccounts()).toEqual([]);
+    await files.init();
+    expect(await files.loadAccount('ana')).toBeNull();
+    expect(await files.createAccount(account('ana', 'Ana'))).toBe(true);
+    expect(await files.createAccount(account('ana', 'Impostor'))).toBe(false);
+    expect((await files.loadAccount('ana'))?.profile.name).toBe('Ana');
+
+    const updated = { ...account('ana', 'Ana Sofia'), rooms: { room0001: { name: 'Turma A', visitedAt: 5 } } };
+    await files.saveAccount(updated);
+    expect(await files.loadAccount('ana')).toEqual(updated);
+    await files.createAccount(account('bruno'));
+    await writeFile(path.join(dir, 'accounts', 'notes.txt'), 'ignore me');
+    expect((await files.listAccounts()).sort()).toEqual(['ana', 'bruno']);
+    // Usernames become file names: anything that is not a valid username is refused.
+    await expect(files.loadAccount('../rooms/room0001')).rejects.toThrow('invalid username');
+
+    const target = new MemoryStorage();
+    target.accounts.set('bruno', account('bruno', 'Already in the database'));
+    expect(await importFileAccounts(dir, target)).toBe(1);
+    expect(target.accounts.get('ana')?.profile.name).toBe('Ana Sofia');
+    expect(target.accounts.get('bruno')?.profile.name).toBe('Already in the database');
+    expect(await importFileAccounts(dir, target)).toBe(0);
   });
 
   it('spells out sslmode=verify-full so node-postgres does not print a warning', () => {

@@ -1,8 +1,8 @@
 // Runtime validation of everything the server receives from browsers.
 import { z } from 'zod';
-import { LIMITS, isAllowedImageUrl, isAllowedSiteUrl } from './constants';
+import { LIMITS, PASSWORD_MIN, ROOM_ID_RE, isAllowedImageUrl, isAllowedSiteUrl, isValidUsername } from './constants';
 
-export const ROOM_ID_RE = /^[a-z0-9]{6,16}$/;
+export { ROOM_ID_RE };
 export const ANIME_KEY_RE = /^(al|mal):\d{1,9}$/;
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -91,13 +91,42 @@ export const opMessageSchema = z.object({
   op: clientOpSchema,
 });
 
+// --- Accounts ------------------------------------------------------------------
+
+export const usernameSchema = z.string().trim().toLowerCase().refine(isValidUsername, 'invalid_username');
+export const passwordSchema = z.string().min(PASSWORD_MIN).max(128);
+const userIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
+const userSecretSchema = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
+
+export const registerSchema = z
+  .object({
+    username: usernameSchema,
+    password: passwordSchema,
+    ...memberFields,
+    // The identity already used in rooms, so the account keeps it (optional)…
+    id: userIdSchema.optional(),
+    secret: userSecretSchema.optional(),
+    // …and the rooms this browser has been in with it, to start "As tuas salas".
+    rooms: z
+      .array(z.object({ id: roomIdSchema, visitedAt: z.number().int().min(0) }))
+      .max(50)
+      .optional(),
+  })
+  .refine((d) => !!d.id === !!d.secret, 'id and secret go together');
+
+export const loginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) });
+export const profileSchema = z.object(memberFields);
+export const passwordChangeSchema = z.object({ current: z.string().min(1).max(128), next: passwordSchema });
+
 export const joinSchema = z.object({
   roomId: roomIdSchema,
   user: z.object({
-    id: z.string().regex(/^[A-Za-z0-9_-]{8,32}$/),
+    id: userIdSchema,
     secret: z.string().min(16).max(64),
     ...memberFields,
   }),
+  /** Username of the account this identity belongs to (to remember the room in "As tuas salas"). */
+  account: usernameSchema.optional().catch(undefined),
 });
 
 const nullableKeyOrChat = z.union([animeKey, z.literal('chat')]).nullable();
