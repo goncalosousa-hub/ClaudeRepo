@@ -1,6 +1,6 @@
-# 🎬 Tierlist Live
+# 🎬 Lusiaves Tierlist
 
-Uma **webapp** para fazeres tierlists de **anime, séries e filmes** **com os teus colegas, em tempo real**: pesquisas qualquer título, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade.
+Uma **webapp** para os colaboradores do **Grupo Lusiaves** fazerem tierlists de **anime, séries e filmes** **com os colegas, em tempo real**: pesquisas qualquer título, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade. As **salas da comunidade** aparecem na página inicial, para qualquer colega, de qualquer empresa ou unidade do grupo, se juntar à conversa.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -35,6 +35,11 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - Aviso "está a escrever…" nas opiniões e no chat.
 - **Chat** da sala e **feed de atividade**.
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
+
+**Comunidade Lusiaves**
+- **Salas da comunidade**: as salas abertas aparecem na página inicial, com quantas pessoas estão lá nesse momento. Qualquer colega entra sem precisar do link. Ao criar uma sala, a opção "Mostrar nas salas da comunidade" vem ligada; o dono muda isso quando quiser, em **Convidar**.
+- **Empresa ou unidade** (opcional) no perfil, para se saber de onde é cada colega.
+- **Só para colaboradores**: com um código da comunidade, quem não o souber não entra, mesmo com a app pública na internet ([vê como](#-só-para-colaboradores-código-da-comunidade)).
 
 **Dono da sala**
 - Quem cria a sala é o dono (👑): só o dono muda o nome da sala, e pode passá-la a outro membro no separador **Membros**.
@@ -143,6 +148,26 @@ A chave fica só no servidor: os browsers pedem as séries e os filmes ao teu se
 
 ---
 
+## 🔒 Só para colaboradores (código da comunidade)
+
+Com a variável `COMMUNITY_CODE`, a app pede esse código uma vez em cada dispositivo. Quem não o souber vê só o ecrã do código: não consegue criar salas, entrar nelas, ver as salas da comunidade nem usar a API.
+
+1. Escolhe um código difícil de adivinhar (por exemplo, três palavras juntas).
+2. **No Render**: *Environment → Add Environment Variable*, com `COMMUNITY_CODE` e o código, e guarda. **No teu PC**: acrescenta `COMMUNITY_CODE=o-código` ao `.env` e reinicia. O terminal mostra `Acesso: só com o código da comunidade`.
+3. Partilha o código pelos canais internos (por exemplo, a intranet ou o email da empresa), não em sítios públicos.
+
+Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a todos, apaga a variável.
+
+---
+
+## 🎨 Marca
+
+- **Nome**: `APP_NAME` e `COMMUNITY` em `src/shared/brand.ts`.
+- **Cores**: as variáveis `--color-accent` e `--color-accent-2` em `src/client/index.css`.
+- **Logótipo**: `LogoMark` em `src/client/components/Logo.tsx` e o ícone `public/favicon.svg`.
+
+---
+
 ## 💾 Onde ficam guardadas as coisas
 
 **Por omissão, tudo fica guardado automaticamente** na pasta `data/` do projeto: `data/rooms/` tem um ficheiro por sala e `data/accounts/` um ficheiro por conta. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia a pasta `data/`.
@@ -181,6 +206,7 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `DATA_DIR` | `./data` | Pasta onde as salas e as contas são guardadas (um ficheiro JSON por sala e por conta) |
 | `DATABASE_URL` | — | Se definida, as salas e as contas são guardadas em **PostgreSQL** em vez de ficheiros (Neon, Supabase, Railway…) |
 | `TMDB_API_KEY` | — | Chave do TMDB (API Key ou API Read Access Token) para as salas de séries e filmes |
+| `COMMUNITY_CODE` | — | Código da comunidade: se definido, só quem o souber usa a app |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 
 ---
@@ -217,6 +243,8 @@ src/
     types.ts     tipos (sala, título, avaliação, presença…)
     media.ts     tipos de sala (anime, séries, filmes, tudo) e de cada título
     catalog.ts   géneros do TMDB e respostas das rotas de séries e filmes
+    owner.ts     regras do dono da sala
+    brand.ts     nome da app e da comunidade
     ops.ts       reducer das operações (a lógica central)
     schema.ts    validação de tudo o que o servidor recebe
     stats.ts     médias, tierlist "Média", afinidade, recomendações
@@ -229,6 +257,7 @@ src/
     account-routes.ts  API das contas (criar, entrar, perfil, palavra-passe)
     tmdb.ts      séries e filmes: pedidos ao TMDB, cache e conversão para o formato da app
     catalog-routes.ts  API das séries e filmes para os browsers
+    community.ts código da comunidade (acesso só para colaboradores)
     http.ts      API REST (criar sala, info, proxy de imagens para o PNG)
     storage/     gravação em ficheiros JSON ou PostgreSQL
   client/

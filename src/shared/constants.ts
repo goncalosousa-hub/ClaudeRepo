@@ -3,6 +3,7 @@ import type { Tier } from './types';
 export const LIMITS = {
   roomName: 60,
   memberName: 24,
+  memberUnit: 40,
   tierLabel: 24,
   maxTiers: 15,
   maxAnime: 1500,

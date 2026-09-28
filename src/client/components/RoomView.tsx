@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutGrid, MessagesSquare, Search, Trophy, Users, WifiOff } from 'lucide-react';
 import { summarizeAll } from '../../shared/stats';
 import { GROUP_BOARD, type AnimeMeta, type Op, type RoomTab } from '../../shared/types';
+import { APP_NAME } from '../../shared/brand';
 import { roomKind } from '../../shared/media';
 import { displayTitle } from '../lib/anime-api';
 import { kindNoun } from '../lib/words';
@@ -107,7 +108,7 @@ export function RoomView({
   const unreadActivity = useMemo(() => countAfter(room.activity, activitySeen, me), [room.activity, activitySeen, me]);
 
   useEffect(() => {
-    document.title = `${unreadChat ? `(${unreadChat}) ` : ''}${room.name} · Tierlist Live`;
+    document.title = `${unreadChat ? `(${unreadChat}) ` : ''}${room.name} · ${APP_NAME}`;
   }, [room.name, unreadChat]);
 
   const summaries = useMemo(

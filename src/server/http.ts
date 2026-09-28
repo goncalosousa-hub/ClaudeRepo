@@ -82,8 +82,13 @@ export function apiRouter(rooms: RoomManager) {
       res.status(400).json({ error: 'invalid_name' });
       return;
     }
-    const id = await rooms.create(parsed.data.name, parsed.data.kind);
+    const { name, kind, listed } = parsed.data;
+    const id = await rooms.create(name, { kind, listed });
     res.status(201).json({ id });
+  });
+
+  router.get('/community/rooms', rateLimit(120, 60_000), async (_req, res) => {
+    res.json({ rooms: await rooms.communityRooms() });
   });
 
   router.get('/rooms/:id', async (req, res) => {

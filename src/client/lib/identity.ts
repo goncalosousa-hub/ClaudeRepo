@@ -13,6 +13,8 @@ export interface LocalUser {
   name: string;
   color: string;
   avatar: string;
+  /** Company or unit of the group where the person works (optional) */
+  unit?: string;
   /** Username of the account this profile belongs to (none for a profile without account). */
   account?: string;
 }
@@ -28,6 +30,7 @@ function isValid(u: unknown): u is LocalUser {
     typeof x.secret === 'string' &&
     typeof x.name === 'string' &&
     !!x.name &&
+    (x.unit === undefined || typeof x.unit === 'string') &&
     (x.account === undefined || typeof x.account === 'string')
   );
 }

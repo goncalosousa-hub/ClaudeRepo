@@ -43,7 +43,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(ana, 'Ana');
   await expect(ana).toHaveURL(/\/r\/[a-z0-9]{8}$/);
-  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   const roomUrl = ana.url();
   const roomId = roomUrl.split('/r/')[1];
 
@@ -59,7 +59,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   // --- Rui opens the link ------------------------------------------------------------
   await rui.goto(roomUrl);
   await fillProfile(rui, 'Rui');
-  await expect(rui.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(rui.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   // Only the owner (Ana, who created the room) can rename it.
   await expect(rui.getByRole('banner').getByText('Turma ESTG')).toBeVisible();
   await expect(rui.getByRole('button', { name: 'Turma ESTG' })).toHaveCount(0);
@@ -201,7 +201,7 @@ test('mobile layout works', async ({ browser }) => {
   await page.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Telemóvel');
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(page, 'Eva');
-  await expect(page.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   await shot(page, '08-mobile-tierlist');
   await page.getByRole('navigation').getByRole('button', { name: 'Chat' }).click();
   await page.getByLabel('Mensagem').fill('olá do telemóvel');
@@ -254,7 +254,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await laptop.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Clube de anime');
   await laptop.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(laptop, 'Ana');
-  await expect(laptop.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(laptop.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   const roomUrl = laptop.url();
   await laptop.getByRole('button', { name: 'Adicionar anime' }).click();
   const quick = laptop.getByRole('dialog', { name: 'Adicionar anime' });
@@ -294,7 +294,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await who.getByRole('button', { name: 'Entrar', exact: true }).click();
 
   // Same member as on the laptop: still one member, and the rating is hers.
-  await expect(phone.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(phone.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   await expect(phone.getByText(/online · 1 membro\b/)).toBeVisible();
   await card(phone.getByTestId('pool'), 'Sousou no Frieren').click();
   const phoneReview = phone.getByRole('dialog', { name: 'Sousou no Frieren' });
@@ -340,7 +340,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Séries da turma');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(ana, 'Ana');
-  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   await expect(ana.getByText('📺 Séries')).toBeVisible();
   const seriesUrl = ana.url();
 
@@ -389,7 +389,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await ana.getByRole('radio', { name: /Tudo/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Tudo junto');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
-  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   await ana.getByRole('button', { name: 'Explorar' }).click();
   await ana.getByRole('radio', { name: /Filmes/ }).click();
   await ana.getByRole('button', { name: '🍿 Nos cinemas' }).click();
@@ -406,4 +406,46 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await expect(movie.getByText('2 h 49 min')).toBeVisible();
   await expect(movie.getByText('Realização: Christopher Nolan')).toBeVisible();
   await shot(ana, '16-movie-details');
+});
+
+test('colleagues find the open rooms on the home page', async ({ browser }) => {
+  // The e2e data folder is kept between runs: a new room name each time.
+  const name = `Filmes da equipa ${Date.now().toString(36)}`;
+  const ana = await newPerson(browser);
+  await ana.goto('/');
+  await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill(name);
+  await expect(ana.getByLabel(/Mostrar nas salas da comunidade/)).toBeChecked();
+  await ana.getByRole('button', { name: 'Criar', exact: true }).click();
+  await ana.getByLabel('Nome', { exact: true }).fill('Ana');
+  await ana.getByLabel(/Empresa ou unidade/).fill('Lusiaves, Marinha das Ondas');
+  await ana.getByRole('button', { name: 'Continuar' }).click();
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
+  await expect(ana.getByText('🌍 Comunidade')).toBeVisible();
+
+  // Rui has no link: he finds the room on the home page and sees Ana is there.
+  const rui = await newPerson(browser);
+  await rui.goto('/');
+  const entry = rui.getByRole('region', { name: 'Salas da comunidade' }).getByRole('button', { name: new RegExp(name) });
+  await expect(entry).toContainText('1 online');
+  await shot(rui, '17-community-rooms');
+  await entry.click();
+  await rui.getByLabel('Nome', { exact: true }).fill('Rui');
+  await rui.getByRole('button', { name: 'Continuar' }).click();
+  await expect(rui.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
+
+  // Where each colleague works.
+  await rui.getByRole('button', { name: 'Membros' }).click();
+  await expect(rui.getByText('🏢 Lusiaves, Marinha das Ondas')).toBeVisible();
+
+  // Only the owner decides: Ana takes the room out of the community rooms.
+  await rui.getByRole('button', { name: 'Convidar', exact: true }).click();
+  await expect(rui.getByText('Esta sala aparece nas salas da comunidade.')).toBeVisible();
+  await rui.keyboard.press('Escape');
+  await ana.getByRole('button', { name: 'Convidar', exact: true }).click();
+  await ana.getByLabel(/Mostrar nas salas da comunidade/).uncheck();
+  await ana.keyboard.press('Escape');
+  await expect(rui.getByText('🌍 Comunidade')).toHaveCount(0);
+  await rui.goto('/');
+  await expect(rui.getByRole('region', { name: 'Salas da comunidade' })).toBeVisible();
+  await expect(rui.getByRole('region', { name: 'Salas da comunidade' }).getByRole('button', { name: new RegExp(name) })).toHaveCount(0);
 });

@@ -1,7 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
 import { applyOp, createRoomState } from '../shared/ops';
-import type { Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
+import { communitySummary } from '../shared/media';
+import type { CommunityRoom, Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
 import type { RoomDoc, Storage } from './storage';
 
 // No 0/o, 1/l/i: codes are easy to read aloud or type from a phone.
@@ -38,6 +39,9 @@ function sha256(value: string) {
 export class RoomManager {
   private live = new Map<string, LiveRoom>();
   private loading = new Map<string, Promise<LiveRoom | null>>();
+  /** The community rooms: read from storage once, then kept up to date as rooms change. */
+  private directory: Map<string, Omit<CommunityRoom, 'online'>> | null = null;
+  private directoryLoading: Promise<void> | null = null;
   private evictTimer: NodeJS.Timeout;
   private closed = false;
   private opts: Required<RoomManagerOptions>;
@@ -51,12 +55,13 @@ export class RoomManager {
     this.evictTimer.unref();
   }
 
-  async create(name: string, kind: RoomKind = 'anime'): Promise<string> {
+  async create(name: string, opts: { kind?: RoomKind; listed?: boolean } = {}): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt++) {
       const id = newRoomId();
       if (this.live.has(id) || (await this.storage.load(id))) continue;
-      const doc: RoomDoc = { v: 1, seq: 0, state: createRoomState(id, name, Date.now(), null, kind), secrets: {}, lastSeen: {} };
+      const doc: RoomDoc = { v: 1, seq: 0, state: createRoomState(id, name, Date.now(), null, opts), secrets: {}, lastSeen: {} };
       await this.storage.save(id, doc);
+      if (doc.state.listed) this.directory?.set(id, communitySummary(doc.state));
       return id;
     }
     throw new Error('could not allocate a room id');
@@ -98,7 +103,37 @@ export class RoomManager {
     applyOp(room.doc.state, op, { by, at, seq, cid });
     room.doc.seq = seq;
     this.markDirty(room);
+    if (room.doc.state.listed) this.directory?.set(room.id, communitySummary(room.doc.state));
+    else this.directory?.delete(room.id);
     return cid ? { seq, op, by, at, cid } : { seq, op, by, at };
+  }
+
+  /** Rooms any colleague can find on the home page: the busiest first. */
+  async communityRooms(limit = 100): Promise<CommunityRoom[]> {
+    if (!this.directory) {
+      this.directoryLoading ??= this.storage
+        .listedRooms()
+        .then((rows) => {
+          const map = new Map(rows.map((r) => [r.id, r]));
+          // Rooms in memory may have changes that are not saved yet.
+          for (const room of this.live.values()) {
+            if (room.doc.state.listed) map.set(room.id, communitySummary(room.doc.state));
+            else map.delete(room.id);
+          }
+          this.directory = map;
+        })
+        .finally(() => {
+          this.directoryLoading = null;
+        });
+      await this.directoryLoading;
+    }
+    return [...this.directory!.values()]
+      .map((r) => {
+        const room = this.live.get(r.id);
+        return { ...r, online: room ? this.onlineCount(room) : 0 };
+      })
+      .sort((a, b) => b.online - a.online || b.updatedAt - a.updatedAt)
+      .slice(0, limit);
   }
 
   /** The first browser to use a user id "claims" it; later connections must present the same secret. */

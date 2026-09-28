@@ -1,4 +1,5 @@
 // Draws a tier list on a <canvas> and downloads it as a PNG (to share on WhatsApp, Discord…).
+import { APP_NAME } from '../../shared/brand';
 import type { AnimeMeta, Board, Tier } from '../../shared/types';
 import { readableOn } from './format';
 
@@ -172,7 +173,7 @@ export async function exportTierlistImage(opts: {
   const fromTmdb = allKeys.some((k) => anime[k].source === 'tmdb');
   const fromAniList = allKeys.some((k) => anime[k].source !== 'tmdb');
   const credits = [fromAniList ? 'AniList' : null, fromTmdb ? 'TMDB' : null].filter(Boolean).join(' e ');
-  ctx.fillText(credits ? `Tierlist Live · dados: ${credits}` : 'Tierlist Live', PAD, H - 16);
+  ctx.fillText(credits ? `${APP_NAME} · dados: ${credits}` : APP_NAME, PAD, H - 16);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('could not encode PNG');

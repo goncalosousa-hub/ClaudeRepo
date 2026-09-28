@@ -1,4 +1,5 @@
 import pg from 'pg';
+import type { CommunityRoom, RoomKind } from '../../shared/types';
 import type { AccountDoc, RoomDoc, Storage } from './types';
 
 /**
@@ -75,6 +76,29 @@ export class PostgresStorage implements Storage {
        ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
       [id, JSON.stringify(doc)],
     );
+  }
+
+  async listedRooms(): Promise<Omit<CommunityRoom, 'online'>[]> {
+    const res = await this.pool.query<{ id: string; name: string; kind: string; members: number; titles: number; updated: string }>(
+      `SELECT id,
+              doc->'state'->>'name' AS name,
+              COALESCE(doc->'state'->>'kind', 'anime') AS kind,
+              (SELECT count(*) FROM jsonb_object_keys(COALESCE(doc->'state'->'members', '{}'::jsonb)))::int AS members,
+              (SELECT count(*) FROM jsonb_object_keys(COALESCE(doc->'state'->'anime', '{}'::jsonb)))::int AS titles,
+              (extract(epoch FROM updated_at) * 1000)::bigint AS updated
+         FROM rooms
+        WHERE doc->'state'->>'listed' = 'true'
+        ORDER BY updated_at DESC
+        LIMIT 1000`,
+    );
+    return res.rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind as RoomKind,
+      members: r.members,
+      titles: r.titles,
+      updatedAt: Number(r.updated),
+    }));
   }
 
   async loadAccount(username: string): Promise<AccountDoc | null> {

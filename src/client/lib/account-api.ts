@@ -17,11 +17,11 @@ export interface LoginResult {
 
 export interface AccountInfo {
   username: string;
-  profile: { name: string; color: string; avatar: string };
+  profile: { name: string; color: string; avatar: string; unit?: string };
   rooms: AccountRoom[];
 }
 
-type Profile = Pick<LocalUser, 'name' | 'color' | 'avatar'>;
+type Profile = Pick<LocalUser, 'name' | 'color' | 'avatar' | 'unit'>;
 type SignedIn = LocalUser & { account: string };
 
 const MESSAGES: Record<string, string> = {
@@ -86,8 +86,8 @@ export function fetchAccount(user: SignedIn) {
 }
 
 export function saveProfile(user: SignedIn) {
-  const { name, color, avatar } = user;
-  return request<{ ok: true }>('PATCH', '/api/account', { name, color, avatar }, user);
+  const { name, color, avatar, unit = '' } = user;
+  return request<{ ok: true }>('PATCH', '/api/account', { name, color, avatar, unit }, user);
 }
 
 export function changePassword(user: SignedIn, current: string, next: string) {

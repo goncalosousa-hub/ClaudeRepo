@@ -1,4 +1,4 @@
-import type { RoomState } from '../../shared/types';
+import type { CommunityRoom, RoomState } from '../../shared/types';
 
 /** What is persisted for each room. `secrets` and `lastSeen` never leave the server. */
 export interface RoomDoc {
@@ -19,7 +19,7 @@ export interface AccountDoc {
   secret: string;
   /** "scrypt$N$r$p$salt$hash" */
   password: string;
-  profile: { name: string; color: string; avatar: string };
+  profile: { name: string; color: string; avatar: string; unit?: string };
   /** Rooms this account has been in: room id -> last visit */
   rooms: Record<string, { name: string; visitedAt: number }>;
   createdAt: number;
@@ -32,6 +32,8 @@ export interface Storage {
   init(): Promise<void>;
   load(id: string): Promise<RoomDoc | null>;
   save(id: string, doc: RoomDoc): Promise<void>;
+  /** Rooms shown in the community rooms, as saved (who is online only the live server knows). */
+  listedRooms(): Promise<Omit<CommunityRoom, 'online'>[]>;
   loadAccount(username: string): Promise<AccountDoc | null>;
   /** Adds a new account; returns false (and changes nothing) when the username is taken. */
   createAccount(doc: AccountDoc): Promise<boolean>;

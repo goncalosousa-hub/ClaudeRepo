@@ -42,6 +42,7 @@ export interface Profile {
   name: string;
   color: string;
   avatar: string;
+  unit?: string;
 }
 
 export interface AccountRoom {

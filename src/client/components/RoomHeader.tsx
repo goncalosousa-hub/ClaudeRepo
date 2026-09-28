@@ -78,6 +78,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
             {Object.keys(room.members).length === 1 ? 'membro' : 'membros'}
             <span className="hidden sm:inline">
               · {kindInfo(kind).emoji} {kindInfo(kind).label}
+              {room.listed && ' · 🌍 Comunidade'}
             </span>
           </p>
         </div>

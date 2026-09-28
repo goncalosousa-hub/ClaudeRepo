@@ -44,6 +44,7 @@ export function ProfileDialog({
 }) {
   const [mode, setMode] = useState<ProfileDialogMode>(initialMode);
   const [name, setName] = useState(user?.name ?? '');
+  const [unit, setUnit] = useState(user?.unit ?? '');
   const [color, setColor] = useState(user?.color ?? randomColor());
   const [avatar, setAvatar] = useState(user?.avatar ?? randomAvatar());
   const [username, setUsername] = useState('');
@@ -57,6 +58,7 @@ export function ProfileDialog({
     if (!open) return;
     setMode(hasAccount(user) ? 'profile' : initialMode);
     setName(user?.name ?? '');
+    setUnit(user?.unit ?? '');
     setColor(user?.color ?? randomColor());
     setAvatar(user?.avatar ?? randomAvatar());
     setUsername('');
@@ -92,11 +94,11 @@ export function ProfileDialog({
 
   const saveProfileOnly = () => {
     if (!user) {
-      onSave(newUser(trimmed, color, avatar));
+      onSave({ ...newUser(trimmed, color, avatar), unit: unit.trim() });
       onClose?.();
       return;
     }
-    const next = { ...user, name: trimmed, color, avatar };
+    const next = { ...user, name: trimmed, color, avatar, unit: unit.trim() };
     onSave(next);
     if (hasAccount(next)) {
       saveProfile(next).catch((err) =>
@@ -112,7 +114,8 @@ export function ProfileDialog({
       const u = cleanUsername(username);
       if (!isValidUsername(u)) throw new AccountError('invalid_username');
       if (password.length < PASSWORD_MIN) throw new AccountError('invalid_password');
-      const res = await register(u, password, { name: trimmed, color, avatar }, user ? { user, rooms: recentRooms() } : undefined);
+      const profile = { name: trimmed, color, avatar, unit: unit.trim() };
+      const res = await register(u, password, profile, user ? { user, rooms: recentRooms() } : undefined);
       onSave(res.user);
       toast(`Conta @${res.username} criada! Entra com ela em qualquer link ou dispositivo.`, 'success');
       onClose?.();
@@ -222,6 +225,20 @@ export function ProfileDialog({
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className={labelClass} htmlFor="profile-unit">
+                Empresa ou unidade <span className="font-normal text-faint">(opcional)</span>
+              </label>
+              <input
+                id="profile-unit"
+                className={inputClass}
+                value={unit}
+                maxLength={LIMITS.memberUnit}
+                placeholder="Ex.: Lusiaves, Marinha das Ondas"
+                onChange={(e) => setUnit(e.target.value)}
+              />
             </div>
 
             <div>

@@ -41,6 +41,7 @@ function authorize(op: Op, userId: string, room: LiveRoom): string | null {
     case 'anime.add':
       return !op.place || op.place.board === GROUP_BOARD || op.place.board === userId ? null : 'forbidden';
     case 'room.rename':
+    case 'room.listed':
       return s.createdBy === userId ? null : 'not_owner';
     case 'room.owner': {
       if (s.createdBy === userId) return null;
@@ -86,9 +87,15 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
       if (!rooms.authenticate(room, user.id, user.secret)) return ack({ ok: false, error: 'auth_failed' });
 
       const existing = room.doc.state.members[user.id];
-      if (!existing || existing.name !== user.name || existing.color !== user.color || existing.avatar !== user.avatar) {
+      const changed =
+        !existing ||
+        existing.name !== user.name ||
+        existing.color !== user.color ||
+        existing.avatar !== user.avatar ||
+        (existing.unit ?? '') !== user.unit;
+      if (changed) {
         try {
-          const member = { id: user.id, name: user.name, color: user.color, avatar: user.avatar };
+          const member = { id: user.id, name: user.name, color: user.color, avatar: user.avatar, unit: user.unit };
           const env = rooms.apply(room, { type: 'member.join', member }, user.id);
           // Sent before this socket joins the channel: the newcomer gets it inside the state below.
           io.to(roomId).emit('op', env);
