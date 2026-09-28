@@ -30,7 +30,7 @@ export function AnimeDialog({ target, onClose }: { target: { key: string; meta: 
 }
 
 function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: AnimeMeta }; onClose: () => void }) {
-  const { room, me, board, dispatch, titleOf, inRoom, openAnime, snap, summaries, member, memberName } = useRoom();
+  const { room, me, board, dispatch, titleOf, inRoom, openAnime, snap, summaries, member, memberName, place } = useRoom();
   const toast = useToast();
   const roomKey = inRoom(target.meta);
   const meta: AnimeMeta = (roomKey && room.anime[roomKey]) || target.meta;
@@ -76,7 +76,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   const add = () => {
     // The details (when loaded) know more: status, episodes, network or director…
     const anime = details?.meta.key === meta.key ? details.meta : meta;
-    if (dispatch({ type: 'anime.add', anime })) toast(`«${title}» ${agree('adicionad', noun)} à sala.`, 'success');
+    if (dispatch({ type: 'anime.add', anime })) toast(`«${title}» ${agree('adicionad', noun)} ${place.to}.`, 'success');
   };
 
   const info = details?.meta.key === meta.key ? { ...meta, ...details.meta } : meta;
@@ -155,7 +155,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               )}
               {summary?.avg != null && (
                 <Chip color={ratingColor(summary.avg)}>
-                  {formatRating(Math.round(summary.avg * 10) / 10)}/10 na sala ({summary.count})
+                  {formatRating(Math.round(summary.avg * 10) / 10)}/10 {place.in} ({summary.count})
                 </Chip>
               )}
             </div>
@@ -180,10 +180,10 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
         {!roomKey && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3">
             <p className="flex-1 text-sm">
-              {thisOne(noun)} {noun.one} ainda não está na sala.
+              {thisOne(noun)} {noun.one} ainda não está {place.in}.
             </p>
             <Button variant="primary" onClick={add}>
-              <Plus size={16} /> Adicionar à sala
+              <Plus size={16} /> Adicionar {place.to}
             </Button>
           </div>
         )}
@@ -319,7 +319,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
         {roomKey && (
           <section>
             <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h3 className="text-sm font-semibold">Opiniões da sala</h3>
+              <h3 className="text-sm font-semibold">Opiniões {place.from}</h3>
               {summary && summary.reviewers > 0 && (
                 <p className="text-xs text-muted">
                   {summary.avg != null && (
@@ -364,7 +364,9 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                     <div className="relative">
                       <img src={r.cover} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-lg object-cover" />
                       {here && (
-                        <span className="absolute right-1 bottom-1 rounded bg-ok px-1 text-[10px] font-bold text-black">na sala</span>
+                        <span className="absolute right-1 bottom-1 rounded bg-ok px-1 text-[10px] font-bold text-black">
+                          {place.in}
+                        </span>
                       )}
                     </div>
                     <p className="mt-1 line-clamp-2 text-xs leading-tight">{titleOf(r)}</p>
@@ -396,20 +398,21 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               <Play size={14} /> Trailer
             </a>
           )}
-          {roomKey && (
+          {/* In the community space only whoever added a title can take it out. */}
+          {roomKey && (!room.global || room.anime[roomKey]?.addedBy === me) && (
             <Button
               size="sm"
               variant="danger"
               className="ml-auto"
               onClick={() => {
-                if (!confirm(`Remover «${title}» da sala? Sai de todas as tierlists (as opiniões ficam guardadas).`)) return;
+                if (!confirm(`Remover «${title}» ${place.from}? Sai de todas as tierlists (as opiniões ficam guardadas).`)) return;
                 if (dispatch({ type: 'anime.remove', key: roomKey })) {
-                  toast(`«${title}» ${agree('removid', noun)} da sala.`);
+                  toast(`«${title}» ${agree('removid', noun)} ${place.from}.`);
                   onClose();
                 }
               }}
             >
-              <Trash2 size={14} /> Remover da sala
+              <Trash2 size={14} /> Remover {place.from}
             </Button>
           )}
           {roomKey && room.anime[roomKey] && (

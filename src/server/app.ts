@@ -14,6 +14,7 @@ import { catalogRouter } from './catalog-routes';
 import { CommunityGate } from './community';
 import { Tmdb, type TmdbOptions } from './tmdb';
 import { createStorage, importFileAccounts, importFileRooms } from './storage';
+import { COMPANY } from '../shared/brand';
 
 export interface AppOptions {
   /** Serve the client through Vite (hot reload) instead of the built files. */
@@ -53,6 +54,7 @@ export async function createApp(opts: AppOptions) {
   const imported = storage.kind === 'postgres' ? await importFileRooms(opts.dataDir, storage) : 0;
   const importedAccounts = storage.kind === 'postgres' ? await importFileAccounts(opts.dataDir, storage) : 0;
   const rooms = new RoomManager(storage, opts.rooms);
+  await rooms.ensureCommunity(`Comunidade ${COMPANY}`);
   const accounts = new AccountManager(storage);
   const tmdb = new Tmdb(opts.tmdb);
   const gate = new CommunityGate(opts.communityCode);

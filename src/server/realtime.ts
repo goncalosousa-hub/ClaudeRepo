@@ -32,6 +32,7 @@ class TokenBucket {
  */
 function authorize(op: Op, userId: string, room: LiveRoom): string | null {
   const s = room.doc.state;
+  if (s.global) return authorizeCommunity(op, userId, room);
   switch (op.type) {
     case 'board.move':
       return op.board === GROUP_BOARD || op.board === userId ? null : 'forbidden';
@@ -48,6 +49,32 @@ function authorize(op: Op, userId: string, room: LiveRoom): string | null {
       const ownerOnline = !!s.createdBy && room.presence.has(s.createdBy);
       return op.to === userId && ownerAway(s, room.doc.lastSeen, ownerOnline) ? null : 'not_owner';
     }
+    default:
+      return null;
+  }
+}
+
+/**
+ * The community space has hundreds of people: each one only changes their own tier list and the
+ * titles they added; the tiers, the name and the (missing) owner are fixed.
+ */
+function authorizeCommunity(op: Op, userId: string, room: LiveRoom): string | null {
+  switch (op.type) {
+    case 'board.move':
+    case 'board.copy':
+    case 'board.clear':
+      return op.board === userId ? null : 'forbidden';
+    case 'anime.add':
+      return !op.place || op.place.board === userId ? null : 'forbidden';
+    case 'anime.remove': {
+      const title = room.doc.state.anime[op.key];
+      return !title || title.addedBy === userId ? null : 'forbidden';
+    }
+    case 'tiers.set':
+    case 'room.rename':
+    case 'room.listed':
+    case 'room.owner':
+      return 'forbidden';
     default:
       return null;
   }
@@ -117,7 +144,8 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
         presence: [...room.presence.values()],
         lastSeen: room.doc.lastSeen,
       });
-      if (account && accounts) {
+      // The community space is always one click away: it does not go into "As tuas salas".
+      if (account && accounts && !room.doc.state.global) {
         const visit = { id: roomId, name: room.doc.state.name };
         accounts.recordVisits(account, user.id, user.secret, [visit]).catch((err) => {
           console.error('[realtime] could not update the rooms of', account, err);

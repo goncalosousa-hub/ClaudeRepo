@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Crown, LayoutGrid } from 'lucide-react';
 import { ownerAway } from '../../shared/owner';
 import { affinity, memberStats } from '../../shared/stats';
@@ -8,11 +8,16 @@ import { describePresence } from '../lib/presence-text';
 import { useRoom } from './RoomContext';
 import { Avatar, Button } from './ui';
 
+/** The community space can have hundreds of people: the others appear on demand. */
+const MAX_CARDS = 60;
+
 export function MembersTab() {
   const { room, me, snap, titleOf, setTab, setBoard, openAnime, noun, dispatch, memberName } = useRoom();
   const iOwn = room.createdBy === me;
   // The owner has been away for a week (or lost their profile): anyone can take the room over.
-  const canTakeOver = !iOwn && ownerAway(room, snap.lastSeen, !!room.createdBy && !!snap.presence[room.createdBy]);
+  const canTakeOver =
+    !room.global && !iOwn && ownerAway(room, snap.lastSeen, !!room.createdBy && !!snap.presence[room.createdBy]);
+  const [showAll, setShowAll] = useState(false);
 
   const members = useMemo(
     () =>
@@ -42,7 +47,7 @@ export function MembersTab() {
         </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-        {members.map((m) => {
+        {(showAll ? members : members.slice(0, MAX_CARDS)).map((m) => {
           const stats = memberStats(room, m.id);
           const online = m.id === me || !!snap.presence[m.id];
           const p = snap.presence[m.id];
@@ -157,6 +162,13 @@ export function MembersTab() {
           );
         })}
       </div>
+      {!showAll && members.length > MAX_CARDS && (
+        <div className="flex justify-center">
+          <Button variant="subtle" onClick={() => setShowAll(true)}>
+            Ver todos ({members.length})
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

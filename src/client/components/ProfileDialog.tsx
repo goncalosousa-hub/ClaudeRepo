@@ -29,6 +29,7 @@ export function ProfileDialog({
   onSave,
   onClose,
   required = false,
+  welcome,
   initialMode = 'profile',
   focusAccount = false,
 }: {
@@ -37,6 +38,8 @@ export function ProfileDialog({
   onSave: (u: LocalUser) => void;
   onClose?: () => void;
   required?: boolean;
+  /** A few words shown to someone who has no profile yet (e.g. what the community space is) */
+  welcome?: string;
   /** Open on the sign-in form instead of the profile. */
   initialMode?: ProfileDialogMode;
   /** Start in the "create an account" fields (for people who already have a profile). */
@@ -160,6 +163,10 @@ export function ProfileDialog({
   return (
     <Modal open={open} onClose={close} label="Perfil">
       <ModalHeader title={title} subtitle={subtitle} onClose={required ? undefined : close} />
+
+      {!user && welcome && (
+        <p className="mx-5 mt-4 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-sm text-violet-100">{welcome}</p>
+      )}
 
       {!user && (
         <div className="px-5 pt-4">

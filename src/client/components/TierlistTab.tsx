@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { BarChart3, Copy, Download, Eraser, Eye, Palette, Star, UserPlus, Users } from 'lucide-react';
+import { BarChart3, Copy, Download, Eraser, Eye, Globe, Palette, Star, UserPlus, Users } from 'lucide-react';
 import { consensusBoard, normalizedBoard, poolOf } from '../../shared/stats';
 import { CONSENSUS_BOARD, GROUP_BOARD, type RoomKind } from '../../shared/types';
 import { exportTierlistImage } from '../lib/export-image';
@@ -24,9 +24,13 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
 
-  const validBoard = board === GROUP_BOARD || board === CONSENSUS_BOARD || room.members[board] ? board : GROUP_BOARD;
+  // The community space has no shared board: its tier list is everyone's average.
+  const global = !!room.global;
+  const fallback = global ? CONSENSUS_BOARD : GROUP_BOARD;
+  const validBoard =
+    (board === GROUP_BOARD && !global) || board === CONSENSUS_BOARD || room.members[board] ? board : fallback;
   const isConsensus = validBoard === CONSENSUS_BOARD;
-  const editable = validBoard === GROUP_BOARD || validBoard === me;
+  const editable = (validBoard === GROUP_BOARD && !global) || validBoard === me;
 
   const consensus = useMemo(() => (isConsensus ? consensusBoard(room) : null), [isConsensus, room]);
   const lists = useMemo(
@@ -41,6 +45,8 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
   const others = Object.values(room.members)
     .filter((m) => m.id !== me)
     .sort((a, b) => Number(!!snap.presence[b.id]) - Number(!!snap.presence[a.id]) || a.name.localeCompare(b.name));
+  // Hundreds of people in the community: only the ones online get a shortcut (the rest are in Membros).
+  const shortcuts = global ? others.filter((m) => snap.presence[m.id]).slice(0, 12) : others;
 
   const viewersOf = (id: string) =>
     Object.values(snap.presence).filter((p) => p.tab === 'tierlist' && (p.board ?? GROUP_BOARD) === id && room.members[p.userId]);
@@ -49,7 +55,9 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
     validBoard === GROUP_BOARD
       ? 'Tierlist do Grupo'
       : validBoard === CONSENSUS_BOARD
-        ? 'Média do grupo'
+        ? global
+          ? 'Tierlist da Comunidade'
+          : 'Média do grupo'
         : validBoard === me
           ? `Tierlist de ${room.members[me]?.name ?? 'mim'}`
           : `Tierlist de ${memberName(validBoard)}`;
@@ -106,9 +114,10 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {chip(GROUP_BOARD, 'Grupo', <Users size={15} />)}
+        {global && chip(CONSENSUS_BOARD, 'Comunidade', <Globe size={15} />)}
+        {!global && chip(GROUP_BOARD, 'Grupo', <Users size={15} />)}
         {chip(me, 'A minha', <Star size={15} />)}
-        {others.map((m) =>
+        {shortcuts.map((m) =>
           chip(
             m.id,
             <span className="max-w-28 truncate">{m.name}</span>,
@@ -116,7 +125,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
             `Tierlist de ${m.name}`,
           ),
         )}
-        {chip(CONSENSUS_BOARD, 'Média', <BarChart3 size={15} />)}
+        {!global && chip(CONSENSUS_BOARD, 'Média', <BarChart3 size={15} />)}
         {others.length === 0 && (
           <Button size="sm" variant="ghost" onClick={onShare} className="shrink-0">
             <UserPlus size={15} /> Convida colegas
@@ -130,7 +139,10 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
           <p className="text-xs text-muted">
             {validBoard === GROUP_BOARD && `Partilhada: todos podem arrastar ${noun.many} aqui, ao mesmo tempo.`}
             {validBoard === me && 'A tua tierlist pessoal. Todos a veem em direto e conta para a média.'}
-            {isConsensus && 'Calculada automaticamente a partir das tierlists pessoais de todos (só leitura).'}
+            {isConsensus &&
+              (global
+                ? 'A média das tierlists pessoais de todos. Faz a tua em «A minha» para contar.'
+                : 'Calculada automaticamente a partir das tierlists pessoais de todos (só leitura).')}
             {owner && (
               <span className="inline-flex items-center gap-1">
                 <Eye size={12} /> Só leitura{ownerHere ? ` — ${owner.name} está a mexer nela agora` : ''}.
@@ -148,7 +160,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
             { value: 'lg', label: 'G', title: 'Cartas grandes' },
           ]}
         />
-        {validBoard === me && (
+        {validBoard === me && !global && (
           <>
             <Button
               size="sm"
@@ -174,9 +186,11 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
             </Button>
           </>
         )}
-        <Button size="sm" variant="ghost" onClick={() => setEditingTiers(true)}>
-          <Palette size={15} /> <span className="hidden sm:inline">Tiers</span>
-        </Button>
+        {!global && (
+          <Button size="sm" variant="ghost" onClick={() => setEditingTiers(true)}>
+            <Palette size={15} /> <span className="hidden sm:inline">Tiers</span>
+          </Button>
+        )}
         <Button size="sm" variant="secondary" onClick={exportImage} disabled={exporting}>
           <Download size={15} /> <span className="hidden sm:inline">{exporting ? 'A gerar…' : 'Imagem'}</span>
         </Button>
@@ -185,9 +199,13 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
       {Object.keys(room.anime).length === 0 && (
         <div className="grid gap-3 rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-accent-2/10 p-4 sm:grid-cols-3">
           {[
-            { n: 1, title: 'Convida a turma', text: 'Partilha o link ou o QR code da sala.', action: onShare, cta: 'Convidar' },
+            global
+              ? { n: 1, title: 'Convida colegas', text: 'Partilha o link da comunidade.', action: onShare, cta: 'Convidar' }
+              : { n: 1, title: 'Convida a turma', text: 'Partilha o link ou o QR code da sala.', action: onShare, cta: 'Convidar' },
             { n: 2, title: `Adiciona ${noun.many}`, text: ADD_HINT[kind], action: () => setAdding(true), cta: 'Adicionar' },
-            { n: 3, title: 'Classifica e avalia', text: 'Arrasta para os tiers e dá a tua nota e opinião.' },
+            global
+              ? { n: 3, title: 'Dá a tua opinião', text: 'Põe na tua tierlist e dá a tua nota: conta para a média de todos.' }
+              : { n: 3, title: 'Classifica e avalia', text: 'Arrasta para os tiers e dá a tua nota e opinião.' },
           ].map((s) => (
             <div key={s.n} className="flex items-start gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-2 text-sm font-bold">

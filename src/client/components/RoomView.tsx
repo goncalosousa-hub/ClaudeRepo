@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutGrid, MessagesSquare, Search, Trophy, Users, WifiOff } from 'lucide-react';
 import { summarizeAll } from '../../shared/stats';
-import { GROUP_BOARD, type AnimeMeta, type Op, type RoomTab } from '../../shared/types';
+import { CONSENSUS_BOARD, GROUP_BOARD, type AnimeMeta, type Op, type RoomTab } from '../../shared/types';
 import { APP_NAME } from '../../shared/brand';
 import { roomKind } from '../../shared/media';
 import { displayTitle } from '../lib/anime-api';
-import { kindNoun } from '../lib/words';
+import { kindNoun, placeWords } from '../lib/words';
 import { errorMessage } from '../lib/format';
 import type { LocalUser } from '../lib/identity';
 import { usePrefs } from '../lib/prefs';
@@ -59,7 +59,8 @@ export function RoomView({
   const toast = useToast();
   const isDesktop = useIsDesktop();
   const [tab, setTabState] = useState<RoomTab>(() => readTab(room.id));
-  const [board, setBoard] = useState<string>(GROUP_BOARD);
+  // The community space has no shared board: its tier list is everyone's average.
+  const [board, setBoard] = useState<string>(room.global ? CONSENSUS_BOARD : GROUP_BOARD);
   const [dialog, setDialog] = useState<{ key: string; meta: AnimeMeta } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -88,8 +89,8 @@ export function RoomView({
   useEffect(() => client.onError((code) => toast(errorMessage(code), 'error')), [client, toast]);
 
   useEffect(() => {
-    rememberRoom(room.id, room.name);
-  }, [room.id, room.name]);
+    if (!room.global) rememberRoom(room.id, room.name);
+  }, [room.id, room.name, room.global]);
 
   // Unread counters for chat / activity.
   const chatVisible = (isDesktop && panel === 'chat') || tab === 'chat';
@@ -148,6 +149,7 @@ export function RoomView({
       room,
       kind: roomKind(room),
       noun: kindNoun(roomKind(room)),
+      place: placeWords(!!room.global),
       me,
       user,
       prefs,

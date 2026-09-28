@@ -182,7 +182,7 @@ function ChatPanel() {
 }
 
 function ActivityPanel() {
-  const { room } = useRoom();
+  const { room, place } = useRoom();
   const [, force] = useState(0);
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 30_000);
@@ -194,7 +194,7 @@ function ActivityPanel() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted">
         <span className="text-3xl">📡</span>
-        <p>Aqui aparece tudo o que acontece na sala, em direto.</p>
+        <p>Aqui aparece tudo o que acontece {place.in}, em direto.</p>
       </div>
     );
   }
@@ -208,7 +208,7 @@ function ActivityPanel() {
 }
 
 function ActivityItem({ a }: { a: Activity }) {
-  const { room, me, titleOf, openAnime, memberName } = useRoom();
+  const { room, me, titleOf, openAnime, memberName, place } = useRoom();
   const m = room.members[a.by];
   if (!m) return null;
   const anime = a.key ? room.anime[a.key] : undefined;
@@ -226,7 +226,7 @@ function ActivityItem({ a }: { a: Activity }) {
   let body: ReactNode;
   switch (a.kind) {
     case 'join':
-      body = <>entrou na sala 👋</>;
+      body = <>entrou {place.in} 👋</>;
       break;
     case 'add':
       body = (
@@ -242,7 +242,11 @@ function ActivityItem({ a }: { a: Activity }) {
       );
       break;
     case 'remove':
-      body = <>removeu {animeName(a.text)} da sala</>;
+      body = (
+        <>
+          removeu {animeName(a.text)} {place.from}
+        </>
+      );
       break;
     case 'move':
       body =
@@ -287,7 +291,7 @@ function ActivityItem({ a }: { a: Activity }) {
       body = <>limpou a sua tierlist</>;
       break;
     case 'listed':
-      body = a.listed ? <>mostrou a sala nas salas da comunidade 🌍</> : <>tirou a sala das salas da comunidade</>;
+      body = a.listed ? <>abriu a sala a todos os colegas 🔓</> : <>fechou a sala: agora só entra quem tiver o link 🔒</>;
       break;
     case 'owner':
       body =

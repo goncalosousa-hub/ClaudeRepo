@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Copy, Globe, Lock, Share2, TriangleAlert } from 'lucide-react';
 import { encode } from 'uqr';
 import { copyText } from '../lib/clipboard';
-import { roomUrl } from '../lib/router';
+import { roomPath, roomUrl } from '../lib/router';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
 import { Button, Modal, ModalHeader, cn, inputClass } from './ui';
@@ -33,7 +33,7 @@ interface LanUrl {
 const onLocalhost = () => ['localhost', '127.0.0.1', '[::1]', '::1'].includes(location.hostname);
 
 export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { room, me, dispatch } = useRoom();
+  const { room, me, dispatch, place } = useRoom();
   const [copied, setCopied] = useState(false);
   const [lan, setLan] = useState<LanUrl[] | null>(null);
   const [help, setHelp] = useState(false);
@@ -49,7 +49,8 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
   }, [open, local]);
 
   const real = (lan ?? []).filter((a) => !a.virtual);
-  const url = local && real.length ? `${real[0].url}/r/${room.id}` : roomUrl(room.id);
+  const path = roomPath(room.id);
+  const url = local && real.length ? `${real[0].url}${path}` : roomUrl(room.id);
 
   const copy = async (text: string) => {
     if (await copyText(text)) {
@@ -60,7 +61,11 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <Modal open={open} onClose={onClose} label="Convidar colegas">
-      <ModalHeader title="Convidar colegas" subtitle="Quem abrir o link entra logo na sala. Não é preciso conta." onClose={onClose} />
+      <ModalHeader
+        title="Convidar colegas"
+        subtitle={`Quem abrir o link entra logo ${place.in}. Não é preciso conta.`}
+        onClose={onClose}
+      />
       <div className="space-y-4 px-5 py-5">
         {local && (
           <div className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-amber-100">
@@ -89,37 +94,39 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
           <p className="text-xs text-muted">
             Outros endereços deste computador:{' '}
             {real.slice(1).map((a) => (
-              <button key={a.url} className="mr-2 font-mono text-fg underline" onClick={() => copy(`${a.url}/r/${room.id}`)} title={a.iface}>
+              <button key={a.url} className="mr-2 font-mono text-fg underline" onClick={() => copy(`${a.url}${path}`)} title={a.iface}>
                 {a.url.replace('http://', '')}
               </button>
             ))}
           </p>
         )}
 
-        <div className="rounded-xl border border-line bg-surface-2 p-3">
-          {room.createdBy === me ? (
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 accent-[var(--color-accent)]"
-                checked={!!room.listed}
-                onChange={(e) => dispatch({ type: 'room.listed', listed: e.target.checked })}
-              />
-              <span className="text-sm">
-                <span className="font-medium">Mostrar nas salas da comunidade</span>
-                <span className="block text-xs text-muted">
-                  Qualquer colega encontra esta sala na página inicial, sem precisar do link.
+        {!room.global && (
+          <div className="rounded-xl border border-line bg-surface-2 p-3">
+            {room.createdBy === me ? (
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-[var(--color-accent)]"
+                  checked={!!room.listed}
+                  onChange={(e) => dispatch({ type: 'room.listed', listed: e.target.checked })}
+                />
+                <span className="text-sm">
+                  <span className="font-medium">Mostrar nas salas abertas</span>
+                  <span className="block text-xs text-muted">
+                    Qualquer colega encontra esta sala na página Salas, sem precisar do link.
+                  </span>
                 </span>
-              </span>
-            </label>
-          ) : (
-            <p className="flex items-center gap-2 text-sm text-muted">
-              {room.listed ? <Globe size={16} className="shrink-0 text-accent" /> : <Lock size={16} className="shrink-0" />}
-              {room.listed ? 'Esta sala aparece nas salas da comunidade.' : 'Só entra quem tiver o link.'}
-              <span className="text-xs text-faint">(só o dono muda isto)</span>
-            </p>
-          )}
-        </div>
+              </label>
+            ) : (
+              <p className="flex items-center gap-2 text-sm text-muted">
+                {room.listed ? <Globe size={16} className="shrink-0 text-accent" /> : <Lock size={16} className="shrink-0" />}
+                {room.listed ? 'Esta sala aparece nas salas abertas.' : 'Só entra quem tiver o link.'}
+                <span className="text-xs text-faint">(só o dono muda isto)</span>
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-3 rounded-xl border border-line bg-surface-2 p-4 sm:flex-row sm:items-start">
           <QrCode text={url} />
@@ -128,9 +135,11 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
               <span className="font-medium text-fg">Estão juntos?</span> Mostra este QR code e cada um aponta a câmara do
               telemóvel.
             </p>
-            <p>
-              Código da sala: <span className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-fg">{room.id}</span>
-            </p>
+            {!room.global && (
+              <p>
+                Código da sala: <span className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-fg">{room.id}</span>
+              </p>
+            )}
             {typeof navigator.share === 'function' && (
               <Button
                 size="sm"

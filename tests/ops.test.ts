@@ -257,6 +257,23 @@ describe('members, chat and rename', () => {
   });
 });
 
+describe('community space', () => {
+  it('has no owner and holds far more people than a room', () => {
+    const s = createRoomState('comunidade', 'Comunidade', 0, null, { kind: 'all', global: true });
+    for (let i = 0; i < 150; i++) {
+      apply(s, { type: 'member.join', member: { id: `user${i}`, name: `P${i}`, color: '#ff0000', avatar: '' } }, `user${i}`);
+    }
+    expect(Object.keys(s.members)).toHaveLength(150);
+    expect(s.createdBy).toBeNull();
+    // A normal room stops at its limit.
+    const r = createRoomState('room03', 'Sala', 0);
+    for (let i = 0; i < 100; i++) apply(r, { type: 'member.join', member: { id: `u${i}`, name: 'x', color: '#ff0000', avatar: '' } }, `u${i}`);
+    expect(() => apply(r, { type: 'member.join', member: { id: 'one-more', name: 'x', color: '#ff0000', avatar: '' } }, 'one-more')).toThrow(
+      new OpError('limit_members'),
+    );
+  });
+});
+
 describe('community rooms', () => {
   it('rooms start hidden and can be shown in (or removed from) the community rooms', () => {
     const s = room();

@@ -37,7 +37,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   const rui = await newPerson(browser);
 
   // --- Ana creates a room ------------------------------------------------------------
-  await ana.goto('/');
+  await ana.goto('/salas');
   await shot(ana, '01-home');
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Turma ESTG');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
@@ -197,7 +197,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
 
 test('mobile layout works', async ({ browser }) => {
   const page = await newPerson(browser, { width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/salas');
   await page.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Telemóvel');
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(page, 'Eva');
@@ -216,7 +216,7 @@ test('drag with a finger on a phone (long press) and tap to open', async ({ brow
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await mockAniList(page);
-  await page.goto('/');
+  await page.goto('/salas');
   await page.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Toque');
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(page, 'Eva');
@@ -250,7 +250,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
 
   // --- On her laptop Ana starts without an account: creates a room and rates an anime ---
   const laptop = await newPerson(browser);
-  await laptop.goto('/');
+  await laptop.goto('/salas');
   await laptop.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Clube de anime');
   await laptop.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(laptop, 'Ana');
@@ -268,7 +268,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await laptop.keyboard.press('Escape');
 
   // --- Back home, she saves that profile in an account ------------------------------------
-  await laptop.goto('/');
+  await laptop.goto('/salas');
   const laptopRooms = laptop.getByRole('region', { name: 'As tuas salas' });
   await laptopRooms.getByRole('button', { name: 'Criar conta' }).click();
   const create = laptop.getByRole('dialog', { name: 'Perfil' });
@@ -302,7 +302,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await phone.keyboard.press('Escape');
 
   // Her rooms are listed on the home page of any device.
-  await phone.goto('/');
+  await phone.goto('/salas');
   const phoneRooms = phone.getByRole('region', { name: 'As tuas salas' });
   await expect(phoneRooms.getByText(`guardadas na conta @${username}`)).toBeVisible();
   await expect(phoneRooms.getByText('Clube de anime')).toBeVisible();
@@ -335,7 +335,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   const rui = await newPerson(browser);
 
   // --- A series room -------------------------------------------------------------------
-  await ana.goto('/');
+  await ana.goto('/salas');
   await ana.getByRole('radio', { name: /Séries/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Séries da turma');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
@@ -385,7 +385,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await shot(ana, '15-series-explore');
 
   // --- A room with everything: anime and movies side by side ------------------------------
-  await ana.goto('/');
+  await ana.goto('/salas');
   await ana.getByRole('radio', { name: /Tudo/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Tudo junto');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
@@ -408,24 +408,24 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await shot(ana, '16-movie-details');
 });
 
-test('colleagues find the open rooms on the home page', async ({ browser }) => {
+test('colleagues find the open rooms on the Salas page', async ({ browser }) => {
   // The e2e data folder is kept between runs: a new room name each time.
   const name = `Filmes da equipa ${Date.now().toString(36)}`;
   const ana = await newPerson(browser);
-  await ana.goto('/');
+  await ana.goto('/salas');
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill(name);
-  await expect(ana.getByLabel(/Mostrar nas salas da comunidade/)).toBeChecked();
+  await expect(ana.getByLabel(/Mostrar nas salas abertas/)).toBeChecked();
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await ana.getByLabel('Nome', { exact: true }).fill('Ana');
   await ana.getByLabel(/Empresa ou unidade/).fill('Lusiaves, Marinha das Ondas');
   await ana.getByRole('button', { name: 'Continuar' }).click();
   await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
-  await expect(ana.getByText('🌍 Comunidade')).toBeVisible();
+  await expect(ana.getByText('🔓 Aberta')).toBeVisible();
 
   // Rui has no link: he finds the room on the home page and sees Ana is there.
   const rui = await newPerson(browser);
-  await rui.goto('/');
-  const entry = rui.getByRole('region', { name: 'Salas da comunidade' }).getByRole('button', { name: new RegExp(name) });
+  await rui.goto('/salas');
+  const entry = rui.getByRole('region', { name: 'Salas abertas' }).getByRole('button', { name: new RegExp(name) });
   await expect(entry).toContainText('1 online');
   await shot(rui, '17-community-rooms');
   await entry.click();
@@ -439,13 +439,62 @@ test('colleagues find the open rooms on the home page', async ({ browser }) => {
 
   // Only the owner decides: Ana takes the room out of the community rooms.
   await rui.getByRole('button', { name: 'Convidar', exact: true }).click();
-  await expect(rui.getByText('Esta sala aparece nas salas da comunidade.')).toBeVisible();
+  await expect(rui.getByText('Esta sala aparece nas salas abertas.')).toBeVisible();
   await rui.keyboard.press('Escape');
   await ana.getByRole('button', { name: 'Convidar', exact: true }).click();
-  await ana.getByLabel(/Mostrar nas salas da comunidade/).uncheck();
+  await ana.getByLabel(/Mostrar nas salas abertas/).uncheck();
   await ana.keyboard.press('Escape');
-  await expect(rui.getByText('🌍 Comunidade')).toHaveCount(0);
+  await expect(rui.getByText('🔓 Aberta')).toHaveCount(0);
+  await rui.goto('/salas');
+  await expect(rui.getByRole('region', { name: 'Salas abertas' })).toBeVisible();
+  await expect(rui.getByRole('region', { name: 'Salas abertas' }).getByRole('button', { name: new RegExp(name) })).toHaveCount(0);
+});
+
+test('everyone shares opinions in the community space, without rooms', async ({ browser }) => {
+  const ana = await newPerson(browser);
+  const rui = await newPerson(browser);
+
+  // The site opens in the community space: pick a name and you are in.
+  await ana.goto('/');
+  await expect(ana.getByText(/Na Comunidade Lusiaves partilhas/)).toBeVisible();
+  await fillProfile(ana, 'Ana');
+  await expect(ana.getByRole('heading', { name: 'Tierlist da Comunidade', exact: true })).toBeVisible();
+  // It belongs to everyone: no shared board to fight over, no tier editing, no renaming.
+  await expect(ana.getByRole('button', { name: 'Grupo', exact: true })).toHaveCount(0);
+  await expect(ana.getByRole('button', { name: /Tiers/ })).toHaveCount(0);
+  await expect(ana.getByRole('button', { name: 'Comunidade Lusiaves' })).toHaveCount(0);
+
+  // Ana adds a title to her own tier list and gives her opinion.
+  await ana.getByRole('button', { name: 'A minha', exact: true }).click();
+  await ana.getByRole('button', { name: 'Adicionar título' }).click();
+  const quick = ana.getByRole('dialog', { name: 'Adicionar título' });
+  await quick.locator('[data-anime="al:154587"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(quick.locator('[data-anime="al:154587"]').getByText('Na comunidade')).toBeVisible();
+  await ana.keyboard.press('Escape');
+  await drag(ana, card(ana.getByTestId('pool'), 'Sousou no Frieren'), ana.locator('[data-drop="s"]'));
+  await card(ana.locator('[data-drop="s"]'), 'Sousou no Frieren').click();
+  const review = ana.getByRole('dialog', { name: 'Sousou no Frieren' });
+  await review.getByRole('radio', { name: '9', exact: true }).click();
+  await review.getByRole('button', { name: /Recomendo/ }).first().click();
+  await review.getByPlaceholder(/O que achaste/).fill('Obrigatório para toda a gente!');
+  await review.getByPlaceholder(/O que achaste/).blur();
+  await expect(review.getByText('Guardado')).toBeVisible();
+  await ana.keyboard.press('Escape');
+
+  // Rui arrives: the community tier list already has Ana's opinion in it…
   await rui.goto('/');
-  await expect(rui.getByRole('region', { name: 'Salas da comunidade' })).toBeVisible();
-  await expect(rui.getByRole('region', { name: 'Salas da comunidade' }).getByRole('button', { name: new RegExp(name) })).toHaveCount(0);
+  await fillProfile(rui, 'Rui');
+  await expect(card(rui.locator('[data-drop="s"]'), 'Sousou no Frieren')).toBeVisible();
+  await shot(rui, '18-community');
+  // …and so do the recommendations.
+  await rui.getByRole('button', { name: 'Ranking' }).click();
+  await expect(rui.getByText('Recomendados para ti')).toBeVisible();
+  await rui.getByRole('button', { name: /Sousou no Frieren/ }).first().click();
+  await expect(rui.getByRole('dialog', { name: 'Sousou no Frieren' }).getByText('Obrigatório para toda a gente!')).toBeVisible();
+  await rui.keyboard.press('Escape');
+
+  // Rooms are still there, one click away.
+  await rui.getByRole('button', { name: 'Salas' }).click();
+  await expect(rui).toHaveURL(/\/salas$/);
+  await expect(rui.getByRole('heading', { name: 'Salas', exact: true })).toBeVisible();
 });

@@ -5,6 +5,7 @@ import type { AnimeMeta, MediaType } from '../../shared/types';
 import { SEARCH_EXAMPLES, catalogName } from '../lib/catalog';
 import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
 import { useBrowse, useDebounced, useInView } from '../hooks/useBrowse';
+import { useTmdbAvailable } from '../hooks/useTmdb';
 import { metaLine } from './ExploreTab';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
@@ -13,8 +14,10 @@ import { Button, Modal, ModalHeader, Segmented, Spinner, inputClass } from './ui
 /** Search the whole catalogue and add titles to the room without leaving the tier list. */
 export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { kind, noun } = useRoom();
-  const catalogs = mediaOfKind(kind);
-  const [media, setMedia] = useState<MediaType>(catalogs[0]);
+  const tmdb = useTmdbAvailable();
+  const catalogs = mediaOfKind(kind).filter((m) => kind !== 'all' || m === 'anime' || tmdb !== false);
+  const [chosen, setMedia] = useState<MediaType>(catalogs[0]);
+  const media = catalogs.includes(chosen) ? chosen : catalogs[0];
   const [text, setText] = useState('');
   const search = useDebounced(text.trim(), 380);
   const { items, loading, error, hasMore, loadMore, retry } = useBrowse(media, search ? { search } : { sort: 'trending' }, open);
@@ -79,7 +82,7 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
 }
 
 function QuickRow({ anime }: { anime: AnimeMeta }) {
-  const { inRoom, dispatch, titleOf, openAnime } = useRoom();
+  const { inRoom, dispatch, titleOf, openAnime, place } = useRoom();
   const toast = useToast();
   const already = inRoom(anime);
   const title = titleOf(anime);
@@ -94,7 +97,7 @@ function QuickRow({ anime }: { anime: AnimeMeta }) {
       </button>
       {already ? (
         <span className="flex items-center gap-1 text-xs font-medium text-ok">
-          <Check size={14} /> Na sala
+          <Check size={14} /> {place.In}
         </span>
       ) : (
         <Button
@@ -102,7 +105,7 @@ function QuickRow({ anime }: { anime: AnimeMeta }) {
           variant="subtle"
           onClick={() => {
             if (dispatch({ type: 'anime.add', anime })) {
-              toast(`«${title}» ${agree('adicionad', mediaNoun(mediaTypeOf(anime.key)))} à sala.`, 'success');
+              toast(`«${title}» ${agree('adicionad', mediaNoun(mediaTypeOf(anime.key)))} ${place.to}.`, 'success');
             }
           }}
         >
