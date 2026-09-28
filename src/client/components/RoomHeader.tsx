@@ -28,6 +28,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
     else setName(room.name);
   };
 
+  const ownerName = (room.createdBy && room.members[room.createdBy]?.name) || 'quem a criou';
   const others = Object.values(room.members)
     .filter((m) => m.id !== me)
     .sort((a, b) => Number(!!snap.presence[b.id]) - Number(!!snap.presence[a.id]) || a.name.localeCompare(b.name));
@@ -57,7 +58,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
               className="w-full max-w-sm rounded-md border border-accent bg-surface-2 px-2 py-1 text-base font-semibold outline-none"
               aria-label="Nome da sala"
             />
-          ) : (
+          ) : room.createdBy === me ? (
             <button
               className="group flex max-w-full items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-white/5"
               onClick={() => setEditing(true)}
@@ -66,6 +67,10 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
               <span className="truncate text-base font-semibold">{room.name}</span>
               <Pencil size={13} className="shrink-0 text-faint opacity-0 transition group-hover:opacity-100" />
             </button>
+          ) : (
+            <p className="truncate px-1 py-0.5 text-base font-semibold" title={`Só o dono da sala (${ownerName}) pode mudar o nome`}>
+              {room.name}
+            </p>
           )}
           <p className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
             <span className={cn('h-1.5 w-1.5 rounded-full', snap.status === 'joined' ? 'bg-ok' : 'animate-pulse bg-warn')} />
