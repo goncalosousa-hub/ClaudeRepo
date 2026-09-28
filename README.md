@@ -101,9 +101,35 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 
 ---
 
+## 💾 Onde ficam guardadas as coisas
+
+**Por omissão, tudo fica guardado automaticamente** na pasta `data/rooms/` do projeto, com um ficheiro por sala. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia essa pasta.
+
+### Usar uma base de dados PostgreSQL (grátis, no Neon)
+
+Faz sentido se quiseres os dados fora do teu PC, ou para mais tarde pores o site online.
+
+1. Cria uma conta em [neon.tech](https://neon.tech) (grátis, sem cartão) e cria um projeto. Escolhe a região *Europe (Frankfurt)*, que fica mais perto.
+2. No painel do projeto carrega em **Connect** e copia a *connection string*. É parecida com:
+   `postgresql://neondb_owner:…@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`
+3. Na pasta do projeto, copia o `.env.example` para um ficheiro chamado **`.env`** e cola o link:
+   ```
+   DATABASE_URL=postgresql://neondb_owner:…@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+   ```
+4. Reinicia o servidor. O terminal deve mostrar `Dados: PostgreSQL (ep-xxxx…neon.tech)`. As salas que já tinhas na pasta `data/` são **copiadas automaticamente** para a base de dados na primeira vez.
+
+Para ver os dados, abre o **SQL Editor** do Neon e corre:
+```sql
+SELECT id, doc->'state'->>'name' AS sala, updated_at FROM rooms;
+```
+
+> O ficheiro `.env` tem a password da base de dados: não o partilhes. Já está no `.gitignore`, por isso não vai para o GitHub. Para voltares a guardar em ficheiros, apaga a linha `DATABASE_URL` do `.env`.
+
+---
+
 ## ⚙️ Configuração
 
-Todas as variáveis são opcionais (ver `.env.example`).
+Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pasta do projeto (vê o `.env.example`), que o servidor lê ao arrancar, ou defini-las como variáveis de ambiente.
 
 | Variável | Por omissão | Para que serve |
 |---|---|---|

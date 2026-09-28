@@ -43,10 +43,12 @@ async function start(dataDir: string, databaseUrl?: string): Promise<App> {
   await new Promise<void>((resolve) => app.httpServer.listen(0, '127.0.0.1', resolve));
   const { port } = app.httpServer.address() as AddressInfo;
   let closed = false;
+  // Keep the real close: `app.close` is replaced by `stop` below.
+  const shutdown = app.close;
   const stop = async () => {
     if (closed) return;
     closed = true;
-    await app.close();
+    await shutdown();
     await new Promise((r) => app.httpServer.close(r));
   };
   cleanups.push(stop);
@@ -272,5 +274,26 @@ describe('realtime rooms', () => {
     const again = await join(app2, roomId, user('ana'));
     expect(again.ack.state.name).toBe('PG');
     expect(again.ack.state.reviews['al:7'][again.userId]).toMatchObject({ rating: 10, opinion: 'obra-prima' });
+  });
+
+  it.runIf(process.env.TEST_DATABASE_URL)('copies the rooms from the JSON files when switching to PostgreSQL', async () => {
+    const dir = await tmpDir();
+    const files = await start(dir);
+    const roomId = await createRoom(files, 'Antes da BD');
+    const a = await join(files, roomId, user('ana'));
+    await op(a.s, { type: 'anime.add', anime: anime(9, 'Monster') });
+    a.s.disconnect();
+    await files.close();
+
+    const pg1 = await start(dir, process.env.TEST_DATABASE_URL!);
+    expect(pg1.imported).toBeGreaterThanOrEqual(1);
+    const again = await join(pg1, roomId, user('ana'));
+    expect(again.ack.state.name).toBe('Antes da BD');
+    expect(again.ack.state.anime['al:9'].title).toBe('Monster');
+    again.s.disconnect();
+    await pg1.close();
+
+    const pg2 = await start(dir, process.env.TEST_DATABASE_URL!);
+    expect(pg2.imported).toBe(0);
   });
 });

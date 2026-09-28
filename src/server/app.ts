@@ -8,7 +8,7 @@ import { Server } from 'socket.io';
 import { apiRouter } from './http';
 import { attachRealtime } from './realtime';
 import { RoomManager, type RoomManagerOptions } from './rooms';
-import { createStorage } from './storage';
+import { createStorage, importFileRooms } from './storage';
 
 export interface AppOptions {
   /** Serve the client through Vite (hot reload) instead of the built files. */
@@ -34,7 +34,14 @@ const CSP = [
 
 export async function createApp(opts: AppOptions) {
   const storage = createStorage(opts);
-  await storage.init();
+  try {
+    await storage.init();
+  } catch (err) {
+    await storage.close().catch(() => {});
+    throw err;
+  }
+  // Switching from JSON files to PostgreSQL: bring the rooms that already exist along.
+  const imported = storage.kind === 'postgres' ? await importFileRooms(opts.dataDir, storage) : 0;
   const rooms = new RoomManager(storage, opts.rooms);
 
   const app = express();
@@ -103,5 +110,5 @@ export async function createApp(opts: AppOptions) {
     await storage.close();
   }
 
-  return { app, httpServer, io, rooms, storage, close };
+  return { app, httpServer, io, rooms, storage, imported, close };
 }

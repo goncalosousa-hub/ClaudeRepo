@@ -12,6 +12,8 @@ export interface RoomDoc {
 
 export interface Storage {
   readonly kind: string;
+  /** Human description shown when the server starts (never contains passwords). */
+  readonly label: string;
   init(): Promise<void>;
   load(id: string): Promise<RoomDoc | null>;
   save(id: string, doc: RoomDoc): Promise<void>;

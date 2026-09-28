@@ -2,6 +2,15 @@ import pg from 'pg';
 import type { RoomDoc, Storage } from './types';
 
 /**
+ * node-postgres currently treats `sslmode=require` (what Neon & co. put in their links) as
+ * `verify-full` and prints a scary warning about it. Say `verify-full` explicitly: same behaviour,
+ * no warning.
+ */
+export function normalizeConnectionString(url: string) {
+  return url.replace(/([?&]sslmode=)(require|prefer|verify-ca)(?=&|$)/, '$1verify-full');
+}
+
+/**
  * SSL is enabled for hosted databases (Neon, Supabase, Render…) unless the URL already says
  * what to do with `sslmode=…`. Local / private-network hosts connect without SSL.
  */
@@ -21,10 +30,19 @@ function sslOption(connectionString: string): pg.PoolConfig['ssl'] {
 /** Stores each room as a JSONB document. Enabled when DATABASE_URL is set. */
 export class PostgresStorage implements Storage {
   readonly kind = 'postgres';
+  readonly label: string;
   private pool: pg.Pool;
 
-  constructor(connectionString: string) {
-    this.pool = new pg.Pool({ connectionString, max: 4, ssl: sslOption(connectionString) });
+  constructor(databaseUrl: string) {
+    const connectionString = normalizeConnectionString(databaseUrl.trim());
+    let host = '?';
+    try {
+      host = new URL(connectionString).hostname;
+    } catch {
+      /* pg reports invalid URLs on connect */
+    }
+    this.label = `PostgreSQL (${host})`;
+    this.pool = new pg.Pool({ connectionString, max: 4, ssl: sslOption(connectionString), connectionTimeoutMillis: 15_000 });
   }
 
   async init() {

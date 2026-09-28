@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ROOM_ID_RE } from '../../shared/schema';
 import type { RoomDoc, Storage } from './types';
@@ -12,6 +12,10 @@ export class FileStorage implements Storage {
     this.dir = path.resolve(dataDir, 'rooms');
   }
 
+  get label() {
+    return `ficheiros JSON em ${this.dir}`;
+  }
+
   async init() {
     await mkdir(this.dir, { recursive: true });
   }
@@ -19,6 +23,18 @@ export class FileStorage implements Storage {
   private file(id: string) {
     if (!ROOM_ID_RE.test(id)) throw new Error(`invalid room id: ${id}`);
     return path.join(this.dir, `${id}.json`);
+  }
+
+  /** Ids of all rooms saved in the folder. */
+  async list(): Promise<string[]> {
+    try {
+      return (await readdir(this.dir))
+        .map((f) => f.match(/^([a-z0-9]{6,16})\.json$/)?.[1])
+        .filter((id): id is string => !!id);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw err;
+    }
   }
 
   async load(id: string): Promise<RoomDoc | null> {
@@ -38,8 +54,4 @@ export class FileStorage implements Storage {
   }
 
   async close() {}
-
-  get location() {
-    return this.dir;
-  }
 }
