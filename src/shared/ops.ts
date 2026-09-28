@@ -277,6 +277,14 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       return;
     }
 
+    case 'room.owner': {
+      if (!s.members[op.to]) throw new OpError('not_member');
+      if (s.createdBy === op.to) return;
+      s.createdBy = op.to;
+      pushActivity(s, m, { kind: 'owner', to: op.to });
+      return;
+    }
+
     case 'member.join': {
       const { id, name, color, avatar } = op.member;
       const existing = s.members[id];

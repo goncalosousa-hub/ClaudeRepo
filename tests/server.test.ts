@@ -504,6 +504,40 @@ describe('accounts', () => {
   });
 });
 
+describe('room owner', () => {
+  it('only the owner renames the room or hands it over; an absent owner can be replaced', async () => {
+    const app = await start(await tmpDir());
+    const roomId = await createRoom(app, 'Turma');
+    const a = await join(app, roomId, user('ana'));
+    const b = await join(app, roomId, user('rui'));
+    expect(a.ack.state.createdBy).toBe(a.userId);
+
+    expect(await op(b.s, { type: 'room.rename', name: 'Sala do Rui' })).toEqual({ ok: false, error: 'not_owner' });
+    expect(await op(a.s, { type: 'room.rename', name: 'Turma ESTG' })).toMatchObject({ ok: true });
+    // Rui cannot make himself the owner while Ana is around.
+    expect(await op(b.s, { type: 'room.owner', to: b.userId })).toEqual({ ok: false, error: 'not_owner' });
+
+    // Ana hands the room over: now only Rui renames it.
+    expect(await op(a.s, { type: 'room.owner', to: b.userId })).toMatchObject({ ok: true });
+    expect(await op(a.s, { type: 'room.rename', name: 'Outra' })).toEqual({ ok: false, error: 'not_owner' });
+    expect(await op(b.s, { type: 'room.rename', name: 'Turma do Rui' })).toMatchObject({ ok: true });
+    expect(await op(b.s, { type: 'room.owner', to: 'user_ghost_000' })).toEqual({ ok: false, error: 'not_member' });
+
+    // Rui disappears (e.g. he lost his profile). A week later Ana can take the room back.
+    b.s.disconnect();
+    const live = (await app.rooms.get(roomId))!;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(await op(a.s, { type: 'room.owner', to: a.userId })).toEqual({ ok: false, error: 'not_owner' });
+    live.doc.lastSeen[b.userId] = Date.now() - 8 * 24 * 60 * 60_000;
+    // …but only for herself.
+    const c = await join(app, roomId, user('eva'));
+    expect(await op(a.s, { type: 'room.owner', to: c.userId })).toEqual({ ok: false, error: 'not_owner' });
+    expect(await op(a.s, { type: 'room.owner', to: a.userId })).toMatchObject({ ok: true });
+    expect(live.doc.state.createdBy).toBe(a.userId);
+    expect(live.doc.state.activity.at(-1)).toMatchObject({ kind: 'owner', by: a.userId, to: a.userId });
+  });
+});
+
 describe('series and movies', () => {
   it('creates rooms for anime, series, movies or all of them', async () => {
     const app = await start(await tmpDir());

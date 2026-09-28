@@ -60,7 +60,10 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   await rui.goto(roomUrl);
   await fillProfile(rui, 'Rui');
   await expect(rui.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
-  await expect(rui.getByRole('button', { name: 'Turma ESTG' })).toBeVisible();
+  // Only the owner (Ana, who created the room) can rename it.
+  await expect(rui.getByRole('banner').getByText('Turma ESTG')).toBeVisible();
+  await expect(rui.getByRole('button', { name: 'Turma ESTG' })).toHaveCount(0);
+  await expect(ana.getByRole('button', { name: 'Turma ESTG' })).toBeVisible();
   // Both see each other online
   await expect(ana.getByTitle(/^Rui — (?!offline)/)).toBeVisible();
   await expect(rui.getByTitle(/^Ana — (?!offline)/)).toBeVisible();
@@ -178,6 +181,18 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   // --- Everything survives a reload ---------------------------------------------------------
   await rui.reload();
   await expect(card(rui.locator('[data-drop="a"]'), 'Sousou no Frieren')).toBeVisible();
+
+  // --- Ana hands the room over to Rui: now he renames it ---------------------------------------
+  await ana.getByRole('button', { name: 'Membros' }).click();
+  ana.once('dialog', (d) => void d.accept());
+  await ana.getByRole('button', { name: 'Passar a sala a Rui' }).click();
+  await expect(rui.getByRole('button', { name: 'Turma ESTG' })).toBeVisible();
+  await expect(ana.getByRole('button', { name: 'Turma ESTG' })).toHaveCount(0);
+  await expect(ana.getByText(/passou a sala a/)).toBeVisible();
+  await rui.getByRole('button', { name: 'Turma ESTG' }).click();
+  await rui.getByLabel('Nome da sala').fill('ESTG 2.º ano');
+  await rui.getByLabel('Nome da sala').press('Enter');
+  await expect(ana.getByRole('banner').getByText('ESTG 2.º ano')).toBeVisible();
 });
 
 test('mobile layout works', async ({ browser }) => {

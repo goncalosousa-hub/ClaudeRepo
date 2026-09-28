@@ -95,7 +95,7 @@ export interface ChatMessage {
   text: string;
 }
 
-export type ActivityKind = 'join' | 'add' | 'remove' | 'move' | 'review' | 'tiers' | 'rename' | 'copy' | 'clear';
+export type ActivityKind = 'join' | 'add' | 'remove' | 'move' | 'review' | 'tiers' | 'rename' | 'copy' | 'clear' | 'owner';
 
 export interface Activity {
   id: string;
@@ -119,6 +119,7 @@ export interface RoomState {
   /** Missing in rooms created before series and movies existed: those are anime rooms. */
   kind?: RoomKind;
   createdAt: number;
+  /** The room's owner: whoever created it (the first member to join), or whoever they handed it to */
   createdBy: string | null;
   tiers: Tier[];
   /** Every title in the room (anime, series or movies), by key */
@@ -149,6 +150,7 @@ export type Op =
   | { type: 'review.set'; key: string; patch: ReviewPatch }
   | { type: 'tiers.set'; tiers: Tier[] }
   | { type: 'room.rename'; name: string }
+  | { type: 'room.owner'; to: string }
   | { type: 'member.join'; member: MemberInput }
   | { type: 'member.update'; name: string; color: string; avatar: string }
   | { type: 'chat.send'; id: string; text: string };

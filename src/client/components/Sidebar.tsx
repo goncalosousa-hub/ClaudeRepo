@@ -286,6 +286,16 @@ function ActivityItem({ a }: { a: Activity }) {
     case 'clear':
       body = <>limpou a sua tierlist</>;
       break;
+    case 'owner':
+      body =
+        a.to === a.by ? (
+          <>ficou com a sala 👑</>
+        ) : (
+          <>
+            passou a sala a <b className="text-fg">{memberName(a.to ?? '')}</b> 👑
+          </>
+        );
+      break;
   }
 
   return (

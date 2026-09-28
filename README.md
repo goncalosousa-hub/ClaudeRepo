@@ -36,6 +36,10 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - **Chat** da sala e **feed de atividade**.
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
 
+**Dono da sala**
+- Quem cria a sala é o dono (👑): só o dono muda o nome da sala, e pode passá-la a outro membro no separador **Membros**.
+- Se o dono não aparecer durante uma semana (por exemplo, porque perdeu o perfil), qualquer membro pode ficar com a sala.
+
 **Contas (opcionais)**
 - Utilizador e palavra-passe para seres **sempre a mesma pessoa** nas salas, mesmo quando o link muda ou usas outro dispositivo.
 - **As tuas salas** ficam guardadas na conta: aparecem na página inicial de qualquer dispositivo.
@@ -118,6 +122,7 @@ Algumas notas:
 - **Primeiro cria a conta, depois entra nos outros sítios.** Se entrares numa conta num dispositivo que já tinha outro perfil sem conta, esse dispositivo passa a usar o perfil da conta.
 - Os perfis criados antes, noutros links, continuam nas salas como membros offline: eram pessoas "diferentes" para a app.
 - **Esqueceste-te da palavra-passe?** Não há recuperação por email. Quem gere o servidor pode apagar a conta: o ficheiro `data/accounts/<utilizador>.json`, ou `DELETE FROM accounts WHERE username = '<utilizador>';` no PostgreSQL. Depois, num dispositivo onde ainda tenhas a sessão aberta, cria a conta outra vez com o mesmo utilizador e ficas com o mesmo perfil.
+- Não há dois utilizadores iguais: se o nome já existir, a conta não é criada (maiúsculas e minúsculas contam como iguais). O nome que aparece nas salas é outra coisa e pode repetir-se.
 - As palavras-passe nunca são guardadas: o servidor guarda só um *hash* (scrypt).
 
 ---

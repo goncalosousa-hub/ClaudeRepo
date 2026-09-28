@@ -76,6 +76,8 @@ const ERRORS: Record<string, string> = {
   room_not_found: 'Esta sala não existe (ou o link está incompleto).',
   auth_failed: 'Este perfil está protegido por outra chave. Cria um perfil novo neste dispositivo.',
   forbidden: 'Só podes mexer na tierlist do grupo ou na tua.',
+  not_owner: 'Só o dono da sala pode fazer isto.',
+  not_member: 'Essa pessoa não é membro da sala.',
   rate_limited: 'Calma! Estás a fazer alterações depressa demais.',
   limit_anime: 'A sala chegou ao limite de títulos.',
   media_not_allowed: 'Esta sala não aceita esse tipo de título (vê se é uma sala de anime, séries ou filmes).',

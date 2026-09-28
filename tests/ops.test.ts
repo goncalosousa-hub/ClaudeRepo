@@ -257,6 +257,21 @@ describe('members, chat and rename', () => {
   });
 });
 
+describe('room owner', () => {
+  it('starts with whoever joins first and can be handed to another member', () => {
+    const s = room();
+    expect(s.createdBy).toBe('ana');
+    apply(s, { type: 'room.owner', to: 'rui' });
+    expect(s.createdBy).toBe('rui');
+    expect(s.activity.at(-1)).toMatchObject({ kind: 'owner', by: 'ana', to: 'rui' });
+    const before = s.activity.length;
+    apply(s, { type: 'room.owner', to: 'rui' }, 'rui'); // already the owner: nothing happens
+    expect(s.activity).toHaveLength(before);
+    expect(() => apply(s, { type: 'room.owner', to: 'ghost' }, 'rui')).toThrow(new OpError('not_member'));
+    expect(s.createdBy).toBe('rui');
+  });
+});
+
 describe('works on immutable (Immer) state too', () => {
   it('produces a new state without mutating the frozen original', () => {
     const base = produce(room(), () => {});

@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { OpError } from '../shared/ops';
+import { ownerAway } from '../shared/owner';
 import { cursorSchema, joinSchema, opMessageSchema, presencePatchSchema } from '../shared/schema';
 import { GROUP_BOARD, type AckError, type JoinAck, type Op, type OpAck, type SyncAck } from '../shared/types';
 import type { AccountManager } from './accounts';
@@ -25,8 +26,12 @@ class TokenBucket {
   }
 }
 
-/** Personal tier lists can only be changed by their owner; the group one by anyone. */
-function authorize(op: Op, userId: string): string | null {
+/**
+ * Personal tier lists can only be changed by their owner; the group one by anyone. Only the room's
+ * owner renames it or hands it over; the others can take it over once the owner has been away a week.
+ */
+function authorize(op: Op, userId: string, room: LiveRoom): string | null {
+  const s = room.doc.state;
   switch (op.type) {
     case 'board.move':
       return op.board === GROUP_BOARD || op.board === userId ? null : 'forbidden';
@@ -35,6 +40,13 @@ function authorize(op: Op, userId: string): string | null {
       return op.board === userId ? null : 'forbidden';
     case 'anime.add':
       return !op.place || op.place.board === GROUP_BOARD || op.place.board === userId ? null : 'forbidden';
+    case 'room.rename':
+      return s.createdBy === userId ? null : 'not_owner';
+    case 'room.owner': {
+      if (s.createdBy === userId) return null;
+      const ownerOnline = !!s.createdBy && room.presence.has(s.createdBy);
+      return op.to === userId && ownerAway(s, room.doc.lastSeen, ownerOnline) ? null : 'not_owner';
+    }
     default:
       return null;
   }
@@ -114,7 +126,7 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
       if (!parsed.success) return ack({ ok: false, error: 'invalid_op' });
       const { cid } = parsed.data;
       const op = parsed.data.op as Op;
-      const denied = authorize(op, ctx.userId);
+      const denied = authorize(op, ctx.userId, ctx.room);
       if (denied) return ack({ ok: false, error: denied });
       try {
         const env = rooms.apply(ctx.room, op, ctx.userId, cid);
