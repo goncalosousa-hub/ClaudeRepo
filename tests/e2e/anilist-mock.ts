@@ -76,7 +76,23 @@ function svgCover(id: number, banner: boolean) {
 </svg>`;
 }
 
+/** Posters of the fake TMDB (tests/fake-tmdb.ts): "/poster1396.jpg", "/backdrop1396.jpg". */
+function svgPoster(id: number, backdrop: boolean) {
+  const [w, h] = backdrop ? [1280, 720] : [342, 513];
+  const hue = (id * 47) % 360;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <rect width="100%" height="100%" fill="hsl(${hue} 55% 35%)"/>
+  <text x="16" y="48" font-family="sans-serif" font-size="30" font-weight="700" fill="#fff" opacity="0.85">TMDB ${id}</text>
+</svg>`;
+}
+
 export async function mockAniList(page: Page, opts: { calls?: string[] } = {}) {
+  await page.route('https://image.tmdb.org/**', (route: Route) => {
+    const url = route.request().url();
+    const id = Number(url.match(/(?:poster|backdrop)(\d+)/)?.[1] ?? 0);
+    return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: svgPoster(id, url.includes('backdrop')) });
+  });
+
   await page.route('https://s4.anilist.co/**', (route: Route) => {
     const url = route.request().url();
     const id = Number(url.match(/(?:bx|banner\/)(\d+)/)?.[1] ?? 0);

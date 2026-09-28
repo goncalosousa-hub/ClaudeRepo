@@ -1,19 +1,20 @@
 // Anime catalogue: AniList GraphQL API (https://anilist.co), with MyAnimeList (through the Jikan
 // API, https://jikan.moe) as an automatic fallback when AniList is down or rate limiting us.
 // Both are free, need no key and are called straight from the browser.
-import type { AnimeMeta } from '../../shared/types';
+import type { AnimeMeta, MediaType } from '../../shared/types';
 
 const ANILIST_URL = 'https://graphql.anilist.co';
 const JIKAN_URL = 'https://api.jikan.moe/v4';
 const DEFAULT_COVER = 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg';
 const SYNOPSIS_MAX = 1500;
 
-export type SortKey = 'relevance' | 'popularity' | 'trending' | 'score' | 'newest' | 'favourites';
+export type SortKey = 'relevance' | 'popularity' | 'trending' | 'score' | 'newest' | 'favourites' | 'airing' | 'upcoming';
 export type Season = 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
 
 export interface BrowseParams {
   search?: string;
   sort?: SortKey;
+  /** AniList genre (anime) or TMDB genre id (series and movies) */
   genre?: string;
   season?: Season;
   year?: number;
@@ -24,7 +25,7 @@ export interface BrowseResult {
   items: AnimeMeta[];
   hasNext: boolean;
   total: number | null;
-  source: 'anilist' | 'jikan';
+  source: 'anilist' | 'jikan' | 'tmdb';
 }
 
 export interface AnimeDetails {
@@ -38,6 +39,10 @@ export interface AnimeDetails {
   tags: string[];
   nextEpisode: { episode: number; airingAt: number } | null;
   recommendations: AnimeMeta[];
+  /** Series and movies (TMDB) only */
+  seasons?: number | null;
+  cast?: string[];
+  creators?: string[];
 }
 
 export class AnimeApiError extends Error {
@@ -107,6 +112,29 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelado',
   HIATUS: 'Em pausa',
 };
+/** Series are feminine in Portuguese ("série terminada"); a released movie has "estreado". */
+const STATUS_LABELS_TV: Record<string, string> = { ...STATUS_LABELS, FINISHED: 'Terminada', CANCELLED: 'Cancelada' };
+const STATUS_LABELS_MOVIE: Record<string, string> = { ...STATUS_LABELS, FINISHED: 'Estreado', RELEASING: 'Nos cinemas' };
+
+/** Genres that only series and movies have (TMDB), besides the anime ones above. */
+const MORE_GENRES: Record<string, string> = {
+  Animation: 'Animação',
+  Crime: 'Crime',
+  Documentary: 'Documentário',
+  Family: 'Família',
+  History: 'História',
+  'TV Movie': 'Filme para TV',
+  War: 'Guerra',
+  Western: 'Western',
+  Kids: 'Infantil',
+  News: 'Notícias',
+  Reality: 'Reality show',
+  Soap: 'Novela',
+  Talk: 'Talk show',
+  Politics: 'Política',
+};
+
+const FORMAT_LABELS: Record<string, string> = { SERIES: 'Série' };
 
 const SOURCE_LABELS: Record<string, string> = {
   ORIGINAL: 'Original',
@@ -126,10 +154,12 @@ const SOURCE_LABELS: Record<string, string> = {
   OTHER: 'Outro',
 };
 
-export const genreLabel = (id: string) => GENRES.find((g) => g.id === id)?.label ?? id;
-export const formatLabel = (id: string | null) => (id ? (FORMATS.find((f) => f.id === id)?.label ?? id) : null);
+export const genreLabel = (id: string) => GENRES.find((g) => g.id === id)?.label ?? MORE_GENRES[id] ?? id;
+export const formatLabel = (id: string | null) =>
+  id ? (FORMATS.find((f) => f.id === id)?.label ?? FORMAT_LABELS[id] ?? id) : null;
 export const seasonLabel = (id: string | null) => (id ? (SEASONS.find((s) => s.id === id)?.label ?? id) : null);
-export const statusLabel = (id: string | null) => (id ? (STATUS_LABELS[id] ?? id) : null);
+export const statusLabel = (id: string | null, media: MediaType = 'anime') =>
+  id ? ((media === 'tv' ? STATUS_LABELS_TV : media === 'movie' ? STATUS_LABELS_MOVIE : STATUS_LABELS)[id] ?? id) : null;
 export const sourceLabel = (id: string | null) => (id ? (SOURCE_LABELS[id] ?? id) : null);
 
 export function currentSeason(date = new Date()): { season: Season; year: number } {
@@ -214,7 +244,7 @@ query ($id: Int) {
   }
 }`;
 
-const SORT_MAP: Record<SortKey, string[]> = {
+const SORT_MAP: Partial<Record<SortKey, string[]>> = {
   relevance: ['SEARCH_MATCH', 'POPULARITY_DESC'],
   popularity: ['POPULARITY_DESC'],
   trending: ['TRENDING_DESC', 'POPULARITY_DESC'],
@@ -289,7 +319,7 @@ async function browseAniList(p: BrowseParams, page: number): Promise<BrowseResul
       page,
       perPage: 30,
       search: p.search?.trim(),
-      sort: SORT_MAP[sort === 'relevance' && !p.search ? 'popularity' : sort],
+      sort: SORT_MAP[sort === 'relevance' && !p.search ? 'popularity' : sort] ?? SORT_MAP.popularity,
       genre: p.genre,
       season: p.year ? p.season : undefined,
       seasonYear: p.year,

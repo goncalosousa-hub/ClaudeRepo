@@ -280,7 +280,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
 
   // Same member as on the laptop: still one member, and the rating is hers.
   await expect(phone.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
-  await expect(phone.getByText(/online · 1 membro$/)).toBeVisible();
+  await expect(phone.getByText(/online · 1 membro\b/)).toBeVisible();
   await card(phone.getByTestId('pool'), 'Sousou no Frieren').click();
   const phoneReview = phone.getByRole('dialog', { name: 'Sousou no Frieren' });
   await expect(phoneReview.getByRole('radio', { name: '8', exact: true })).toHaveAttribute('aria-checked', 'true');
@@ -313,4 +313,82 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await phone.getByRole('dialog', { name: 'Perfil' }).getByRole('button', { name: 'Terminar sessão' }).click();
   await expect(phone.getByRole('button', { name: 'Entrar na conta' })).toBeVisible();
   await expect(phone.getByRole('region', { name: 'As tuas salas' })).toHaveCount(0);
+});
+
+test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
+  const ana = await newPerson(browser);
+  const rui = await newPerson(browser);
+
+  // --- A series room -------------------------------------------------------------------
+  await ana.goto('/');
+  await ana.getByRole('radio', { name: /Séries/ }).click();
+  await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Séries da turma');
+  await ana.getByRole('button', { name: 'Criar', exact: true }).click();
+  await fillProfile(ana, 'Ana');
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await expect(ana.getByText('📺 Séries')).toBeVisible();
+  const seriesUrl = ana.url();
+
+  await ana.getByRole('button', { name: 'Adicionar série' }).click();
+  const quick = ana.getByRole('dialog', { name: 'Adicionar série' });
+  await expect(quick.locator('[data-anime="tv:1399"]')).toContainText('A Guerra dos Tronos');
+  // No Portuguese title on TMDB: the English one instead of the Korean original.
+  await expect(quick.locator('[data-anime="tv:93405"]')).toContainText('Squid Game');
+  await quick.getByPlaceholder(/Breaking Bad/).fill('breaking');
+  await quick.locator('[data-anime="tv:1396"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(quick.locator('[data-anime="tv:1396"]').getByText('Na sala')).toBeVisible();
+  await ana.keyboard.press('Escape');
+
+  // Rui joins and ranks it: Ana sees it live.
+  await rui.goto(seriesUrl);
+  await fillProfile(rui, 'Rui');
+  const ruiPool = rui.getByTestId('pool');
+  await expect(card(ruiPool, 'Breaking Bad')).toBeVisible();
+  await drag(rui, card(ruiPool, 'Breaking Bad'), rui.locator('[data-drop="s"]'));
+  await expect(card(ana.locator('[data-drop="s"]'), 'Breaking Bad')).toBeVisible();
+
+  await card(ana.locator('[data-drop="s"]'), 'Breaking Bad').click();
+  const details = ana.getByRole('dialog', { name: 'Breaking Bad' });
+  await expect(details.getByText('5 temporadas')).toBeVisible();
+  await expect(details.getByText('AMC', { exact: true })).toBeVisible();
+  await expect(details.getByText('Criada por Vince Gilligan')).toBeVisible();
+  await expect(details.getByText('★ 89% no TMDB')).toBeVisible();
+  await details.getByRole('radio', { name: '10', exact: true }).click();
+  await shot(ana, '14-series-details');
+  await ana.keyboard.press('Escape');
+
+  // Explore with the series filters.
+  await ana.getByRole('button', { name: 'Explorar' }).click();
+  await expect(ana.getByPlaceholder('Pesquisar em todas as séries…')).toBeVisible();
+  await expect(ana.locator('[data-anime="tv:66732"]')).toBeVisible();
+  await ana.getByLabel('Género').selectOption({ label: 'Comédia' });
+  await expect(ana.locator('[data-anime="tv:2316"]')).toBeVisible();
+  await expect(ana.locator('[data-anime="tv:66732"]')).toHaveCount(0);
+  await ana.getByRole('button', { name: '📡 Em exibição' }).click();
+  await expect(ana.locator('[data-anime="tv:70523"]')).toBeVisible();
+  await expect(ana.locator('[data-anime="tv:2316"]')).toHaveCount(0);
+  await shot(ana, '15-series-explore');
+
+  // --- A room with everything: anime and movies side by side ------------------------------
+  await ana.goto('/');
+  await ana.getByRole('radio', { name: /Tudo/ }).click();
+  await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Tudo junto');
+  await ana.getByRole('button', { name: 'Criar', exact: true }).click();
+  await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo' })).toBeVisible();
+  await ana.getByRole('button', { name: 'Explorar' }).click();
+  await ana.getByRole('radio', { name: /Filmes/ }).click();
+  await ana.getByRole('button', { name: '🍿 Nos cinemas' }).click();
+  await ana.locator('[data-anime="mv:872585"]').getByRole('button', { name: 'Adicionar à sala' }).click();
+  await ana.getByRole('radio', { name: /Anime/ }).click();
+  await ana.locator('[data-anime="al:154587"]').getByRole('button', { name: 'Adicionar à sala' }).click();
+  await ana.getByRole('button', { name: 'Tierlist' }).click();
+  const pool = ana.getByTestId('pool');
+  await expect(card(pool, 'Oppenheimer')).toBeVisible();
+  await expect(card(pool, 'Sousou no Frieren')).toBeVisible();
+
+  await card(pool, 'Oppenheimer').click();
+  const movie = ana.getByRole('dialog', { name: 'Oppenheimer' });
+  await expect(movie.getByText('2 h 49 min')).toBeVisible();
+  await expect(movie.getByText('Realização: Christopher Nolan')).toBeVisible();
+  await shot(ana, '16-movie-details');
 });

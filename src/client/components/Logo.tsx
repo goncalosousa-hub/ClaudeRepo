@@ -34,7 +34,7 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       <LogoMark size={compact ? 28 : 32} />
       {!compact && (
         <span className="text-[15px] leading-none">
-          Anime Tierlist <span className="text-gradient">Live</span>
+          Tierlist <span className="text-gradient">Live</span>
         </span>
       )}
     </a>

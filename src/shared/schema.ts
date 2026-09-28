@@ -1,9 +1,12 @@
 // Runtime validation of everything the server receives from browsers.
 import { z } from 'zod';
 import { LIMITS, PASSWORD_MIN, ROOM_ID_RE, isAllowedImageUrl, isAllowedSiteUrl, isValidUsername } from './constants';
+import { ROOM_KINDS } from './media';
 
 export { ROOM_ID_RE };
-export const ANIME_KEY_RE = /^(al|mal):\d{1,9}$/;
+/** Title keys: anime from AniList ("al:") or MyAnimeList ("mal:"), TMDB series ("tv:") or movies ("mv:"). */
+export const ANIME_KEY_RE = /^(al|mal|tv|mv):\d{1,9}$/;
+const KEY_PREFIXES: Record<string, string[]> = { anilist: ['al'], jikan: ['mal'], tmdb: ['tv', 'mv'] };
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const idStr = z.string().regex(/^[A-Za-z0-9_-]{1,32}$/);
@@ -17,7 +20,7 @@ export const roomIdSchema = z.string().regex(ROOM_ID_RE);
 export const animeMetaSchema = z
   .object({
     key: animeKey,
-    source: z.enum(['anilist', 'jikan']),
+    source: z.enum(['anilist', 'jikan', 'tmdb']),
     sourceId: z.number().int().positive(),
     idMal: z.number().int().positive().nullable().default(null),
     title: z.string().trim().min(1).max(300),
@@ -37,7 +40,7 @@ export const animeMetaSchema = z
     synopsis: z.string().default('').transform((s) => s.slice(0, LIMITS.synopsis)),
     url: z.string().max(300).refine(isAllowedSiteUrl, 'url host not allowed').nullable().default(null),
   })
-  .refine((a) => a.key === `${a.source === 'anilist' ? 'al' : 'mal'}:${a.sourceId}`, 'key/source mismatch');
+  .refine((a) => KEY_PREFIXES[a.source].some((prefix) => a.key === `${prefix}:${a.sourceId}`), 'key/source mismatch');
 
 const tierSchema = z.object({
   id: idStr,
@@ -158,4 +161,5 @@ export const cursorSchema = z
 
 export const createRoomSchema = z.object({
   name: z.string().trim().min(1).max(LIMITS.roomName),
+  kind: z.enum(ROOM_KINDS).default('anime'),
 });

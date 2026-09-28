@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { BarChart3, Copy, Download, Eraser, Eye, Palette, Star, UserPlus, Users } from 'lucide-react';
 import { consensusBoard, normalizedBoard, poolOf } from '../../shared/stats';
-import { CONSENSUS_BOARD, GROUP_BOARD } from '../../shared/types';
+import { CONSENSUS_BOARD, GROUP_BOARD, type RoomKind } from '../../shared/types';
 import { exportTierlistImage } from '../lib/export-image';
 import { QuickAddDialog } from './QuickAddDialog';
 import { useRoom } from './RoomContext';
@@ -10,8 +10,15 @@ import { TierEditorDialog } from './TierEditorDialog';
 import { useToast } from './Toasts';
 import { Avatar, Button, Segmented, cn } from './ui';
 
+const ADD_HINT: Record<RoomKind, string> = {
+  anime: 'Pesquisa qualquer anime do AniList.',
+  series: 'Pesquisa qualquer série do TMDB.',
+  movies: 'Pesquisa qualquer filme do TMDB.',
+  all: 'Pesquisa animes, séries e filmes.',
+};
+
 export function TierlistTab({ onShare }: { onShare: () => void }) {
-  const { room, me, board, setBoard, snap, prefs, setPrefs, dispatch, titleOf, memberName } = useRoom();
+  const { room, me, board, setBoard, snap, prefs, setPrefs, dispatch, titleOf, memberName, kind, noun } = useRoom();
   const [adding, setAdding] = useState(false);
   const [editingTiers, setEditingTiers] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -121,7 +128,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-bold">{boardTitle}</h2>
           <p className="text-xs text-muted">
-            {validBoard === GROUP_BOARD && 'Partilhada: todos podem arrastar animes aqui, ao mesmo tempo.'}
+            {validBoard === GROUP_BOARD && `Partilhada: todos podem arrastar ${noun.many} aqui, ao mesmo tempo.`}
             {validBoard === me && 'A tua tierlist pessoal. Todos a veem em direto e conta para a média.'}
             {isConsensus && 'Calculada automaticamente a partir das tierlists pessoais de todos (só leitura).'}
             {owner && (
@@ -159,7 +166,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
               variant="ghost"
               title="Pôr tudo em «Por classificar»"
               onClick={() => {
-                if (confirm('Limpar a tua tierlist? Os animes voltam para «Por classificar».'))
+                if (confirm(`Limpar a tua tierlist? ${noun.f ? 'As' : 'Os'} ${noun.many} voltam para «Por classificar».`))
                   dispatch({ type: 'board.clear', board: me });
               }}
             >
@@ -179,7 +186,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
         <div className="grid gap-3 rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-accent-2/10 p-4 sm:grid-cols-3">
           {[
             { n: 1, title: 'Convida a turma', text: 'Partilha o link ou o QR code da sala.', action: onShare, cta: 'Convidar' },
-            { n: 2, title: 'Adiciona animes', text: 'Pesquisa qualquer anime do AniList.', action: () => setAdding(true), cta: 'Adicionar' },
+            { n: 2, title: `Adiciona ${noun.many}`, text: ADD_HINT[kind], action: () => setAdding(true), cta: 'Adicionar' },
             { n: 3, title: 'Classifica e avalia', text: 'Arrasta para os tiers e dá a tua nota e opinião.' },
           ].map((s) => (
             <div key={s.n} className="flex items-start gap-3">

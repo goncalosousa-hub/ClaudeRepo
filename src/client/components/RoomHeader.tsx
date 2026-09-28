@@ -3,12 +3,13 @@ import { Pencil, UserPlus } from 'lucide-react';
 import { LIMITS } from '../../shared/constants';
 import { timeAgo } from '../lib/format';
 import { describePresence } from '../lib/presence-text';
+import { kindInfo } from '../lib/words';
 import { Logo } from './Logo';
 import { useRoom } from './RoomContext';
 import { Avatar, Button, cn } from './ui';
 
 export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProfile: () => void }) {
-  const { room, me, user, snap, dispatch, titleOf } = useRoom();
+  const { room, me, user, snap, dispatch, titleOf, kind } = useRoom();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(room.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +71,9 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
             <span className={cn('h-1.5 w-1.5 rounded-full', snap.status === 'joined' ? 'bg-ok' : 'animate-pulse bg-warn')} />
             {snap.status === 'joined' ? `${online.length + 1} online` : 'a religar…'} · {Object.keys(room.members).length}{' '}
             {Object.keys(room.members).length === 1 ? 'membro' : 'membros'}
+            <span className="hidden sm:inline">
+              · {kindInfo(kind).emoji} {kindInfo(kind).label}
+            </span>
           </p>
         </div>
 

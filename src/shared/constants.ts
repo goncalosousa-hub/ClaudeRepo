@@ -71,7 +71,7 @@ export const AVATARS = [
   '🌸', '⚡', '🔥', '💀', '🥷', '🤖', '👻', '🐧', '🦉', '🍜',
 ];
 
-/** Only images from these hosts are accepted in anime metadata and by the image proxy. */
+/** Only images from these hosts are accepted in title metadata and by the image proxy. */
 export function isAllowedImageUrl(value: string): boolean {
   let url: URL;
   try {
@@ -86,7 +86,8 @@ export function isAllowedImageUrl(value: string): boolean {
     h.endsWith('.anilist.co') ||
     h === 'img.anili.st' ||
     h === 'myanimelist.net' ||
-    h.endsWith('.myanimelist.net')
+    h.endsWith('.myanimelist.net') ||
+    h === 'image.tmdb.org'
   );
 }
 
@@ -99,5 +100,11 @@ export function isAllowedSiteUrl(value: string): boolean {
   }
   if (url.protocol !== 'https:') return false;
   const h = url.hostname;
-  return h === 'anilist.co' || h.endsWith('.anilist.co') || h === 'myanimelist.net' || h.endsWith('.myanimelist.net');
+  return (
+    h === 'anilist.co' ||
+    h.endsWith('.anilist.co') ||
+    h === 'myanimelist.net' ||
+    h.endsWith('.myanimelist.net') ||
+    h === 'www.themoviedb.org'
+  );
 }

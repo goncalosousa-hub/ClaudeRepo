@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, Play, Plus, Trash2, X } from 'lucide-react';
+import { mediaTypeOf } from '../../shared/media';
 import { placementsOf } from '../../shared/stats';
 import { GROUP_BOARD, POOL, type AnimeMeta, type Review } from '../../shared/types';
-import {
-  animeDetails,
-  formatLabel,
-  genreLabel,
-  seasonLabel,
-  sourceLabel,
-  statusLabel,
-  type AnimeDetails,
-} from '../lib/anime-api';
-import { RECOMMEND, WATCH_STATUS, formatRating, ratingColor, readableOn, timeAgo } from '../lib/format';
+import { formatLabel, genreLabel, seasonLabel, sourceLabel, statusLabel, type AnimeDetails } from '../lib/anime-api';
+import { titleDetails } from '../lib/catalog';
+import { RECOMMEND, WATCH_STATUS, formatRating, plural, ratingColor, readableOn, timeAgo } from '../lib/format';
+import { agree, mediaNoun, thisOne } from '../lib/words';
 import { ReviewEditor } from './ReviewEditor';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
@@ -28,7 +23,7 @@ export function AnimeDialog({ target, onClose }: { target: { key: string; meta: 
   }, [client, target]);
 
   return (
-    <Modal open={open} onClose={onClose} label={target?.meta.title ?? 'Anime'} className="max-w-3xl overflow-hidden">
+    <Modal open={open} onClose={onClose} label={target?.meta.title ?? 'Detalhes'} className="max-w-3xl overflow-hidden">
       {target && <AnimeDialogBody key={target.key} target={target} onClose={onClose} />}
     </Modal>
   );
@@ -43,10 +38,13 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [fullSynopsis, setFullSynopsis] = useState(false);
 
+  const media = mediaTypeOf(meta.key);
+  const noun = mediaNoun(media);
+
   useEffect(() => {
     let alive = true;
     setLoadingDetails(true);
-    animeDetails(meta)
+    titleDetails(meta)
       .then((d) => alive && setDetails(d))
       .catch(() => {})
       .finally(() => alive && setLoadingDetails(false));
@@ -76,18 +74,48 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   const currentTier = roomKey ? (placements[editableBoard] ?? null) : null;
 
   const add = () => {
-    if (dispatch({ type: 'anime.add', anime: meta })) toast(`«${title}» adicionado à sala.`, 'success');
+    // The details (when loaded) know more: status, episodes, network or director…
+    const anime = details?.meta.key === meta.key ? details.meta : meta;
+    if (dispatch({ type: 'anime.add', anime })) toast(`«${title}» ${agree('adicionad', noun)} à sala.`, 'success');
   };
 
-  const chips = [
-    formatLabel(meta.format),
-    meta.season && meta.year ? `${seasonLabel(meta.season)} ${meta.year}` : meta.year,
-    meta.episodes ? `${meta.episodes} episódios` : null,
-    details?.duration ? `${details.duration} min/ep.` : null,
-    statusLabel(meta.status),
-    meta.studio,
-    sourceLabel(details?.source ?? null) ? `Origem: ${sourceLabel(details?.source ?? null)}` : null,
-  ].filter(Boolean) as (string | number)[];
+  const info = details?.meta.key === meta.key ? { ...meta, ...details.meta } : meta;
+  const years = info.year && details?.endYear && details.endYear !== info.year ? `${info.year}–${details.endYear}` : info.year;
+  const chips = (
+    media === 'anime'
+      ? [
+          formatLabel(info.format),
+          info.season && info.year ? `${seasonLabel(info.season)} ${info.year}` : info.year,
+          info.episodes ? `${info.episodes} episódios` : null,
+          details?.duration ? `${details.duration} min/ep.` : null,
+          statusLabel(info.status),
+          info.studio,
+          sourceLabel(details?.source ?? null) ? `Origem: ${sourceLabel(details?.source ?? null)}` : null,
+        ]
+      : media === 'tv'
+        ? [
+            formatLabel(info.format),
+            years,
+            details?.seasons ? plural(details.seasons, 'temporada', 'temporadas') : null,
+            info.episodes ? plural(info.episodes, 'episódio', 'episódios') : null,
+            details?.duration ? `${details.duration} min/ep.` : null,
+            statusLabel(info.status, 'tv'),
+            info.studio,
+          ]
+        : [
+            formatLabel(info.format),
+            info.year,
+            details?.duration ? runtime(details.duration) : null,
+            statusLabel(info.status, 'movie'),
+            info.studio ? `Realização: ${info.studio}` : null,
+          ]
+  ).filter(Boolean) as (string | number)[];
+  const people = [
+    details?.creators?.length ? `Criada por ${details.creators.join(', ')}` : null,
+    details?.cast?.length ? `Com ${details.cast.join(', ')}` : null,
+  ].filter(Boolean) as string[];
+  const scoreSource = meta.source === 'jikan' ? 'MAL' : meta.source === 'tmdb' ? 'TMDB' : 'AniList';
+  const siteName = meta.source === 'jikan' ? 'MyAnimeList' : meta.source === 'tmdb' ? 'TMDB' : 'AniList';
 
   return (
     <div className="max-h-[calc(100dvh-3rem)] overflow-y-auto">
@@ -120,7 +148,11 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             <h2 className="text-xl leading-tight font-extrabold sm:text-2xl">{title}</h2>
             {altTitle && altTitle !== title && <p className="mt-0.5 truncate text-sm text-muted">{altTitle}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {meta.score != null && <Chip color="#8b5cf6">★ {meta.score}% no {meta.source === 'jikan' ? 'MAL' : 'AniList'}</Chip>}
+              {meta.score != null && (
+                <Chip color="#8b5cf6">
+                  ★ {meta.score}% no {scoreSource}
+                </Chip>
+              )}
               {summary?.avg != null && (
                 <Chip color={ratingColor(summary.avg)}>
                   {formatRating(Math.round(summary.avg * 10) / 10)}/10 na sala ({summary.count})
@@ -147,7 +179,9 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
 
         {!roomKey && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3">
-            <p className="flex-1 text-sm">Este anime ainda não está na sala.</p>
+            <p className="flex-1 text-sm">
+              {thisOne(noun)} {noun.one} ainda não está na sala.
+            </p>
             <Button variant="primary" onClick={add}>
               <Plus size={16} /> Adicionar à sala
             </Button>
@@ -238,7 +272,9 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                   </span>
                 );
               })}
-              {Object.keys(placements).length === 0 && <p className="text-xs text-faint">Ainda ninguém o pôs num tier.</p>}
+              {Object.keys(placements).length === 0 && (
+                <p className="text-xs text-faint">Ainda ninguém {noun.f ? 'a' : 'o'} pôs num tier.</p>
+              )}
             </div>
           </section>
         )}
@@ -272,6 +308,11 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                 </Chip>
               ))}
             </div>
+            {people.map((p) => (
+              <p key={p} className="mt-2 text-xs text-muted">
+                {p}
+              </p>
+            ))}
           </section>
         )}
 
@@ -342,7 +383,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               rel="noreferrer"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/5 px-3 text-sm font-medium hover:bg-white/10"
             >
-              <ExternalLink size={14} /> {meta.source === 'jikan' ? 'MyAnimeList' : 'AniList'}
+              <ExternalLink size={14} /> {siteName}
             </a>
           )}
           {details?.trailerUrl && (
@@ -363,7 +404,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               onClick={() => {
                 if (!confirm(`Remover «${title}» da sala? Sai de todas as tierlists (as opiniões ficam guardadas).`)) return;
                 if (dispatch({ type: 'anime.remove', key: roomKey })) {
-                  toast(`«${title}» removido da sala.`);
+                  toast(`«${title}» ${agree('removid', noun)} da sala.`);
                   onClose();
                 }
               }}
@@ -413,4 +454,11 @@ function ReviewItem({ userId, review }: { userId: string; review: Review }) {
       {review.opinion.trim() && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">{review.opinion}</p>}
     </li>
   );
+}
+
+/** "2 h 49 min" */
+function runtime(minutes: number) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
 }

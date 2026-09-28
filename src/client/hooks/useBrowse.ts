@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnimeMeta } from '../../shared/types';
-import { AnimeApiError, browseAnime, type BrowseParams, type BrowseResult } from '../lib/anime-api';
+import type { AnimeMeta, MediaType } from '../../shared/types';
+import { AnimeApiError, type BrowseParams, type BrowseResult } from '../lib/anime-api';
+import { browseCatalog } from '../lib/catalog';
 
 export function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -13,22 +14,22 @@ export function useDebounced<T>(value: T, ms: number): T {
 
 function message(err: unknown) {
   if (err instanceof AnimeApiError) {
-    if (err.status === 429) return `Demasiados pedidos à API de anime. Tenta daqui a ${err.retryAfter || 30}s.`;
+    if (err.status === 429) return `Demasiados pedidos ao catálogo. Tenta daqui a ${err.retryAfter || 30}s.`;
     return err.message;
   }
-  return 'Não foi possível carregar os animes.';
+  return 'Não foi possível carregar o catálogo.';
 }
 
 /** Paginated catalogue search with "load more". Stale answers are ignored. */
-export function useBrowse(params: BrowseParams, enabled = true) {
+export function useBrowse(media: MediaType, params: BrowseParams, enabled = true) {
   const [pages, setPages] = useState<BrowseResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
-  const key = JSON.stringify(params);
-  const paramsRef = useRef(params);
-  paramsRef.current = params;
+  const key = JSON.stringify([media, params]);
+  const paramsRef = useRef({ media, params });
+  paramsRef.current = { media, params };
 
   useEffect(() => {
     if (!enabled) return;
@@ -36,7 +37,7 @@ export function useBrowse(params: BrowseParams, enabled = true) {
     setPages([]);
     setError(null);
     setLoading(true);
-    browseAnime(paramsRef.current, 1).then(
+    browseCatalog(paramsRef.current.media, paramsRef.current.params, 1).then(
       (r) => {
         if (id !== request.current) return;
         setPages([r]);
@@ -57,7 +58,7 @@ export function useBrowse(params: BrowseParams, enabled = true) {
     if (loading || !hasMore) return;
     const id = request.current;
     setLoading(true);
-    browseAnime(paramsRef.current, pages.length + 1).then(
+    browseCatalog(paramsRef.current.media, paramsRef.current.params, pages.length + 1).then(
       (r) => {
         if (id !== request.current) return;
         setPages((p) => [...p, r]);

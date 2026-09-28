@@ -1,7 +1,8 @@
 import { createContext, useContext } from 'react';
 import type { ReviewSummary } from '../../shared/stats';
-import type { AnimeMeta, Member, Op, RoomState, RoomTab } from '../../shared/types';
+import type { AnimeMeta, Member, Op, RoomKind, RoomState, RoomTab } from '../../shared/types';
 import type { LocalUser } from '../lib/identity';
+import type { Noun } from '../lib/words';
 import type { Prefs } from '../lib/prefs';
 import type { RoomClient, RoomSnapshot } from '../lib/room-client';
 
@@ -9,6 +10,9 @@ export interface RoomContextValue {
   client: RoomClient;
   snap: RoomSnapshot;
   room: RoomState;
+  /** What the room is about, and the word for its titles ("animes", "séries", "filmes", "títulos") */
+  kind: RoomKind;
+  noun: Noun;
   me: string;
   user: LocalUser;
   prefs: Prefs;

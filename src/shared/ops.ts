@@ -8,6 +8,7 @@
 // (OpError) never leaves the state half-updated.
 
 import { DEFAULT_TIERS, LIMITS } from './constants';
+import { acceptsMedia, mediaTypeOf, roomKind } from './media';
 import {
   GROUP_BOARD,
   POOL,
@@ -17,6 +18,7 @@ import {
   type OpMeta,
   type Review,
   type ReviewPatch,
+  type RoomKind,
   type RoomState,
   type Tier,
 } from './types';
@@ -28,11 +30,18 @@ export class OpError extends Error {
   }
 }
 
-export function createRoomState(id: string, name: string, at: number, createdBy: string | null = null): RoomState {
+export function createRoomState(
+  id: string,
+  name: string,
+  at: number,
+  createdBy: string | null = null,
+  kind: RoomKind = 'anime',
+): RoomState {
   const tiers = DEFAULT_TIERS.map((t) => ({ ...t }));
   return {
     id,
     name,
+    kind,
     createdAt: at,
     createdBy,
     tiers,
@@ -124,6 +133,8 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
     case 'anime.add': {
       const a = op.anime;
       const place = op.place;
+      // A series room only takes series, a movies room only movies…
+      if (!acceptsMedia(roomKind(s), mediaTypeOf(a.key))) throw new OpError('media_not_allowed');
       if (place) {
         assertBoard(s, place.board);
         assertTier(s, place.to);

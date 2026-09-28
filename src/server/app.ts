@@ -10,6 +10,8 @@ import { attachRealtime } from './realtime';
 import { RoomManager, type RoomManagerOptions } from './rooms';
 import { AccountManager } from './accounts';
 import { accountRouter } from './account-routes';
+import { catalogRouter } from './catalog-routes';
+import { Tmdb, type TmdbOptions } from './tmdb';
 import { createStorage, importFileAccounts, importFileRooms } from './storage';
 
 export interface AppOptions {
@@ -19,6 +21,8 @@ export interface AppOptions {
   databaseUrl?: string;
   clientDir?: string;
   rooms?: RoomManagerOptions;
+  /** Series and movies catalogue (off without an API key) */
+  tmdb?: TmdbOptions;
 }
 
 const CSP = [
@@ -47,6 +51,7 @@ export async function createApp(opts: AppOptions) {
   const importedAccounts = storage.kind === 'postgres' ? await importFileAccounts(opts.dataDir, storage) : 0;
   const rooms = new RoomManager(storage, opts.rooms);
   const accounts = new AccountManager(storage);
+  const tmdb = new Tmdb(opts.tmdb);
 
   const app = express();
   app.disable('x-powered-by');
@@ -61,6 +66,7 @@ export async function createApp(opts: AppOptions) {
   app.use(compression());
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', accountRouter(accounts, rooms));
+  app.use('/api', catalogRouter(tmdb));
   app.use('/api', apiRouter(rooms));
 
   const httpServer = createServer(app);
@@ -115,5 +121,5 @@ export async function createApp(opts: AppOptions) {
     await storage.close();
   }
 
-  return { app, httpServer, io, rooms, accounts, storage, imported, importedAccounts, close };
+  return { app, httpServer, io, rooms, accounts, tmdb, storage, imported, importedAccounts, close };
 }
