@@ -1,0 +1,51 @@
+{
+  "name": "anime-tierlist-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tierlist de anime colaborativa em tempo real: pesquisa todos os animes (AniList), classifica-os em grupo, avalia, dá a tua opinião e recomenda.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/server/index.ts",
+    "build": "vite build && node scripts/build-server.mjs",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^5.2.1",
+    "nanoid": "^5.1.16",
+    "pg": "^8.23.0",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@playwright/test": "1.63",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/compression": "^1.8.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "esbuild": "^0.28.2",
+    "immer": "^11.1.18",
+    "lucide-react": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "socket.io-client": "^4.8.4",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "uqr": "^0.1.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

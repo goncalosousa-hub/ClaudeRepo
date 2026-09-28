@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-bg: #0a0a12;
+  --color-surface: #11111b;
+  --color-surface-2: #171724;
+  --color-surface-3: #1f1f2f;
+  --color-line: #262639;
+  --color-line-2: #34344c;
+  --color-fg: #ededf5;
+  --color-muted: #a3a3bb;
+  --color-faint: #6e6e89;
+  --color-accent: #8b5cf6;
+  --color-accent-2: #ec4899;
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-bad: #ef4444;
+
+  --animate-pop: pop 0.16s ease-out;
+  --animate-flash: flash 1.8s ease-out;
+  --animate-fade-in: fade-in 0.25s ease-out;
+
+  @keyframes pop {
+    from {
+      transform: scale(0.97);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  @keyframes flash {
+    0% {
+      box-shadow:
+        0 0 0 3px var(--flash-color),
+        0 0 22px 2px var(--flash-color);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+html {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+
+dialog {
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  max-width: 100vw;
+  max-height: 100dvh;
+}
+dialog[open] {
+  animation: pop 0.16s ease-out;
+}
+dialog::backdrop {
+  background: rgb(5 5 10 / 0.72);
+  backdrop-filter: blur(3px);
+}
+
+/* Cards: no text selection, no native image dragging, no iOS long-press menu (long press = drag) */
+.no-drag-img img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+[data-card] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

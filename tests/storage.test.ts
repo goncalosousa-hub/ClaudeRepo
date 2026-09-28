@@ -1,0 +1,62 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createRoomState } from '../src/shared/ops';
+import { importFileRooms, type RoomDoc, type Storage } from '../src/server/storage';
+import { FileStorage } from '../src/server/storage/file';
+import { normalizeConnectionString } from '../src/server/storage/postgres';
+
+const dirs: string[] = [];
+afterEach(async () => {
+  while (dirs.length) await rm(dirs.pop()!, { recursive: true, force: true });
+});
+
+const doc = (id: string, name = id): RoomDoc => ({ v: 1, seq: 0, state: createRoomState(id, name, 0), secrets: {}, lastSeen: {} });
+
+class MemoryStorage implements Storage {
+  readonly kind = 'memory';
+  readonly label = 'memory';
+  rooms = new Map<string, RoomDoc>();
+  async init() {}
+  async load(id: string) {
+    return this.rooms.get(id) ?? null;
+  }
+  async save(id: string, d: RoomDoc) {
+    this.rooms.set(id, d);
+  }
+  async close() {}
+}
+
+describe('storage helpers', () => {
+  it('lists the rooms saved as files and copies the missing ones to another storage', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'atl-storage-'));
+    dirs.push(dir);
+    const files = new FileStorage(dir);
+    expect(await files.list()).toEqual([]); // folder does not exist yet
+    await files.init();
+    await files.save('room0001', doc('room0001', 'Turma A'));
+    await files.save('room0002', doc('room0002', 'Turma B'));
+    await writeFile(path.join(dir, 'rooms', 'notes.txt'), 'ignore me');
+    expect((await files.list()).sort()).toEqual(['room0001', 'room0002']);
+
+    const target = new MemoryStorage();
+    target.rooms.set('room0002', doc('room0002', 'Already in the database'));
+    expect(await importFileRooms(dir, target)).toBe(1);
+    expect(target.rooms.get('room0001')?.state.name).toBe('Turma A');
+    // Existing rooms are never overwritten by the (older) files.
+    expect(target.rooms.get('room0002')?.state.name).toBe('Already in the database');
+    expect(await importFileRooms(dir, target)).toBe(0);
+  });
+
+  it('spells out sslmode=verify-full so node-postgres does not print a warning', () => {
+    expect(normalizeConnectionString('postgresql://u:p@ep-x.neon.tech/db?sslmode=require')).toBe(
+      'postgresql://u:p@ep-x.neon.tech/db?sslmode=verify-full',
+    );
+    expect(normalizeConnectionString('postgresql://u:p@h/db?sslmode=require&channel_binding=require')).toBe(
+      'postgresql://u:p@h/db?sslmode=verify-full&channel_binding=require',
+    );
+    expect(normalizeConnectionString('postgresql://u:p@h/db?sslmode=no-verify')).toBe('postgresql://u:p@h/db?sslmode=no-verify');
+    expect(normalizeConnectionString('postgresql://u:p@localhost/db')).toBe('postgresql://u:p@localhost/db');
+  });
+});
