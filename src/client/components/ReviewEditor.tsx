@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
 import { LIMITS } from '../../shared/constants';
-import type { Recommend, Review, WatchStatus } from '../../shared/types';
-import { RECOMMEND, WATCH_STATUS, ratingColor } from '../lib/format';
+import type { MediaType, Recommend, Review } from '../../shared/types';
+import { mediaTypeOf } from '../../shared/media';
+import { RECOMMEND, ratingColor, statusOptions } from '../lib/format';
 import { useRoom } from './RoomContext';
 import { Button, cn } from './ui';
 
 /** "A tua avaliação": rating 1-10, recommendation, watch status and opinion (auto-saved). */
+const PLACEHOLDERS: Partial<Record<MediaType, string>> = {
+  restaurant: 'Como foi? O prato que recomendas, o preço, o serviço…',
+  place: 'Como foi? Dicas para quem lá for…',
+};
+
 export function ReviewEditor({ animeKey }: { animeKey: string }) {
   const { room, me, dispatch, client } = useRoom();
   const review: Review | undefined = room.reviews[animeKey]?.[me];
@@ -112,7 +118,7 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
         <div>
           <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Estado</p>
           <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(WATCH_STATUS) as WatchStatus[]).map((s) => {
+            {statusOptions(mediaTypeOf(animeKey)).map(({ id: s, label, emoji }) => {
               const active = review?.status === s;
               return (
                 <button
@@ -124,8 +130,8 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
                     active ? 'border-accent bg-accent/15 text-fg' : 'border-line bg-surface-2 text-muted hover:text-fg',
                   )}
                 >
-                  <span className="text-xs">{WATCH_STATUS[s].emoji}</span>
-                  {WATCH_STATUS[s].label}
+                  <span className="text-xs">{emoji}</span>
+                  {label}
                 </button>
               );
             })}
@@ -149,7 +155,7 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
           value={opinion}
           maxLength={LIMITS.opinion}
           rows={3}
-          placeholder="O que achaste? Sem spoilers, por favor 😉"
+          placeholder={PLACEHOLDERS[mediaTypeOf(animeKey)] ?? 'O que achaste? Sem spoilers, por favor 😉'}
           onFocus={() => (focused.current = true)}
           onBlur={() => {
             focused.current = false;

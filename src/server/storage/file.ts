@@ -1,10 +1,10 @@
-import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { USERNAME_RE } from '../../shared/constants';
+import { PHOTO_ID_RE, USERNAME_RE } from '../../shared/constants';
 import { communitySummary } from '../../shared/media';
 import { ROOM_ID_RE } from '../../shared/schema';
 import type { CommunityRoom } from '../../shared/types';
-import type { AccountDoc, RoomDoc, Storage } from './types';
+import type { AccountDoc, RoomDoc, Storage, StoredPhoto } from './types';
 
 async function readJson<T>(file: string): Promise<T | null> {
   try {
@@ -38,10 +38,12 @@ export class FileStorage implements Storage {
   readonly kind = 'file';
   private dir: string;
   private accountsDir: string;
+  private photosDir: string;
 
   constructor(dataDir: string) {
     this.dir = path.resolve(dataDir, 'rooms');
     this.accountsDir = path.resolve(dataDir, 'accounts');
+    this.photosDir = path.resolve(dataDir, 'photos');
   }
 
   get label() {
@@ -51,6 +53,12 @@ export class FileStorage implements Storage {
   async init() {
     await mkdir(this.dir, { recursive: true });
     await mkdir(this.accountsDir, { recursive: true });
+    await mkdir(this.photosDir, { recursive: true });
+  }
+
+  private photoFile(id: string, thumb: boolean) {
+    if (!PHOTO_ID_RE.test(id)) throw new Error(`invalid photo id: ${id}`);
+    return path.join(this.photosDir, thumb ? `${id}.thumb.jpg` : `${id}.jpg`);
   }
 
   private file(id: string) {
@@ -110,6 +118,41 @@ export class FileStorage implements Storage {
 
   async saveAccount(doc: AccountDoc) {
     return writeJson(this.accountFile(doc.username), doc);
+  }
+
+  async savePhoto(photo: StoredPhoto) {
+    await mkdir(this.photosDir, { recursive: true });
+    await writeFile(this.photoFile(photo.id, true), photo.thumb);
+    await writeFile(this.photoFile(photo.id, false), photo.data);
+  }
+
+  async loadPhoto(id: string, thumb: boolean) {
+    if (!PHOTO_ID_RE.test(id)) return null;
+    try {
+      return await readFile(this.photoFile(id, thumb));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  async deletePhotos(ids: string[]) {
+    for (const id of ids.filter((i) => PHOTO_ID_RE.test(i))) {
+      await rm(this.photoFile(id, false), { force: true });
+      await rm(this.photoFile(id, true), { force: true });
+    }
+  }
+
+  async photoBytes() {
+    let total = 0;
+    let files: string[] = [];
+    try {
+      files = await readdir(this.photosDir);
+    } catch {
+      return 0;
+    }
+    for (const f of files) if (f.endsWith('.jpg')) total += await stat(path.join(this.photosDir, f)).then((s) => s.size, () => 0);
+    return total;
   }
 
   async close() {}

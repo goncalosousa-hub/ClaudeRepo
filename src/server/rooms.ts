@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
 import { applyOp, createRoomState } from '../shared/ops';
-import { GLOBAL_ROOM_ID } from '../shared/constants';
+import { COMMUNITY_SECTIONS } from '../shared/constants';
 import { communitySummary } from '../shared/media';
 import type { CommunityRoom, Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
 import type { RoomDoc, Storage } from './storage';
@@ -101,19 +101,41 @@ export class RoomManager {
   apply(room: LiveRoom, op: Op, by: string, cid?: string): OpEnvelope {
     const at = Date.now();
     const seq = room.doc.seq + 1;
+    // Photos that leave the room (removed, or with their title) are deleted from storage.
+    const key = op.type === 'photo.remove' || op.type === 'anime.remove' ? op.key : null;
+    const before = key ? (room.doc.state.photos?.[key] ?? []).map((p) => p.id) : [];
     applyOp(room.doc.state, op, { by, at, seq, cid });
     room.doc.seq = seq;
     this.markDirty(room);
+    if (before.length) {
+      const kept = new Set((room.doc.state.photos?.[key!] ?? []).map((p) => p.id));
+      const gone = before.filter((id) => !kept.has(id));
+      if (gone.length) {
+        this.storage.deletePhotos(gone).catch((err) => console.error('[rooms] could not delete photos', gone, err));
+      }
+    }
     if (room.doc.state.listed) this.directory?.set(room.id, communitySummary(room.doc.state));
     else this.directory?.delete(room.id);
     return cid ? { seq, op, by, at, cid } : { seq, op, by, at };
   }
 
-  /** Creates the community space the first time the server starts. */
-  async ensureCommunity(name: string) {
-    if (await this.get(GLOBAL_ROOM_ID)) return;
-    const state = createRoomState(GLOBAL_ROOM_ID, name, Date.now(), null, { kind: 'all', global: true });
-    await this.storage.save(GLOBAL_ROOM_ID, { v: 1, seq: 0, state, secrets: {}, lastSeen: {} });
+  /** Creates the community spaces (one per category) that do not exist yet. */
+  async ensureCommunity(company: string) {
+    for (const section of COMMUNITY_SECTIONS) {
+      if (await this.get(section.id)) continue;
+      // The first space was "Comunidade <company>" before there were categories.
+      const name = section.path === '/' ? `Comunidade ${company}` : `${section.label} · Comunidade ${company}`;
+      const state = createRoomState(section.id, name, Date.now(), null, { kind: section.kind, global: true });
+      await this.storage.save(section.id, { v: 1, seq: 0, state, secrets: {}, lastSeen: {} });
+    }
+  }
+
+  /** Whether `userId` is a member of the room and `secret` is theirs (for requests outside the socket). */
+  isMember(room: LiveRoom, userId: string, secret: string): boolean {
+    const known = room.doc.secrets[userId];
+    if (!known || !room.doc.state.members[userId]) return false;
+    const hash = sha256(secret);
+    return known.length === hash.length && timingSafeEqual(Buffer.from(known), Buffer.from(hash));
   }
 
   /** Rooms any colleague can find on the home page: the busiest first. */

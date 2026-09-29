@@ -17,6 +17,7 @@ import { ExploreTab } from './ExploreTab';
 import { MembersTab } from './MembersTab';
 import { ProfileDialog } from './ProfileDialog';
 import { RoomKindDialog } from './RoomKindDialog';
+import { PhotosContext } from './Cover';
 import { RankingTab } from './RankingTab';
 import { RoomContext, useRoom, type RoomContextValue } from './RoomContext';
 import { RoomHeader } from './RoomHeader';
@@ -175,40 +176,48 @@ export function RoomView({
 
   return (
     <RoomContext.Provider value={ctx}>
-      <div className="flex min-h-dvh flex-col">
-        <RoomHeader onShare={() => setShareOpen(true)} onProfile={() => setProfileOpen(true)} />
-        {snap.status !== 'joined' && (
-          <div className="flex items-center justify-center gap-2 bg-warn/15 px-4 py-1.5 text-xs font-medium text-amber-200">
-            <WifiOff size={14} /> Sem ligação ao servidor — a tentar religar… As tuas alterações serão enviadas quando voltar.
-          </div>
-        )}
-        <div className="mx-auto flex w-full max-w-[1680px] flex-1 gap-5 px-3 sm:px-5">
-          <main className="min-w-0 flex-1 pt-3 pb-28 lg:pb-10">
-            <TabBar />
-            <div className="mt-3">
-              {visibleTab === 'tierlist' && <TierlistTab onShare={() => setShareOpen(true)} />}
-              {visibleTab === 'explore' && <ExploreTab />}
-              {visibleTab === 'ranking' && <RankingTab />}
-              {visibleTab === 'members' && <MembersTab />}
-              {visibleTab === 'chat' && (
-                <div className="h-[calc(100dvh-190px)] min-h-[420px]">
-                  <Sidebar panel={panel} setPanel={setPanel} unreadChat={0} unreadActivity={unreadActivity} />
-                </div>
-              )}
+      <PhotosContext.Provider value={room.photos}>
+        <div className="flex min-h-dvh flex-col">
+          <RoomHeader onShare={() => setShareOpen(true)} onProfile={() => setProfileOpen(true)} />
+          {snap.status !== 'joined' && (
+            <div className="flex items-center justify-center gap-2 bg-warn/15 px-4 py-1.5 text-xs font-medium text-amber-200">
+              <WifiOff size={14} /> Sem ligação ao servidor — a tentar religar… As tuas alterações serão enviadas quando voltar.
             </div>
-          </main>
-          {isDesktop && (
-            <aside className="sticky top-[60px] h-[calc(100dvh-60px)] w-[340px] shrink-0 py-3 xl:w-[370px]">
-              <Sidebar panel={panel} setPanel={setPanel} unreadChat={unreadChat} unreadActivity={unreadActivity} />
-            </aside>
           )}
+          <div className="mx-auto flex w-full max-w-[1680px] flex-1 gap-5 px-3 sm:px-5">
+            <main className="min-w-0 flex-1 pt-3 pb-28 lg:pb-10">
+              <TabBar />
+              <div className="mt-3">
+                {visibleTab === 'tierlist' && <TierlistTab onShare={() => setShareOpen(true)} />}
+                {visibleTab === 'explore' && <ExploreTab />}
+                {visibleTab === 'ranking' && <RankingTab />}
+                {visibleTab === 'members' && <MembersTab />}
+                {visibleTab === 'chat' && (
+                  <div className="h-[calc(100dvh-190px)] min-h-[420px]">
+                    <Sidebar panel={panel} setPanel={setPanel} unreadChat={0} unreadActivity={unreadActivity} />
+                  </div>
+                )}
+              </div>
+            </main>
+            {isDesktop && (
+              <aside
+                className={cn(
+                  'sticky w-[340px] shrink-0 py-3 xl:w-[370px]',
+                  // The community header has a second row with the sections.
+                  room.global ? 'top-[100px] h-[calc(100dvh-100px)]' : 'top-[60px] h-[calc(100dvh-60px)]',
+                )}
+              >
+                <Sidebar panel={panel} setPanel={setPanel} unreadChat={unreadChat} unreadActivity={unreadActivity} />
+              </aside>
+            )}
+          </div>
+          <BottomNav unreadChat={unreadChat} />
         </div>
-        <BottomNav unreadChat={unreadChat} />
-      </div>
-      <AnimeDialog target={dialog} onClose={() => setDialog(null)} />
-      <ProfileDialog open={profileOpen} user={user} onSave={setUser} onClose={() => setProfileOpen(false)} />
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} />
-      {!room.global && <RoomKindDialog open={kindOpen} onClose={() => setKindOpen(false)} />}
+        <AnimeDialog target={dialog} onClose={() => setDialog(null)} />
+        <ProfileDialog open={profileOpen} user={user} onSave={setUser} onClose={() => setProfileOpen(false)} />
+        <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} />
+        {!room.global && <RoomKindDialog open={kindOpen} onClose={() => setKindOpen(false)} />}
+      </PhotosContext.Provider>
     </RoomContext.Provider>
   );
 }

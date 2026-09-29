@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { COMPANY } from '../../shared/brand';
-import { GLOBAL_ROOM_ID } from '../../shared/constants';
+import { communitySection } from '../../shared/constants';
 import { newUser, type LocalUser } from '../lib/identity';
 import { errorMessage } from '../lib/format';
 import { forgetRoom } from '../lib/recent-rooms';
@@ -20,6 +20,7 @@ const idle: RoomSnapshot = {
   lastSeen: {},
   flashes: {},
   pendingCount: 0,
+  admin: false,
 };
 const noopSubscribe = () => () => {};
 
@@ -32,20 +33,19 @@ export function RoomPage({
   user: LocalUser | null;
   setUser: (u: LocalUser) => void;
 }) {
+  const community = !!communitySection(roomId);
   if (!user) {
     return (
       <>
-        <Loading
-          text={roomId === GLOBAL_ROOM_ID ? `Bem-vindo à Comunidade ${COMPANY}! Diz-nos quem és.` : 'Antes de entrares, diz-nos quem és.'}
-        />
+        <Loading text={community ? `Bem-vindo à Comunidade ${COMPANY}! Diz-nos quem és.` : 'Antes de entrares, diz-nos quem és.'} />
         <ProfileDialog
           open
           required
           user={null}
           onSave={setUser}
           welcome={
-            roomId === GLOBAL_ROOM_ID
-              ? `Na Comunidade ${COMPANY} partilhas o que andas a ver (filmes, séries e anime), dás a tua nota e opinião e vês o que os colegas recomendam.`
+            community
+              ? `Na Comunidade ${COMPANY} partilhas filmes, séries, livros, restaurantes e sítios de que gostas: dás a tua nota, opinião e fotos, e vês o que os colegas recomendam.`
               : undefined
           }
         />
@@ -86,7 +86,7 @@ function ConnectedRoom({ roomId, user, setUser }: { roomId: string; user: LocalU
     );
   }
   if (!client || !snap.room) {
-    const entering = roomId === GLOBAL_ROOM_ID ? 'A entrar na comunidade…' : 'A entrar na sala…';
+    const entering = communitySection(roomId) ? 'A entrar na comunidade…' : 'A entrar na sala…';
     return <Loading text={snap.status === 'reconnecting' ? 'A religar…' : entering} />;
   }
   return <RoomView client={client} snap={snap} user={user} setUser={setUser} />;

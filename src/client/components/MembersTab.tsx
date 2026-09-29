@@ -7,6 +7,7 @@ import { formatRating, ratingColor, timeAgo } from '../lib/format';
 import { describePresence } from '../lib/presence-text';
 import { useRoom } from './RoomContext';
 import { Avatar, Button } from './ui';
+import { Cover } from './Cover';
 
 /** The community space can have hundreds of people: the others appear on demand. */
 const MAX_CARDS = 60;
@@ -147,7 +148,7 @@ export function MembersTab() {
                   <div className="flex gap-1.5">
                     {stats.favourites.map((k) => (
                       <button key={k} onClick={() => openAnime(k)} title={titleOf(room.anime[k])}>
-                        <img src={room.anime[k].cover} alt="" loading="lazy" className="h-14 w-10 rounded-md object-cover" />
+                        <Cover meta={room.anime[k]} className="h-14 w-10 rounded-md" />
                       </button>
                     ))}
                   </div>

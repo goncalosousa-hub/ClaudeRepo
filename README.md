@@ -1,6 +1,6 @@
 # 🎬 LusiMovies
 
-Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver: **filmes, séries e anime**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião** e **recomendação**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
+Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião**, **recomendação** e **fotos**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -8,10 +8,13 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 
 ## ✨ Funcionalidades
 
-**Filmes, séries e anime**
-- Ao criar uma sala escolhes o que vão classificar: **Tudo** (filmes, séries e anime na mesma tierlist, a opção por omissão), **Filmes**, **Séries** ou **Anime**. O dono da sala pode mudar o tipo depois, no cabeçalho da sala ou em "Explorar".
+**Filmes, séries, anime, livros, restaurantes e sítios**
+- Ao criar uma sala escolhes o que vão classificar: **Filmes e séries** (filmes, séries e anime na mesma tierlist, a opção por omissão), **Filmes**, **Séries**, **Anime**, **Livros**, **Restaurantes** ou **Sítios**. O dono da sala pode mudar o tipo depois, no cabeçalho da sala ou em "Explorar".
 - **Filmes e séries**: catálogo completo do [TMDB](https://www.themoviedb.org), com títulos e sinopses em português (quando existem), filtros por género e ano, e atalhos como "Em alta", "Em exibição", "Nos cinemas", "Brevemente" e "Melhores de sempre". Precisa de uma chave grátis do TMDB ([vê como](#-séries-e-filmes-chave-do-tmdb)); sem ela, só aparece o anime.
 - **Anime**: pesquisa em **todo** o catálogo do [AniList](https://anilist.co), com filtros por género, ano, temporada e formato. Se o AniList estiver em baixo ou a limitar pedidos, a app passa sozinha para o **MyAnimeList** (através da API [Jikan](https://jikan.moe)).
+- **Livros**: pesquisa na [Open Library](https://openlibrary.org) (grátis, sem chave), com atalhos "Em alta", "Em português", "Mais lidos" e "Mais bem avaliados" e filtro por género. Mostra autor, ano, páginas e sinopse (quando existe).
+- **Restaurantes e sítios** (praias, miradouros, museus, castelos, trilhos…): pesquisa no mapa do [OpenStreetMap](https://www.openstreetmap.org) (através do [Photon](https://photon.komoot.io), grátis, sem chave). O que não estiver no mapa **adiciona-se à mão** (nome, tipo, localidade e morada). Cada um tem um botão **Ver no mapa** (Google Maps).
+- **Fotos**: em qualquer título podes juntar fotos (até 6 por pessoa); nos restaurantes e sítios a primeira foto passa a ser a capa. As fotos são reduzidas no browser (1280 px) e perdem os dados EXIF, incluindo a localização GPS. Quem pôs uma foto pode apagá-la; numa sala, o dono também; na comunidade, as contas em `ADMINS`.
 - Scroll infinito, e detalhes de cada título: sinopse, episódios ou temporadas, duração, estúdio, canal ou realização, elenco, trailer e títulos semelhantes.
 
 **Tierlists**
@@ -23,7 +26,7 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - Exportar qualquer tierlist como **imagem PNG** para partilhar.
 
 **Opiniões**
-- Nota de **1 a 10**, **recomendação** (👍 Recomendo / 🤔 Talvez / 👎 Não recomendo), **estado** (Já vi, A ver, Quero ver, Desisti) e **opinião escrita**, gravada automaticamente.
+- Nota de **1 a 10**, **recomendação** (👍 Recomendo / 🤔 Talvez / 👎 Não recomendo), **estado** (Já vi / A ver / Quero ver / Desisti; nos livros Já li / A ler / Quero ler; nos restaurantes e sítios Já fui / Quero ir) e **opinião escrita**, gravada automaticamente.
 - **Ranking** da sala: melhores notas, mais avaliados, mais recomendados e mais polémicos.
 - **Recomendados para ti**: animes que os colegas recomendam e que tu ainda não viste.
 - **Membros**: estatísticas de cada um, géneros favoritos e **afinidade de gostos** contigo.
@@ -37,12 +40,12 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
 
 **Comunidade Lusiaves**
-- **Comunidade** (a página inicial): toda a gente está lá, sem entrar em salas.
+- **Comunidade** (a página inicial): toda a gente está lá, sem entrar em salas. Tem quatro secções, cada uma com a sua tierlist, ranking e chat: **🍿 Filmes e séries** (`/`), **📚 Livros** (`/livros`), **🍽️ Restaurantes** (`/restaurantes`) e **📍 Sítios** (`/sitios`).
   - Cada pessoa adiciona títulos, põe-nos na sua tierlist (**A minha**) e dá a sua nota, opinião e recomendação.
   - A tierlist **Comunidade** é a média das tierlists de todos.
   - O **Ranking** mostra os melhores, os mais recomendados e os **Recomendados para ti**.
   - Tem chat e atividade para toda a gente.
-  - Como é de todos, ninguém mexe na tierlist dos outros, os tiers não mudam, e só quem adicionou um título o pode tirar.
+  - Como é de todos, ninguém mexe na tierlist dos outros, os tiers não mudam, e só quem adicionou um título (ou uma foto) o pode tirar. As contas em `ADMINS` podem tirar qualquer título ou foto (moderação).
 - **Salas** (página **Salas**): tierlists só com quem convidares, como antes. Uma sala pode aparecer nas **Salas abertas**, com quantas pessoas estão lá nesse momento, para qualquer colega entrar sem link. Ao criar uma sala, a opção "Mostrar nas salas abertas" vem ligada; o dono muda isso quando quiser, em **Convidar**.
 - **Empresa ou unidade** (opcional) no perfil, para se saber de onde é cada colega.
 - **Só para colaboradores**: com um código da comunidade, quem não o souber não entra, mesmo com a app pública na internet ([vê como](#-só-para-colaboradores-código-da-comunidade)).
@@ -176,7 +179,7 @@ Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a 
 
 ## 💾 Onde ficam guardadas as coisas
 
-**Por omissão, tudo fica guardado automaticamente** na pasta `data/` do projeto: `data/rooms/` tem um ficheiro por sala e `data/accounts/` um ficheiro por conta. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia a pasta `data/`.
+**Por omissão, tudo fica guardado automaticamente** na pasta `data/` do projeto: `data/rooms/` tem um ficheiro por sala, `data/accounts/` um ficheiro por conta e `data/photos/` as fotos. Isto aguenta reinícios do servidor e do PC. Para fazer uma cópia de segurança, copia a pasta `data/`.
 
 ### Usar uma base de dados PostgreSQL (grátis, no Neon)
 
@@ -195,7 +198,10 @@ Para ver os dados, abre o **SQL Editor** do Neon e corre:
 ```sql
 SELECT id, doc->'state'->>'name' AS sala, updated_at FROM rooms;
 SELECT username, doc->'profile'->>'name' AS nome, created_at FROM accounts;
+SELECT pg_size_pretty(SUM(bytes)) AS espaco_das_fotos, count(*) AS fotos FROM photos;
 ```
+
+> **Fotos na base de dados.** Com `DATABASE_URL`, as fotos ficam na tabela `photos`. O Neon gratuito tem 512 MB para tudo; por isso as fotos têm um limite total (`PHOTOS_MAX_MB`, 300 MB por omissão, o que dá para uns milhares de fotos). Quando o limite é atingido, a app avisa que o espaço está cheio. As fotos que estavam em `data/photos/` não são copiadas para a base de dados.
 
 > O ficheiro `.env` tem a password da base de dados: não o partilhes. Já está no `.gitignore`, por isso não vai para o GitHub. Para voltares a guardar em ficheiros, apaga a linha `DATABASE_URL` do `.env`.
 
@@ -213,6 +219,9 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `DATABASE_URL` | — | Se definida, as salas e as contas são guardadas em **PostgreSQL** em vez de ficheiros (Neon, Supabase, Railway…) |
 | `TMDB_API_KEY` | — | Chave do TMDB (API Key ou API Read Access Token) para as salas de séries e filmes |
 | `COMMUNITY_CODE` | — | Código da comunidade: se definido, só quem o souber usa a app |
+| `PHOTOS_MAX_MB` | `300` | Espaço máximo para todas as fotos, em MB |
+| `ADMINS` | — | Contas (nomes de utilizador, separados por vírgulas) que podem apagar qualquer título ou foto na comunidade |
+| `OPENLIBRARY_URL`, `PHOTON_URL` | serviços públicos | Outro servidor para os livros ou para o mapa (usado nos testes) |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 
 ---
@@ -227,8 +236,10 @@ flowchart LR
   UI -- "pesquisa de anime" --> AL[("AniList GraphQL")]
   UI -. "se o AniList falhar" .-> JK[("Jikan / MyAnimeList")]
   RC <-- "Socket.IO (WebSocket)" --> S["Servidor Node.js<br/>Express + Socket.IO"]
-  UI -- "séries e filmes" --> S
+  UI -- "séries, filmes, livros, mapa, fotos" --> S
   S -- "com a chave" --> TM[("TMDB")]
+  S --> OL[("Open Library")]
+  S --> PH[("Photon / OpenStreetMap")]
   S --> DB[("JSON em ./data<br/>ou PostgreSQL")]
 ```
 
@@ -238,9 +249,10 @@ flowchart LR
 - **Persistência.** Cada sala ativa vive em memória no servidor e é gravada cerca de 1 segundo depois de cada alteração: um ficheiro JSON por sala, ou uma linha JSONB em PostgreSQL.
 - **Identidade.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). Cada sala guarda só o *hash* do segredo, para ninguém se fazer passar por ti.
 - **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
-- **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes passam pelo servidor, que tem a chave do TMDB e guarda as respostas em cache. Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
-- **Comunidade.** É uma sala especial (`comunidade`), criada quando o servidor arranca pela primeira vez, com regras próprias: não tem dono nem tierlist partilhada, os tiers são fixos e cada pessoa só mexe na sua tierlist e nos títulos que adicionou. Abre em `/`; as salas estão em `/salas` e em `/r/<código>`.
-- **Tipos de sala.** Cada sala tem um tipo (tudo, filmes, séries ou anime) e só aceita títulos desse tipo. O dono pode mudar o tipo (`room.kind`) desde que os títulos que já lá estão caibam no novo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries e `mv:` são filmes. As salas antigas, sem tipo, são salas de anime.
+- **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes (TMDB), livros (Open Library) e restaurantes e sítios (Photon/OpenStreetMap) passam pelo servidor, que guarda as respostas em cache (e tem a chave do TMDB). Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
+- **Comunidade.** São quatro salas especiais (`comunidade`, `livros`, `restaurantes`, `sitios`), criadas quando o servidor arranca, com regras próprias: não têm dono nem tierlist partilhada, os tiers são fixos e cada pessoa só mexe na sua tierlist e nos títulos e fotos que adicionou. Abrem em `/`, `/livros`, `/restaurantes` e `/sitios`; as salas estão em `/salas` e em `/r/<código>`.
+- **Fotos.** O browser reduz cada foto (1280 px e uma versão de 360 px para as listas, em JPEG) e envia-a para `POST /api/rooms/<sala>/photos` com a identidade do membro. O servidor confirma que é membro da sala e que é mesmo um JPEG, guarda-a (ficheiro ou PostgreSQL) e acrescenta-a à sala com a operação `photo.add`, que chega logo a toda a gente. Apagar uma foto, ou o título dela, apaga também a imagem.
+- **Tipos de sala.** Cada sala tem um tipo (filmes e séries, filmes, séries, anime, livros, restaurantes ou sítios) e só aceita títulos desse tipo. O dono pode mudar o tipo (`room.kind`) desde que os títulos que já lá estão caibam no novo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries, `mv:` são filmes, `bk:` são livros, `rs:` restaurantes e `pl:` sítios (com o id do OpenStreetMap, ou `x…` quando foram adicionados à mão). As salas antigas, sem tipo, são salas de anime.
 
 ### Estrutura do projeto
 
@@ -248,8 +260,8 @@ flowchart LR
 src/
   shared/        código usado pelo servidor e pelo browser
     types.ts     tipos (sala, título, avaliação, presença…)
-    media.ts     tipos de sala (anime, séries, filmes, tudo) e de cada título
-    catalog.ts   géneros do TMDB e respostas das rotas de séries e filmes
+    media.ts     tipos de sala (filmes e séries, anime, livros, restaurantes, sítios…) e de cada título
+    catalog.ts   géneros do TMDB e dos livros, tipos de sítios e respostas das rotas dos catálogos
     owner.ts     regras do dono da sala
     brand.ts     nome da app e da comunidade
     ops.ts       reducer das operações (a lógica central)
@@ -263,12 +275,15 @@ src/
     accounts.ts  contas: palavras-passe (scrypt), perfil e "As tuas salas"
     account-routes.ts  API das contas (criar, entrar, perfil, palavra-passe)
     tmdb.ts      séries e filmes: pedidos ao TMDB, cache e conversão para o formato da app
-    catalog-routes.ts  API das séries e filmes para os browsers
+    books.ts     livros: pesquisa na Open Library
+    places.ts    restaurantes e sítios: pesquisa no OpenStreetMap (Photon)
+    catalog-routes.ts  API dos catálogos (séries, filmes, livros, mapa) para os browsers
+    photo-routes.ts    envio e leitura das fotos
     community.ts código da comunidade (acesso só para colaboradores)
     http.ts      API REST (criar sala, info, proxy de imagens para o PNG)
     storage/     gravação em ficheiros JSON ou PostgreSQL
   client/
-    lib/         catálogos (anime, séries e filmes), ligação à sala, perfil, exportar PNG…
+    lib/         catálogos, fotos (reduzir e enviar), ligação à sala, perfil, exportar PNG…
     components/  interface (tierlist, explorar, ranking, membros, chat…)
 tests/           testes unitários, de integração e E2E (Playwright)
 ```
@@ -283,7 +298,7 @@ npm run typecheck      # verificação de tipos (TypeScript)
 npm run build && npm run test:e2e   # dois browsers a usar a mesma sala (Playwright)
 ```
 
-- Os testes E2E simulam a API do AniList e o TMDB (`tests/fake-tmdb.ts`), por isso correm sem internet e sem chave. Na primeira vez instala o browser com `npx playwright install chromium`.
+- Os testes E2E simulam a API do AniList, o TMDB, a Open Library e o Photon (`tests/fake-tmdb.ts` e `tests/fake-catalogs.ts`), por isso correm sem internet e sem chave. Na primeira vez instala o browser com `npx playwright install chromium`.
 - Para testar também a gravação em PostgreSQL: `TEST_DATABASE_URL=postgres://utilizador:senha@localhost:5432/base npm test`.
 
 ---
@@ -297,4 +312,4 @@ npm run build && npm run test:e2e   # dois browsers a usar a mesma sala (Playwri
 
 ---
 
-Dados de anime fornecidos pelo [AniList](https://anilist.co) e pelo [MyAnimeList](https://myanimelist.net) (via [Jikan](https://jikan.moe)). Este projeto não é afiliado a nenhum destes serviços.
+Dados de anime fornecidos pelo [AniList](https://anilist.co) e pelo [MyAnimeList](https://myanimelist.net) (via [Jikan](https://jikan.moe)), de séries e filmes pelo [TMDB](https://www.themoviedb.org), de livros pela [Open Library](https://openlibrary.org) e de restaurantes e sítios pelo [OpenStreetMap](https://www.openstreetmap.org/copyright) (© contribuidores do OpenStreetMap, pesquisa com [Photon](https://photon.komoot.io)). Este projeto não é afiliado a nenhum destes serviços.

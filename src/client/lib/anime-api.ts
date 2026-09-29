@@ -8,13 +8,23 @@ const JIKAN_URL = 'https://api.jikan.moe/v4';
 const DEFAULT_COVER = 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg';
 const SYNOPSIS_MAX = 1500;
 
-export type SortKey = 'relevance' | 'popularity' | 'trending' | 'score' | 'newest' | 'favourites' | 'airing' | 'upcoming';
+export type SortKey =
+  | 'relevance'
+  | 'popularity'
+  | 'trending'
+  | 'score'
+  | 'newest'
+  | 'favourites'
+  | 'airing'
+  | 'upcoming'
+  /** Books in Portuguese */
+  | 'portuguese';
 export type Season = 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
 
 export interface BrowseParams {
   search?: string;
   sort?: SortKey;
-  /** AniList genre (anime) or TMDB genre id (series and movies) */
+  /** AniList genre (anime), TMDB genre id (series and movies) or book subject (BOOK_SUBJECTS id) */
   genre?: string;
   season?: Season;
   year?: number;
@@ -25,7 +35,7 @@ export interface BrowseResult {
   items: AnimeMeta[];
   hasNext: boolean;
   total: number | null;
-  source: 'anilist' | 'jikan' | 'tmdb';
+  source: 'anilist' | 'jikan' | 'tmdb' | 'openlibrary' | 'osm';
 }
 
 export interface AnimeDetails {
@@ -116,8 +126,16 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_LABELS_TV: Record<string, string> = { ...STATUS_LABELS, FINISHED: 'Terminada', CANCELLED: 'Cancelada' };
 const STATUS_LABELS_MOVIE: Record<string, string> = { ...STATUS_LABELS, FINISHED: 'Estreado', RELEASING: 'Nos cinemas' };
 
-/** Genres that only series and movies have (TMDB), besides the anime ones above. */
+/** Genres that only series and movies (TMDB) or books (Open Library) have, besides the anime ones above. */
 const MORE_GENRES: Record<string, string> = {
+  Biography: 'Biografia',
+  Poetry: 'Poesia',
+  Comics: 'Banda desenhada',
+  Philosophy: 'Filosofia',
+  'Self-help': 'Autoajuda',
+  Business: 'Negócios',
+  Classics: 'Clássicos',
+  Science: 'Ciência',
   Animation: 'Animação',
   Crime: 'Crime',
   Documentary: 'Documentário',

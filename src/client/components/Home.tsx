@@ -11,7 +11,7 @@ import { saveUser, type LocalUser } from '../lib/identity';
 import { forgetRoom, recentRooms, type RecentRoom } from '../lib/recent-rooms';
 import { navigate, parseRoomInput } from '../lib/router';
 import { KINDS, kindInfo } from '../lib/words';
-import { Avatar, Button, Segmented, Spinner, inputClass } from './ui';
+import { Avatar, Button, cn, Spinner, inputClass } from './ui';
 import { ProfileDialog, type ProfileDialogMode } from './ProfileDialog';
 import { Logo } from './Logo';
 import { useToast } from './Toasts';
@@ -211,12 +211,24 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
               <h2 className="font-semibold">Criar uma sala</h2>
             </div>
             <p className="mb-3 text-sm text-muted">Escolhe o que vão classificar e partilha o link com quem quiseres.</p>
-            <Segmented
-              className="mb-3 max-w-full overflow-x-auto"
-              value={kind}
-              onChange={setKind}
-              options={KINDS.map((k) => ({ value: k.id, label: `${k.emoji} ${k.label}` }))}
-            />
+            <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="O que vão classificar">
+              {KINDS.map((k) => (
+                <button
+                  key={k.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === k.id}
+                  title={k.about}
+                  onClick={() => setKind(k.id)}
+                  className={cn(
+                    'h-8 rounded-full border px-3 text-sm font-medium transition',
+                    kind === k.id ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line bg-surface-2 text-muted hover:text-fg',
+                  )}
+                >
+                  {k.emoji} {k.label}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2">
               <input
                 className={inputClass}
@@ -381,7 +393,19 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
           <a className="underline hover:text-muted" href="https://www.themoviedb.org" target="_blank" rel="noreferrer">
             TMDB
           </a>
-          . Este produto usa a API do TMDB mas não é endossado nem certificado pelo TMDB.
+          . Este produto usa a API do TMDB mas não é endossado nem certificado pelo TMDB. Livros:{' '}
+          <a className="underline hover:text-muted" href="https://openlibrary.org" target="_blank" rel="noreferrer">
+            Open Library
+          </a>
+          . Restaurantes e sítios: mapa © contribuidores do{' '}
+          <a className="underline hover:text-muted" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+            OpenStreetMap
+          </a>
+          , pesquisa{' '}
+          <a className="underline hover:text-muted" href="https://photon.komoot.io" target="_blank" rel="noreferrer">
+            Photon
+          </a>
+          .
         </footer>
       </main>
 

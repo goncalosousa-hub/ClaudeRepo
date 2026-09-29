@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { GLOBAL_ROOM_ID } from '../shared/constants';
 import { CommunityGate } from './components/CommunityGate';
 import { Home } from './components/Home';
 import { RoomPage } from './components/RoomPage';
 import { useToast } from './components/Toasts';
 import { communityLocked } from './lib/community';
 import { importProfileFromHash, saveUser, useUser } from './lib/identity';
-import { usePath } from './lib/router';
+import { sectionAt, usePath } from './lib/router';
 
 export function App() {
   const path = usePath();
@@ -33,5 +32,6 @@ export function App() {
   const room = path.match(/^\/r\/([a-z0-9]{6,16})\/?$/i);
   if (room) return <RoomPage key={room[1]} roomId={room[1].toLowerCase()} user={user} setUser={setUser} />;
   if (/^\/salas\/?$/.test(path)) return <Home user={user} setUser={setUser} />;
-  return <RoomPage key={GLOBAL_ROOM_ID} roomId={GLOBAL_ROOM_ID} user={user} setUser={setUser} />;
+  const section = sectionAt(path);
+  return <RoomPage key={section.id} roomId={section.id} user={user} setUser={setUser} />;
 }

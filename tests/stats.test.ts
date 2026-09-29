@@ -11,7 +11,8 @@ import {
 } from '../src/shared/stats';
 import { animeMetaSchema, clientOpSchema, joinSchema } from '../src/shared/schema';
 import { GROUP_BOARD, type Op, type RoomState } from '../src/shared/types';
-import { anime } from './fixtures';
+import { anime, book, spot } from './fixtures';
+import { mediaTypeOf } from '../src/shared/media';
 
 let seq = 0;
 function setup(): RoomState {
@@ -118,7 +119,27 @@ describe('schemas', () => {
     expect(animeMetaSchema.safeParse({ ...anime(5), key: 'al:6' }).success).toBe(false);
   });
 
+  it('accepts books, restaurants and places, and keeps their keys honest', () => {
+    const ok = (a: unknown) => animeMetaSchema.safeParse(a).success;
+    expect(ok(book(45804))).toBe(true);
+    expect(ok({ ...book(45804), cover: '' })).toBe(true); // some books have no cover
+    expect(ok({ ...book(45804), key: 'bk:1' })).toBe(false);
+    expect(ok(spot('restaurant', 123456789012))).toBe(true);
+    expect(ok(spot('place', 'xa1b2c3d4e5', 'Praia da Tocha', 'Cantanhede'))).toBe(true);
+    expect(ok({ ...spot('place', 'xa1b2c3d4e5'), sourceId: 5 })).toBe(false);
+    expect(ok({ ...spot('place', 'xa1b2c3d4e5'), key: 'pl:x../../etc' })).toBe(false);
+    expect(ok({ ...spot('restaurant', 7), key: 'rs:n8' })).toBe(false);
+    expect(ok({ ...spot('restaurant', 7), place: { address: null, city: null, lat: 200, lon: 0 } })).toBe(false);
+    // Anime, series and movies always come with a picture.
+    expect(ok({ ...anime(5), cover: '' })).toBe(false);
+    expect(mediaTypeOf('bk:1')).toBe('book');
+    expect(mediaTypeOf('rs:n1')).toBe('restaurant');
+    expect(mediaTypeOf('pl:xa1b2c3d4e5')).toBe('place');
+  });
+
   it('does not accept server-only ops from clients', () => {
+    expect(clientOpSchema.safeParse({ type: 'photo.add', key: 'al:1', photo: { id: 'a'.repeat(21), w: 1, h: 1 } }).success).toBe(false);
+    expect(clientOpSchema.safeParse({ type: 'photo.remove', key: 'al:1', id: 'a'.repeat(21) }).success).toBe(true);
     expect(
       clientOpSchema.safeParse({ type: 'member.join', member: { id: 'x', name: 'x', color: '#000000', avatar: '' } }).success,
     ).toBe(false);

@@ -11,6 +11,11 @@ const host = process.env.HOST ?? '0.0.0.0';
 const dev = process.env.NODE_ENV !== 'production';
 const databaseUrl = process.env.DATABASE_URL?.trim() || undefined;
 const tmdbOptions = { key: process.env.TMDB_API_KEY?.trim() || undefined, baseUrl: process.env.TMDB_API_URL?.trim() || undefined };
+const admins = (process.env.ADMINS ?? '')
+  .split(',')
+  .map((u) => u.trim().toLowerCase())
+  .filter(Boolean);
+const photosMaxMb = Number(process.env.PHOTOS_MAX_MB) > 0 ? Number(process.env.PHOTOS_MAX_MB) : undefined;
 
 let app: Awaited<ReturnType<typeof createApp>>;
 try {
@@ -20,6 +25,10 @@ try {
     databaseUrl,
     tmdb: tmdbOptions,
     communityCode: process.env.COMMUNITY_CODE,
+    books: { baseUrl: process.env.OPENLIBRARY_URL?.trim() || undefined },
+    places: { baseUrl: process.env.PHOTON_URL?.trim() || undefined },
+    photosMaxMb,
+    admins,
   });
 } catch (err) {
   if (!databaseUrl) throw err;
@@ -49,6 +58,7 @@ httpServer.listen(port, host, () => {
       ? '  ➜ Séries e filmes: ativados (TMDB)'
       : '  ➜ Séries e filmes: desativados — falta TMDB_API_KEY no .env (vê o README)',
   );
+  console.log(`  ➜ Fotos:       até ${photosMaxMb ?? 300} MB (PHOTOS_MAX_MB)${admins.length ? ` · moderação: ${admins.join(', ')}` : ''}`);
   console.log(
     gate.enabled
       ? '  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)'

@@ -26,7 +26,8 @@ export function useCatalogTabs(kind: RoomKind) {
   const [chosen, setMedia] = useState<MediaType | null>(null);
   const fallback = tmdb === false && catalogs.includes('anime') ? 'anime' : catalogs[0];
   const media = chosen && catalogs.includes(chosen) ? chosen : fallback;
-  const fromTmdb = media !== 'anime';
+  // Only series and movies need the TMDB key (books and the map do not).
+  const fromTmdb = media === 'tv' || media === 'movie';
   return {
     catalogs,
     media,

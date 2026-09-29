@@ -52,3 +52,69 @@ export function title(type: 'tv' | 'movie', id: number, name = `Title ${id}`, ex
     ...extra,
   };
 }
+
+/** An Open Library book ("bk:<work number>"). */
+export function book(id: number, name = `Livro ${id}`, extra: Partial<AnimeMeta> = {}): AnimeMeta {
+  return {
+    key: `bk:${id}`,
+    source: 'openlibrary',
+    sourceId: id,
+    idMal: null,
+    title: name,
+    titleEnglish: null,
+    titleNative: null,
+    cover: `https://covers.openlibrary.org/b/id/${id}-L.jpg`,
+    color: null,
+    banner: null,
+    format: 'BOOK',
+    status: null,
+    episodes: 300,
+    year: 1888,
+    season: null,
+    genres: ['Fiction'],
+    score: null,
+    studio: 'Eça de Queirós',
+    synopsis: '',
+    url: `https://openlibrary.org/works/OL${id}W`,
+    ...extra,
+  };
+}
+
+/**
+ * A restaurant ("rs:") or place ("pl:"): from OpenStreetMap with a numeric id ("n<id>"), or added by
+ * hand with a string id ("x" + 10 characters).
+ */
+export function spot(
+  type: 'restaurant' | 'place',
+  id: number | string,
+  name = `Sítio ${id}`,
+  city: string | null = 'Leiria',
+  extra: Partial<AnimeMeta> = {},
+): AnimeMeta {
+  const prefix = type === 'restaurant' ? 'rs' : 'pl';
+  const osm = typeof id === 'number';
+  return {
+    key: osm ? `${prefix}:n${id}` : `${prefix}:${id}`,
+    source: osm ? 'osm' : 'user',
+    sourceId: osm ? id : 0,
+    idMal: null,
+    title: name,
+    titleEnglish: null,
+    titleNative: null,
+    cover: '',
+    color: null,
+    banner: null,
+    format: type === 'restaurant' ? 'restaurant' : 'beach',
+    status: null,
+    episodes: null,
+    year: null,
+    season: null,
+    genres: [],
+    score: null,
+    studio: null,
+    synopsis: '',
+    url: osm ? `https://www.openstreetmap.org/node/${id}` : null,
+    place: { address: 'Rua Direita 1', city, lat: osm ? 39.74 : null, lon: osm ? -8.8 : null },
+    ...extra,
+  };
+}

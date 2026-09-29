@@ -18,7 +18,7 @@ import {
   type SyncAck,
 } from '../src/shared/types';
 import { FAKE_TMDB_KEY, startFakeTmdb } from './fake-tmdb';
-import { anime, title } from './fixtures';
+import { anime, spot, title } from './fixtures';
 
 type App = Awaited<ReturnType<typeof createApp>> & { url: string };
 const cleanups: (() => Promise<void>)[] = [];
@@ -720,7 +720,7 @@ describe('series and movies', () => {
     const bad = await fetch(`${app.url}/api/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Livros', kind: 'books' }),
+      body: JSON.stringify({ name: 'Receitas', kind: 'recipes' }),
     });
     expect(bad.status).toBe(400);
   });
@@ -766,7 +766,7 @@ describe('series and movies', () => {
       const res = await fetch(`${app.url}${path}`);
       return { status: res.status, body: (await res.json()) as Record<string, any> };
     };
-    expect((await get('/api/catalogs')).body).toEqual({ anime: true, tmdb: true });
+    expect((await get('/api/catalogs')).body).toEqual({ anime: true, tmdb: true, books: true, places: true });
 
     const trending = await get('/api/tmdb/tv?sort=trending');
     expect(trending.status).toBe(200);
@@ -787,7 +787,7 @@ describe('series and movies', () => {
     const tmdb = await startFakeTmdb();
     cleanups.push(tmdb.close);
     const none = await start(await tmpDir());
-    expect(await (await fetch(`${none.url}/api/catalogs`)).json()).toEqual({ anime: true, tmdb: false });
+    expect(await (await fetch(`${none.url}/api/catalogs`)).json()).toEqual({ anime: true, tmdb: false, books: true, places: true });
     const res = await fetch(`${none.url}/api/tmdb/tv`);
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: 'tmdb_not_configured' });
@@ -798,3 +798,196 @@ describe('series and movies', () => {
     expect(await res2.json()).toEqual({ error: 'tmdb_key_invalid' });
   });
 });
+
+describe('books, restaurants and places', () => {
+  async function withCatalogs() {
+    const fake = await startFakeTmdb();
+    cleanups.push(fake.close);
+    const app = await start(await tmpDir(), undefined, { books: { baseUrl: fake.openLibraryUrl }, places: { baseUrl: fake.photonUrl } });
+    const get = async (p: string) => {
+      const res = await fetch(`${app.url}${p}`);
+      return { status: res.status, body: (await res.json()) as Record<string, any> };
+    };
+    return { app, get };
+  }
+  const titles = (r: { body: Record<string, any> }) => r.body.items.map((i: { title: string }) => i.title);
+
+  it('the community has a space for each category', async () => {
+    const app = await start(await tmpDir());
+    for (const [id, kind] of [
+      ['comunidade', 'all'],
+      ['livros', 'books'],
+      ['restaurantes', 'restaurants'],
+      ['sitios', 'places'],
+    ]) {
+      expect(await (await fetch(`${app.url}/api/rooms/${id}`)).json()).toMatchObject({ id, kind });
+    }
+    const a = await join(app, 'restaurantes', user('ana'));
+    expect(a.ack.state).toMatchObject({ global: true, createdBy: null, kind: 'restaurants' });
+    expect(await op(a.s, { type: 'anime.add', anime: spot('restaurant', 'xtascadoze1', 'Tasca do Zé') })).toMatchObject({ ok: true });
+    expect(await op(a.s, { type: 'anime.add', anime: anime(1) })).toEqual({ ok: false, error: 'media_not_allowed' });
+    // Places added by hand: the same name in the same town only once.
+    expect(await op(a.s, { type: 'anime.add', anime: spot('restaurant', 'xtascadoze2', 'tasca do ze') })).toEqual({
+      ok: false,
+      error: 'already_in_room',
+    });
+  });
+
+  it('finds books on Open Library', async () => {
+    const { get } = await withCatalogs();
+    expect((await get('/api/catalogs')).body).toMatchObject({ books: true, places: true });
+    const trending = await get('/api/books');
+    expect(titles(trending)).toContain('Os Maias');
+    expect(trending.body.items.find((b: { key: string }) => b.key === 'bk:1001')).toMatchObject({
+      studio: 'Eça de Queirós',
+      year: 1888,
+      episodes: 716,
+      cover: 'https://covers.openlibrary.org/b/id/501-M.jpg',
+      genres: ['Classics'],
+      score: 82,
+      url: 'https://openlibrary.org/works/OL1001W',
+    });
+    // No cover: still a book (the app draws one).
+    expect(trending.body.items.find((b: { key: string }) => b.key === 'bk:1005')).toMatchObject({ cover: '', score: null });
+    expect(titles(await get('/api/books?search=saramago'))).toEqual(['Ensaio sobre a Cegueira']);
+    expect(titles(await get('/api/books?sort=portuguese'))).toEqual(['Os Maias', 'Ensaio sobre a Cegueira', 'Livro sem capa']);
+    expect(titles(await get('/api/books?subject=fantasy'))).toEqual(['O Senhor dos Anéis']);
+
+    const maias = await get('/api/books/1001');
+    expect(maias.body.synopsis).toBe('A história de três gerações da família Maia.');
+    expect(maias.body.coverLarge).toBe('https://covers.openlibrary.org/b/id/501-L.jpg');
+    expect((await get('/api/books/1002')).body.synopsis).toBe('Uma epidemia de cegueira branca.');
+    expect((await get('/api/books/999')).status).toBe(404);
+    for (const bad of ['/api/books?subject=cooking', '/api/books?sort=random', '/api/books/abc']) expect((await get(bad)).status).toBe(400);
+  });
+
+  it('finds restaurants and places on the map (OpenStreetMap)', async () => {
+    const { get } = await withCatalogs();
+    const food = await get('/api/places/restaurant?search=leiria');
+    expect(titles(food)).toEqual(['Tasca do Zé', 'Café Central']);
+    expect(food.body.items[0]).toMatchObject({
+      key: 'rs:n1234567890',
+      source: 'osm',
+      format: 'restaurant',
+      cover: '',
+      url: 'https://www.openstreetmap.org/node/1234567890',
+      place: { address: 'Rua Direita 12', city: 'Leiria', lat: 39.743, lon: -8.807 },
+    });
+    // Places to visit: the castle, not the tourist office nor the restaurants.
+    const visit = await get('/api/places/place?search=leiria');
+    expect(titles(visit)).toEqual(['Castelo de Leiria']);
+    expect(visit.body.items[0].key).toBe('pl:r555');
+    for (const bad of ['/api/places/hotel?search=leiria', '/api/places/place?search=a', '/api/places/place']) {
+      expect((await get(bad)).status).toBe(400);
+    }
+  });
+});
+
+describe('photos', () => {
+  const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(2000, 7)]);
+  const THUMB = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200, 3)]);
+
+  const upload = async (app: App, roomId: string, u: ReturnType<typeof user>, key: string, image = JPEG) => {
+    const res = await fetch(`${app.url}/api/rooms/${roomId}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Member ${u.id}:${u.secret}` },
+      body: JSON.stringify({ key, image: `data:image/jpeg;base64,${image.toString('base64')}`, thumb: THUMB.toString('base64'), w: 1280, h: 960 }),
+    });
+    return { status: res.status, body: (await res.json()) as { id?: string; error?: string } };
+  };
+
+  it('members add photos to a title; everyone sees them live; whoever added one (or the owner) removes it', async () => {
+    const dir = await tmpDir();
+    const app = await start(dir);
+    const roomId = await createRoom(app, 'Almoços', 'restaurants');
+    const ana = user('ana');
+    const rui = user('rui');
+    const eva = user('eva');
+    const a = await join(app, roomId, ana);
+    const r = await join(app, roomId, rui);
+    await join(app, roomId, eva);
+    await op(a.s, { type: 'anime.add', anime: spot('restaurant', 1, 'Tasca do Zé') });
+
+    const seen = next<OpEnvelope>(r.s, 'op', (e) => e.op.type === 'photo.add');
+    const added = await upload(app, roomId, rui, 'rs:n1');
+    expect(added.status).toBe(201);
+    const id = added.body.id!;
+    expect((await seen).op).toEqual({ type: 'photo.add', key: 'rs:n1', photo: { id, w: 1280, h: 960 } });
+
+    const full = await fetch(`${app.url}/api/photos/${id}`);
+    expect(full.headers.get('content-type')).toBe('image/jpeg');
+    expect(Buffer.from(await full.arrayBuffer()).equals(JPEG)).toBe(true);
+    expect(Buffer.from(await (await fetch(`${app.url}/api/photos/${id}/thumb`)).arrayBuffer()).equals(THUMB)).toBe(true);
+    expect((await fetch(`${app.url}/api/photos/${'x'.repeat(21)}`)).status).toBe(404);
+
+    // Only members, only real JPEGs, only titles in the room.
+    expect((await upload(app, roomId, user('ze'), 'rs:n1')).status).toBe(403);
+    expect((await upload(app, roomId, { ...ana, secret: 'wrong-secret-0123456789' }, 'rs:n1')).status).toBe(403);
+    expect((await upload(app, roomId, ana, 'rs:n1', Buffer.from('<svg onload=alert(1)>'))).body.error).toBe('invalid_image');
+    expect((await upload(app, roomId, ana, 'rs:n2')).status).toBe(404);
+
+    // Eva cannot remove Rui's photo; Ana owns the room and can. The image goes with it.
+    const v = await join(app, roomId, eva);
+    expect(await op(v.s, { type: 'photo.remove', key: 'rs:n1', id })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await op(a.s, { type: 'photo.remove', key: 'rs:n1', id })).toMatchObject({ ok: true });
+    await waitFor(async () => (await fetch(`${app.url}/api/photos/${id}`)).status === 404);
+
+    // Removing a title removes its photos too.
+    const second = (await upload(app, roomId, rui, 'rs:n1')).body.id!;
+    expect(await op(r.s, { type: 'photo.remove', key: 'rs:n1', id: second })).toMatchObject({ ok: true });
+    const third = (await upload(app, roomId, eva, 'rs:n1')).body.id!;
+    expect(await op(a.s, { type: 'anime.remove', key: 'rs:n1' })).toMatchObject({ ok: true });
+    await waitFor(async () => (await fetch(`${app.url}/api/photos/${third}`)).status === 404);
+  });
+
+  it('in the community only whoever added a photo removes it, or an admin (ADMINS)', async () => {
+    const app = await start(await tmpDir(), undefined, { admins: ['mod'] });
+    const ana = user('ana');
+    const a = await join(app, 'sitios', ana);
+    await op(a.s, { type: 'anime.add', anime: spot('place', 444, 'Praia da Tocha') });
+    const id = (await upload(app, 'sitios', ana, 'pl:n444')).body.id!;
+
+    const rui = await join(app, 'sitios', user('rui'));
+    expect(await op(rui.s, { type: 'photo.remove', key: 'pl:n444', id })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await op(rui.s, { type: 'anime.remove', key: 'pl:n444' })).toEqual({ ok: false, error: 'forbidden' });
+
+    // Saying you are the admin is not enough: the account has to be yours.
+    const mod = (await register(app, 'mod')).body;
+    const fake = client(app);
+    const faked = await emit<JoinAck>(fake, 'join', { roomId: 'sitios', user: user('ze'), account: 'mod' });
+    expect(faked.ok && faked.admin).toBeFalsy();
+    const m = client(app);
+    const joined = await emit<JoinAck>(m, 'join', { roomId: 'sitios', user: mod.user, account: 'mod' });
+    expect(joined.ok && joined.admin).toBe(true);
+    expect(await op(fake, { type: 'photo.remove', key: 'pl:n444', id })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await op(m, { type: 'photo.remove', key: 'pl:n444', id })).toMatchObject({ ok: true });
+    expect(await op(m, { type: 'anime.remove', key: 'pl:n444' })).toMatchObject({ ok: true });
+  });
+
+  it('keeps photos within their space budget (PHOTOS_MAX_MB), in PostgreSQL too', async () => {
+    // The test database may already hold photos from other runs: 5 KB more than those.
+    const dir = await tmpDir();
+    const probe = await start(dir, process.env.TEST_DATABASE_URL);
+    const used = await probe.storage.photoBytes();
+    await probe.close();
+    const app = await start(dir, process.env.TEST_DATABASE_URL, { photosMaxMb: (used + 5000) / 1024 / 1024 });
+    const roomId = await createRoom(app, 'Sítios', 'places');
+    const ana = user('ana');
+    const a = await join(app, roomId, ana);
+    await op(a.s, { type: 'anime.add', anime: spot('place', 555, 'Castelo de Leiria') });
+    const first = await upload(app, roomId, ana, 'pl:n555');
+    expect(first.status).toBe(201);
+    expect(Buffer.from(await (await fetch(`${app.url}/api/photos/${first.body.id}`)).arrayBuffer()).equals(JPEG)).toBe(true);
+    expect(await upload(app, roomId, ana, 'pl:n555')).toEqual({ status: 201, body: expect.objectContaining({ id: expect.any(String) }) });
+    // 5 KB: the third one does not fit.
+    expect(await upload(app, roomId, ana, 'pl:n555')).toEqual({ status: 507, body: { error: 'photos_full' } });
+  });
+});
+
+async function waitFor(check: () => Promise<boolean>) {
+  for (let i = 0; i < 50; i++) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error('condition never became true');
+}

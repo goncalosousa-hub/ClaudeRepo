@@ -1,12 +1,36 @@
 // Runtime validation of everything the server receives from browsers.
 import { z } from 'zod';
-import { LIMITS, PASSWORD_MIN, ROOM_ID_RE, isAllowedImageUrl, isAllowedSiteUrl, isValidUsername } from './constants';
+import { LIMITS, PASSWORD_MIN, PHOTO_ID_RE, ROOM_ID_RE, isAllowedImageUrl, isAllowedSiteUrl, isValidUsername } from './constants';
 import { ROOM_KINDS } from './media';
 
 export { ROOM_ID_RE };
-/** Title keys: anime from AniList ("al:") or MyAnimeList ("mal:"), TMDB series ("tv:") or movies ("mv:"). */
-export const ANIME_KEY_RE = /^(al|mal|tv|mv):\d{1,9}$/;
-const KEY_PREFIXES: Record<string, string[]> = { anilist: ['al'], jikan: ['mal'], tmdb: ['tv', 'mv'] };
+/**
+ * Title keys: anime from AniList ("al:") or MyAnimeList ("mal:"), TMDB series ("tv:") or movies
+ * ("mv:"), Open Library books ("bk:"), and restaurants ("rs:") or places ("pl:"), either an
+ * OpenStreetMap node / way / relation ("n123") or added by hand ("x" + 10 random characters).
+ */
+export const ANIME_KEY_RE = /^(?:(?:al|mal|tv|mv|bk):\d{1,9}|(?:rs|pl):(?:[nwr]\d{1,12}|x[a-z0-9]{10}))$/;
+/** The id part of a title added by hand. */
+export const USER_TITLE_ID_RE = /^x[a-z0-9]{10}$/;
+
+function keyMatchesSource(key: string, source: string, id: number) {
+  switch (source) {
+    case 'anilist':
+      return key === `al:${id}`;
+    case 'jikan':
+      return key === `mal:${id}`;
+    case 'tmdb':
+      return key === `tv:${id}` || key === `mv:${id}`;
+    case 'openlibrary':
+      return key === `bk:${id}`;
+    case 'osm':
+      return /^(rs|pl):[nwr]\d+$/.test(key) && key.slice(4) === String(id);
+    case 'user':
+      return /^(rs|pl):/.test(key) && USER_TITLE_ID_RE.test(key.slice(3)) && id === 0;
+    default:
+      return false;
+  }
+}
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const idStr = z.string().regex(/^[A-Za-z0-9_-]{1,32}$/);
@@ -20,27 +44,42 @@ export const roomIdSchema = z.string().regex(ROOM_ID_RE);
 export const animeMetaSchema = z
   .object({
     key: animeKey,
-    source: z.enum(['anilist', 'jikan', 'tmdb']),
-    sourceId: z.number().int().positive(),
+    source: z.enum(['anilist', 'jikan', 'tmdb', 'openlibrary', 'osm', 'user']),
+    sourceId: z.number().int().min(0).max(1e13),
     idMal: z.number().int().positive().nullable().default(null),
     title: z.string().trim().min(1).max(300),
     titleEnglish: optText(300),
     titleNative: optText(300),
-    cover: z.string().max(600).refine(isAllowedImageUrl, 'cover host not allowed'),
+    cover: z
+      .string()
+      .max(600)
+      .refine((v) => v === '' || isAllowedImageUrl(v), 'cover host not allowed'),
     color: hexColor.nullable().default(null),
     banner: z.string().max(600).refine(isAllowedImageUrl, 'banner host not allowed').nullable().default(null),
     format: optText(20),
     status: optText(24),
     episodes: optInt(0, 100_000),
-    year: optInt(1900, 2200),
+    // Books can be old (Os Lusíadas: 1572).
+    year: optInt(-3000, 2200),
     season: optText(10),
     genres: z.array(text(40)).max(20).default([]),
     score: z.number().min(0).max(100).nullable().default(null),
     studio: optText(120),
     synopsis: z.string().default('').transform((s) => s.slice(0, LIMITS.synopsis)),
     url: z.string().max(300).refine(isAllowedSiteUrl, 'url host not allowed').nullable().default(null),
+    place: z
+      .object({
+        address: optText(200),
+        city: optText(100),
+        lat: z.number().min(-90).max(90).nullable().default(null),
+        lon: z.number().min(-180).max(180).nullable().default(null),
+      })
+      .nullable()
+      .default(null),
   })
-  .refine((a) => KEY_PREFIXES[a.source].some((prefix) => a.key === `${prefix}:${a.sourceId}`), 'key/source mismatch');
+  .refine((a) => keyMatchesSource(a.key, a.source, a.sourceId), 'key/source mismatch')
+  // Anime, series and movies always have a picture; books may not, and restaurants / places get photos.
+  .refine((a) => a.cover !== '' || /^(rs|pl):/.test(a.key) || a.source === 'openlibrary', 'cover missing');
 
 const tierSchema = z.object({
   id: idStr,
@@ -90,6 +129,7 @@ export const clientOpSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('room.owner'), to: idStr }),
   z.object({ type: z.literal('room.listed'), listed: z.boolean() }),
   z.object({ type: z.literal('room.kind'), kind: z.enum(ROOM_KINDS) }),
+  z.object({ type: z.literal('photo.remove'), key: animeKey, id: z.string().regex(PHOTO_ID_RE) }),
   z.object({ type: z.literal('member.update'), ...memberFields }),
   z.object({ type: z.literal('chat.send'), id: idStr, text: z.string().trim().min(1).max(LIMITS.chatText) }),
 ]);

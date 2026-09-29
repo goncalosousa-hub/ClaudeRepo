@@ -13,34 +13,57 @@ export interface Tier {
   color: string;
 }
 
-/** Catalogue a title comes from: anime (AniList / MyAnimeList), or a TV series / movie (TMDB). */
-export type MediaType = 'anime' | 'tv' | 'movie';
+/**
+ * What a title is: an anime (AniList / MyAnimeList), a TV series or movie (TMDB), a book (Open
+ * Library), or a restaurant or place to visit (OpenStreetMap, or added by hand).
+ */
+export type MediaType = 'anime' | 'tv' | 'movie' | 'book' | 'restaurant' | 'place';
 
-/** What a room is about. Rooms created before series and movies existed are anime rooms. */
-export type RoomKind = 'anime' | 'series' | 'movies' | 'all';
+/**
+ * What a room is about ("all" is films, series and anime). Rooms created before series and movies
+ * existed are anime rooms.
+ */
+export type RoomKind = 'anime' | 'series' | 'movies' | 'all' | 'books' | 'restaurants' | 'places';
 
 export type Recommend = 'yes' | 'maybe' | 'no';
 export type WatchStatus = 'watched' | 'watching' | 'plan' | 'dropped';
 
+/** Where a restaurant or place is. */
+export interface PlaceInfo {
+  address: string | null;
+  city: string | null;
+  lat: number | null;
+  lon: number | null;
+}
+
 /**
- * Normalised data of a title: an anime (from AniList, or MyAnimeList via Jikan as a fallback) or a
- * TV series / movie (from TMDB). Named after the first catalogue the app supported.
+ * Normalised data of a title: an anime (from AniList, or MyAnimeList via Jikan as a fallback), a TV
+ * series / movie (from TMDB), a book (Open Library) or a restaurant / place (OpenStreetMap, or added
+ * by hand). Named after the first catalogue the app supported.
  */
 export interface AnimeMeta {
-  /** "al:<anilist id>", "mal:<myanimelist id>", "tv:<tmdb id>" or "mv:<tmdb id>" */
+  /**
+   * "al:<anilist id>", "mal:<myanimelist id>", "tv:<tmdb id>", "mv:<tmdb id>", "bk:<open library
+   * work number>", or "rs:" (restaurant) / "pl:" (place) + "n|w|r<openstreetmap id>" or "x<random>"
+   * when added by hand
+   */
   key: string;
-  source: 'anilist' | 'jikan' | 'tmdb';
+  source: 'anilist' | 'jikan' | 'tmdb' | 'openlibrary' | 'osm' | 'user';
+  /** Id in the catalogue (0 for titles added by hand) */
   sourceId: number;
   idMal: number | null;
   /** Romaji (anime) or Portuguese (series / movies) title */
   title: string;
   titleEnglish: string | null;
   titleNative: string | null;
+  /** Empty for restaurants and places: their cover is the first photo */
   cover: string;
   color: string | null;
   banner: string | null;
+  /** TV, MOVIE, BOOK… or the kind of restaurant / place (restaurant, cafe, beach, museum…) */
   format: string | null;
   status: string | null;
+  /** Episodes (or pages, for books) */
   episodes: number | null;
   year: number | null;
   /** Anime season (WINTER…); null for series and movies */
@@ -48,10 +71,22 @@ export interface AnimeMeta {
   genres: string[];
   /** Community score 0-100 */
   score: number | null;
-  /** Anime studio, TV network or movie director */
+  /** Anime studio, TV network, movie director or book authors */
   studio: string | null;
   synopsis: string;
   url: string | null;
+  /** Restaurants and places only */
+  place?: PlaceInfo | null;
+}
+
+/** A photo someone added to a title (the image is served by /api/photos/<id>). */
+export interface Photo {
+  id: string;
+  by: string;
+  at: number;
+  /** Size of the full image, in pixels */
+  w: number;
+  h: number;
 }
 
 export interface RoomAnime extends AnimeMeta {
@@ -110,7 +145,8 @@ export type ActivityKind =
   | 'clear'
   | 'owner'
   | 'listed'
-  | 'kind';
+  | 'kind'
+  | 'photo';
 
 export interface Activity {
   id: string;
@@ -128,6 +164,8 @@ export interface Activity {
   text?: string;
   /** room.listed: shown in (true) or removed from (false) the community rooms */
   listed?: boolean;
+  /** photo: how many photos were added (several in a row count as one entry) */
+  count?: number;
 }
 
 export interface RoomState {
@@ -152,6 +190,8 @@ export interface RoomState {
   boards: Record<string, Board>;
   /** anime key -> member id -> review */
   reviews: Record<string, Record<string, Review>>;
+  /** anime key -> photos, oldest first (missing in rooms created before photos existed) */
+  photos?: Record<string, Photo[]>;
   members: Record<string, Member>;
   chat: ChatMessage[];
   activity: Activity[];
@@ -177,6 +217,9 @@ export type Op =
   | { type: 'room.owner'; to: string }
   | { type: 'room.listed'; listed: boolean }
   | { type: 'room.kind'; kind: RoomKind }
+  /** Sent by the server when a photo is uploaded (browsers upload through /api/photos) */
+  | { type: 'photo.add'; key: string; photo: { id: string; w: number; h: number } }
+  | { type: 'photo.remove'; key: string; id: string }
   | { type: 'member.join'; member: MemberInput }
   | { type: 'member.update'; name: string; color: string; avatar: string; unit?: string }
   | { type: 'chat.send'; id: string; text: string };
@@ -257,6 +300,8 @@ export interface JoinOk {
   seq: number;
   presence: PresenceState[];
   lastSeen: Record<string, number>;
+  /** Community admin (can remove any title or photo) */
+  admin?: boolean;
 }
 
 export interface AckError {

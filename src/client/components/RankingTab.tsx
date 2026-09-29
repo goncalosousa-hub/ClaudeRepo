@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { placementsOf, recommendationsFor } from '../../shared/stats';
 import { GROUP_BOARD } from '../../shared/types';
-import { formatLabel } from '../lib/anime-api';
+import { metaLine } from './ExploreTab';
 import { RECOMMEND, formatRating, ratingColor, readableOn } from '../lib/format';
 import { useRoom } from './RoomContext';
 import { Avatar, EmptyState, Segmented, cn } from './ui';
+import { Cover } from './Cover';
 
 type SortMode = 'avg' | 'count' | 'recommended' | 'controversial' | 'recent';
 type Filter = 'all' | 'unrated' | 'plan';
@@ -61,7 +62,7 @@ export function RankingTab() {
               const a = room.anime[r.key];
               return (
                 <button key={r.key} className="w-28 shrink-0 text-left" onClick={() => openAnime(r.key)}>
-                  <img src={a.cover} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-lg object-cover shadow-lg" />
+                  <Cover meta={a} label className="aspect-[2/3] w-full rounded-lg shadow-lg" />
                   <p className="mt-1.5 line-clamp-2 text-xs leading-tight font-medium">{titleOf(a)}</p>
                   <div className="mt-1 flex items-center gap-1">
                     <span className="flex -space-x-1.5">
@@ -121,11 +122,11 @@ export function RankingTab() {
               <span className={cn('w-6 shrink-0 text-center text-sm font-bold', i < 3 ? 'text-fg' : 'text-faint')}>
                 {i < 3 && sort === 'avg' && s?.avg != null ? ['🥇', '🥈', '🥉'][i] : i + 1}
               </span>
-              <img src={r.anime.cover} alt="" loading="lazy" className="h-14 w-10 shrink-0 rounded-md object-cover" />
+              <Cover meta={r.anime} className="h-14 w-10 shrink-0 rounded-md" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{titleOf(r.anime)}</p>
                 <p className="truncate text-xs text-faint">
-                  {[r.anime.year, formatLabel(r.anime.format)].filter(Boolean).join(' · ')}
+                  {metaLine(r.anime)}
                   {s && s.reviewers > 0 && (
                     <>
                       {' · '}

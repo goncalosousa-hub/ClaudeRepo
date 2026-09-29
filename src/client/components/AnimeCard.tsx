@@ -2,6 +2,7 @@ import { memo, type CSSProperties } from 'react';
 import type { AnimeMeta, Member } from '../../shared/types';
 import { formatRating, ratingColor } from '../lib/format';
 import { Avatar, cn } from './ui';
+import { Cover } from './Cover';
 
 export type CardSize = 'sm' | 'md' | 'lg';
 
@@ -52,7 +53,7 @@ export const AnimeCardView = memo(function AnimeCardView({
       )}
       style={style}
     >
-      <img src={anime.cover} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
+      <Cover meta={anime} className="h-full w-full" />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-1 pt-5 pb-1">
         <p className={cn('line-clamp-2 leading-tight font-medium text-white', size === 'lg' ? 'text-[11px]' : 'text-[10px]')}>
           {title}

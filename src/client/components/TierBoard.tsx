@@ -446,6 +446,8 @@ const DraggableCard = memo(function DraggableCard({
       data-card={id}
       {...attributes}
       {...(disabled ? {} : listeners)}
+      // Cards that cannot be dragged here still open their details.
+      aria-disabled={undefined}
       role="button"
       tabIndex={0}
       aria-label={card.title}

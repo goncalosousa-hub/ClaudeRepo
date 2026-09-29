@@ -2,6 +2,7 @@
 # reinícios, por isso define DATABASE_URL (ex.: PostgreSQL gratuito do Neon) para não perder as salas.
 # TMDB_API_KEY (opcional) ativa as salas de séries e filmes: chave grátis em https://www.themoviedb.org/settings/api
 # COMMUNITY_CODE (opcional) fecha a app a quem não souber o código da comunidade (só colaboradores).
+# ADMINS (opcional): contas que podem apagar qualquer título ou foto na comunidade (ex.: ana,rui).
 services:
   - type: web
     name: lusimovies
@@ -18,4 +19,6 @@ services:
       - key: TMDB_API_KEY
         sync: false
       - key: COMMUNITY_CODE
+        sync: false
+      - key: ADMINS
         sync: false

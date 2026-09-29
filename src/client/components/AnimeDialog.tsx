@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Play, Plus, Trash2, X } from 'lucide-react';
-import { mediaTypeOf } from '../../shared/media';
+import { ExternalLink, MapPin, Play, Plus, Trash2, X } from 'lucide-react';
+import { isPlaceMedia, mediaTypeOf } from '../../shared/media';
 import { placementsOf } from '../../shared/stats';
 import { GROUP_BOARD, POOL, type AnimeMeta, type Review } from '../../shared/types';
 import { formatLabel, genreLabel, seasonLabel, sourceLabel, statusLabel, type AnimeDetails } from '../lib/anime-api';
 import { titleDetails } from '../lib/catalog';
-import { RECOMMEND, WATCH_STATUS, formatRating, plural, ratingColor, readableOn, timeAgo } from '../lib/format';
+import { RECOMMEND, formatRating, plural, ratingColor, readableOn, statusInfo, timeAgo } from '../lib/format';
 import { agree, mediaNoun, thisOne } from '../lib/words';
 import { ReviewEditor } from './ReviewEditor';
+import { Cover, useCoverUrl } from './Cover';
+import { PhotosSection } from './PhotosSection';
+import { spotKind } from './ExploreTab';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
 import { Avatar, Button, Chip, Modal, Spinner, cn } from './ui';
@@ -58,7 +61,8 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   const altTitle = title === meta.title ? (meta.titleEnglish ?? meta.titleNative) : meta.title;
   const synopsis = details?.synopsis || meta.synopsis;
   const banner = details?.meta.banner ?? meta.banner;
-  const cover = details?.coverLarge ?? meta.cover;
+  const photoCover = useCoverUrl(meta, true);
+  const cover = details?.coverLarge || photoCover;
 
   const summary = roomKey ? summaries[roomKey] : undefined;
   const reviews: [string, Review][] = roomKey
@@ -82,7 +86,11 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   const info = details?.meta.key === meta.key ? { ...meta, ...details.meta } : meta;
   const years = info.year && details?.endYear && details.endYear !== info.year ? `${info.year}–${details.endYear}` : info.year;
   const chips = (
-    media === 'anime'
+    media === 'book'
+      ? ['Livro', info.year, info.episodes ? plural(info.episodes, 'página', 'páginas') : null, info.studio]
+      : isPlaceMedia(media)
+        ? [spotKind(info.format), info.place?.city, info.place?.address]
+        : media === 'anime'
       ? [
           formatLabel(info.format),
           info.season && info.year ? `${seasonLabel(info.season)} ${info.year}` : info.year,
@@ -114,8 +122,24 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
     details?.creators?.length ? `Criada por ${details.creators.join(', ')}` : null,
     details?.cast?.length ? `Com ${details.cast.join(', ')}` : null,
   ].filter(Boolean) as string[];
-  const scoreSource = meta.source === 'jikan' ? 'MAL' : meta.source === 'tmdb' ? 'TMDB' : 'AniList';
-  const siteName = meta.source === 'jikan' ? 'MyAnimeList' : meta.source === 'tmdb' ? 'TMDB' : 'AniList';
+  const scoreSource = meta.source === 'jikan' ? 'MAL' : meta.source === 'tmdb' ? 'TMDB' : meta.source === 'openlibrary' ? 'Open Library' : 'AniList';
+  const siteName =
+    meta.source === 'jikan'
+      ? 'MyAnimeList'
+      : meta.source === 'tmdb'
+        ? 'TMDB'
+        : meta.source === 'openlibrary'
+          ? 'Open Library'
+          : meta.source === 'osm'
+            ? 'OpenStreetMap'
+            : 'AniList';
+  // Restaurants and places: open the spot (or search its name and town) in Google Maps.
+  const where = info.place;
+  const mapUrl = isPlaceMedia(media)
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        where?.lat != null && where.lon != null ? `${where.lat},${where.lon}` : [meta.title, where?.address, where?.city].filter(Boolean).join(', '),
+      )}`
+    : null;
 
   return (
     <div className="max-h-[calc(100dvh-3rem)] overflow-y-auto">
@@ -139,11 +163,15 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
           <X size={18} />
         </Button>
         <div className="relative -mt-24 flex gap-4 px-5 sm:-mt-28">
-          <img
-            src={cover}
-            alt=""
-            className="h-40 w-28 shrink-0 rounded-xl object-cover shadow-2xl ring-1 ring-white/10 sm:h-48 sm:w-32"
-          />
+          {cover ? (
+            <img
+              src={cover}
+              alt=""
+              className="h-40 w-28 shrink-0 rounded-xl object-cover shadow-2xl ring-1 ring-white/10 sm:h-48 sm:w-32"
+            />
+          ) : (
+            <Cover meta={meta} label className="h-40 w-28 shrink-0 rounded-xl shadow-2xl ring-1 ring-white/10 sm:h-48 sm:w-32" />
+          )}
           <div className="min-w-0 flex-1 self-end pb-1">
             <h2 className="text-xl leading-tight font-extrabold sm:text-2xl">{title}</h2>
             {altTitle && altTitle !== title && <p className="mt-0.5 truncate text-sm text-muted">{altTitle}</p>}
@@ -297,12 +325,12 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               <Spinner size={16} className="text-muted" />
             )}
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {meta.genres.map((g) => (
+              {info.genres.map((g) => (
                 <Chip key={g} className="bg-surface-3 text-muted">
                   {genreLabel(g)}
                 </Chip>
               ))}
-              {details?.tags.map((t) => (
+              {details?.tags.slice(0, 10).map((t) => (
                 <Chip key={t} className="border border-line text-faint">
                   {t}
                 </Chip>
@@ -315,6 +343,8 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             ))}
           </section>
         )}
+
+        {roomKey && <PhotosSection animeKey={roomKey} />}
 
         {roomKey && (
           <section>
@@ -339,7 +369,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             ) : (
               <ul className="space-y-2">
                 {reviews.map(([uid, r]) => (
-                  <ReviewItem key={uid} userId={uid} review={r} />
+                  <ReviewItem key={uid} userId={uid} review={r} animeKey={roomKey} />
                 ))}
               </ul>
             )}
@@ -362,7 +392,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                 return (
                   <button key={r.key} className="w-24 shrink-0 text-left" onClick={() => openAnime(r)} title={titleOf(r)}>
                     <div className="relative">
-                      <img src={r.cover} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-lg object-cover" />
+                      <Cover meta={r} label className="aspect-[2/3] w-full rounded-lg" />
                       {here && (
                         <span className="absolute right-1 bottom-1 rounded bg-ok px-1 text-[10px] font-bold text-black">
                           {place.in}
@@ -388,6 +418,16 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               <ExternalLink size={14} /> {siteName}
             </a>
           )}
+          {mapUrl && (
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/5 px-3 text-sm font-medium hover:bg-white/10"
+            >
+              <MapPin size={14} /> Ver no mapa
+            </a>
+          )}
           {details?.trailerUrl && (
             <a
               href={details.trailerUrl}
@@ -399,13 +439,13 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             </a>
           )}
           {/* In the community space only whoever added a title can take it out. */}
-          {roomKey && (!room.global || room.anime[roomKey]?.addedBy === me) && (
+          {roomKey && (!room.global || room.anime[roomKey]?.addedBy === me || snap.admin) && (
             <Button
               size="sm"
               variant="danger"
               className="ml-auto"
               onClick={() => {
-                if (!confirm(`Remover «${title}» ${place.from}? Sai de todas as tierlists (as opiniões ficam guardadas).`)) return;
+                if (!confirm(`Remover «${title}» ${place.from}? Sai de todas as tierlists e as fotos são apagadas (as opiniões ficam guardadas).`)) return;
                 if (dispatch({ type: 'anime.remove', key: roomKey })) {
                   toast(`«${title}» ${agree('removid', noun)} ${place.from}.`);
                   onClose();
@@ -426,7 +466,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
   );
 }
 
-function ReviewItem({ userId, review }: { userId: string; review: Review }) {
+function ReviewItem({ userId, review, animeKey }: { userId: string; review: Review; animeKey: string }) {
   const { room, isOnline } = useRoom();
   const m = room.members[userId];
   return (
@@ -449,7 +489,7 @@ function ReviewItem({ userId, review }: { userId: string; review: Review }) {
         )}
         {review.status && (
           <Chip className="bg-surface-3 text-muted">
-            {WATCH_STATUS[review.status].emoji} {WATCH_STATUS[review.status].label}
+            {statusInfo(mediaTypeOf(animeKey), review.status).emoji} {statusInfo(mediaTypeOf(animeKey), review.status).label}
           </Chip>
         )}
         <span className="ml-auto text-[11px] text-faint">{timeAgo(review.updatedAt)}</span>

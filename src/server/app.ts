@@ -13,6 +13,9 @@ import { accountRouter } from './account-routes';
 import { catalogRouter } from './catalog-routes';
 import { CommunityGate } from './community';
 import { Tmdb, type TmdbOptions } from './tmdb';
+import { Books, type BooksOptions } from './books';
+import { Places, type PlacesOptions } from './places';
+import { PHOTO_UPLOAD_PATH, photoRouter } from './photo-routes';
 import { createStorage, importFileAccounts, importFileRooms } from './storage';
 import { COMPANY } from '../shared/brand';
 
@@ -27,6 +30,14 @@ export interface AppOptions {
   tmdb?: TmdbOptions;
   /** When set, only people who know this code (colleagues) can use the app */
   communityCode?: string;
+  /** Books catalogue (Open Library; for tests, another server) */
+  books?: BooksOptions;
+  /** Restaurants and places (Photon / OpenStreetMap; for tests, another server) */
+  places?: PlacesOptions;
+  /** Space for all the photos together, in MB (default 300: the free Neon database has 512 MB) */
+  photosMaxMb?: number;
+  /** Account usernames that can remove any photo or title in the community */
+  admins?: string[];
 }
 
 const CSP = [
@@ -57,6 +68,8 @@ export async function createApp(opts: AppOptions) {
   await rooms.ensureCommunity(`Comunidade ${COMPANY}`);
   const accounts = new AccountManager(storage);
   const tmdb = new Tmdb(opts.tmdb);
+  const books = new Books(opts.books);
+  const places = new Places(opts.places);
   const gate = new CommunityGate(opts.communityCode);
 
   const app = express();
@@ -70,12 +83,9 @@ export async function createApp(opts: AppOptions) {
     next();
   });
   app.use(compression());
-  app.use(express.json({ limit: '64kb' }));
-  app.use('/api', gate.router());
-  app.use('/api', gate.middleware());
-  app.use('/api', accountRouter(accounts, rooms));
-  app.use('/api', catalogRouter(tmdb));
-  app.use('/api', apiRouter(rooms));
+  // Photo uploads have their own (bigger) limit.
+  const smallJson = express.json({ limit: '64kb' });
+  app.use((req, res, next) => (PHOTO_UPLOAD_PATH.test(req.path) ? next() : smallJson(req, res, next)));
 
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
@@ -83,7 +93,20 @@ export async function createApp(opts: AppOptions) {
     perMessageDeflate: { threshold: 4096 },
   });
   io.use((socket, next) => (gate.allows(socket.request.headers.cookie) ? next() : next(new Error('community_locked'))));
-  attachRealtime(io, rooms, accounts);
+  attachRealtime(io, rooms, accounts, new Set(opts.admins ?? []));
+
+  const publish = (room: Parameters<typeof rooms.apply>[0], op: Parameters<typeof rooms.apply>[1], by: string) => {
+    const env = rooms.apply(room, op, by);
+    io.to(room.id).emit('op', env);
+    return env;
+  };
+
+  app.use('/api', gate.router());
+  app.use('/api', gate.middleware());
+  app.use('/api', accountRouter(accounts, rooms));
+  app.use('/api', catalogRouter(tmdb, books, places));
+  app.use('/api', photoRouter(rooms, storage, { maxBytes: (opts.photosMaxMb ?? 300) * 1024 * 1024, publish }));
+  app.use('/api', apiRouter(rooms));
 
   let closeVite: (() => Promise<void>) | undefined;
   if (opts.dev) {

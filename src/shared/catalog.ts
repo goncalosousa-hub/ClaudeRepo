@@ -102,3 +102,82 @@ export interface TmdbDetails {
   creators: string[];
   recommendations: AnimeMeta[];
 }
+
+// ---------------------------------------------------------------------------
+// Books (Open Library)
+
+/** How the books catalogue can be browsed (besides searching). */
+export type BookSort = 'trending' | 'popularity' | 'portuguese' | 'score' | 'newest';
+
+/** Subjects offered in the books filter: id, Open Library subject, label. */
+export const BOOK_SUBJECTS: { id: string; subject: string; label: string }[] = [
+  { id: 'fantasy', subject: 'fantasy', label: 'Fantasia' },
+  { id: 'scifi', subject: 'science fiction', label: 'Ficção científica' },
+  { id: 'romance', subject: 'romance', label: 'Romance' },
+  { id: 'mystery', subject: 'mystery and detective stories', label: 'Policial' },
+  { id: 'thriller', subject: 'thrillers', label: 'Thriller' },
+  { id: 'horror', subject: 'horror', label: 'Terror' },
+  { id: 'history', subject: 'history', label: 'História' },
+  { id: 'biography', subject: 'biography', label: 'Biografias' },
+  { id: 'poetry', subject: 'poetry', label: 'Poesia' },
+  { id: 'comics', subject: 'comics', label: 'Banda desenhada' },
+  { id: 'children', subject: 'children', label: 'Infantil' },
+  { id: 'selfhelp', subject: 'self-help', label: 'Autoajuda' },
+  { id: 'business', subject: 'business', label: 'Negócios' },
+  { id: 'classics', subject: 'classics', label: 'Clássicos' },
+];
+
+export interface BookDetails {
+  meta: AnimeMeta;
+  /** Empty when the book has no cover */
+  coverLarge: string;
+  synopsis: string;
+  subjects: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Restaurants and places (OpenStreetMap, through Photon)
+
+export type PlaceType = 'restaurant' | 'place';
+
+/** OpenStreetMap kinds of restaurants and places, as shown in the app. */
+export const PLACE_KINDS: Record<string, string> = {
+  restaurant: 'Restaurante',
+  cafe: 'Café',
+  fast_food: 'Comida rápida',
+  bar: 'Bar',
+  pub: 'Pub',
+  ice_cream: 'Gelataria',
+  food_court: 'Praça de alimentação',
+  bakery: 'Pastelaria',
+  attraction: 'Atração',
+  museum: 'Museu',
+  viewpoint: 'Miradouro',
+  artwork: 'Arte pública',
+  gallery: 'Galeria',
+  zoo: 'Jardim zoológico',
+  theme_park: 'Parque temático',
+  aquarium: 'Aquário',
+  picnic_site: 'Parque de merendas',
+  beach: 'Praia',
+  peak: 'Pico',
+  waterfall: 'Cascata',
+  cave_entrance: 'Gruta',
+  park: 'Parque',
+  garden: 'Jardim',
+  nature_reserve: 'Reserva natural',
+  water_park: 'Parque aquático',
+  national_park: 'Parque natural',
+  protected_area: 'Área protegida',
+  castle: 'Castelo',
+  monument: 'Monumento',
+  ruins: 'Ruínas',
+  church: 'Igreja',
+  city: 'Cidade',
+  town: 'Vila',
+  village: 'Aldeia',
+  theatre: 'Teatro',
+  arts_centre: 'Centro cultural',
+  cinema: 'Cinema',
+  other: 'Outro',
+};
