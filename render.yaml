@@ -4,7 +4,7 @@
 # COMMUNITY_CODE (opcional) fecha a app a quem não souber o código da comunidade (só colaboradores).
 services:
   - type: web
-    name: anime-tierlist-live
+    name: lusimovies
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build

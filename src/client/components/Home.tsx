@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, Globe, History, KeyRound, LogIn, MessagesSquare, Plus, Radio, Search, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowRight, DoorOpen, Globe, History, KeyRound, LogIn, Plus, Trash2 } from 'lucide-react';
 import { APP_NAME, COMMUNITY, COMPANY } from '../../shared/brand';
 import { LIMITS } from '../../shared/constants';
 import type { AnimeMeta, CommunityRoom, RoomKind } from '../../shared/types';
@@ -85,7 +85,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
   const visibleRooms = showAllRooms ? rooms : rooms.slice(0, 9);
 
   useEffect(() => {
-    document.title = APP_NAME;
+    document.title = `Salas · ${APP_NAME}`;
     let alive = true;
     const trending = (p: Promise<{ items: AnimeMeta[] }>) => p.then((r) => r.items).catch(() => [] as AnimeMeta[]);
     void (async () => {
@@ -158,39 +158,45 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
 
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Logo />
-        {user ? (
-          <button
-            className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-sm backdrop-blur hover:border-line-2"
-            onClick={() => setDialog({ mode: 'profile' })}
-            aria-label={`O teu perfil (${user.name})`}
-          >
-            <Avatar member={user} size={28} />
-            <span className="max-w-32 truncate font-medium">{user.name}</span>
-            {user.account && <span className="hidden text-xs text-faint sm:inline">@{user.account}</span>}
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <Button size="sm" variant="ghost" aria-label="Entrar na conta" onClick={() => setDialog({ mode: 'login' })}>
-              <LogIn size={15} /> Entrar
-            </Button>
-            <Button size="sm" variant="subtle" onClick={() => setDialog({ mode: 'profile' })}>
-              Criar perfil
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => navigate('/')}>
+            <Globe size={15} /> <span className="hidden sm:inline">Comunidade</span>
+          </Button>
+          {user ? (
+            <button
+              className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-sm backdrop-blur hover:border-line-2"
+              onClick={() => setDialog({ mode: 'profile' })}
+              aria-label={`O teu perfil (${user.name})`}
+            >
+              <Avatar member={user} size={28} />
+              <span className="max-w-32 truncate font-medium">{user.name}</span>
+              {user.account && <span className="hidden text-xs text-faint sm:inline">@{user.account}</span>}
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" aria-label="Entrar na conta" onClick={() => setDialog({ mode: 'login' })}>
+                <LogIn size={15} /> Entrar
+              </Button>
+              <Button size="sm" variant="subtle" onClick={() => setDialog({ mode: 'profile' })}>
+                Criar perfil
+              </Button>
+            </div>
+          )}
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 sm:pt-12">
         <div className="max-w-2xl">
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium text-violet-200">
-            <Radio size={13} className="animate-pulse" /> Em tempo real com os teus colegas
-          </p>
-          <h1 className="text-4xl leading-[1.08] font-extrabold tracking-tight sm:text-6xl">
-            A tierlist <span className="text-gradient">de toda a {COMPANY}</span>
+          <h1 className="text-4xl leading-[1.08] font-extrabold tracking-tight sm:text-5xl">
+            <span className="text-gradient">Salas</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
-            Anime, séries e filmes: partilha o que andas a ver com colegas de todas as empresas do grupo. Classifica, dá a
-            tua opinião e descobre o que os outros recomendam, tudo ao vivo.
+            Uma sala é uma tierlist só com quem convidares: a tua equipa, o teu turno, os teus amigos. Para partilhares a
+            tua opinião com toda a gente, usa a{' '}
+            <button className="font-medium text-fg underline underline-offset-2 hover:text-violet-200" onClick={() => navigate('/')}>
+              Comunidade {COMPANY}
+            </button>
+            .
           </p>
         </div>
 
@@ -239,8 +245,8 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
                 onChange={(e) => setListed(e.target.checked)}
               />
               <span>
-                Mostrar nas salas da comunidade
-                <span className="block text-xs text-faint">Qualquer colega a encontra aqui, sem precisar do link.</span>
+                Mostrar nas salas abertas
+                <span className="block text-xs text-faint">Qualquer colega a encontra nesta página, sem precisar do link.</span>
               </span>
             </label>
           </form>
@@ -320,14 +326,14 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
         )}
 
         {community && (
-          <section className="mt-8" aria-label="Salas da comunidade">
+          <section className="mt-8" aria-label="Salas abertas">
             <h2 className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-muted">
-              <Globe size={15} /> Salas da comunidade
-              <span className="text-xs font-normal text-faint">· abertas a todos os colaboradores</span>
+              <DoorOpen size={15} /> Salas abertas
+              <span className="text-xs font-normal text-faint">· qualquer colega pode entrar</span>
             </h2>
             {community.length === 0 ? (
               <p className="rounded-xl border border-dashed border-line-2 bg-surface/60 px-4 py-3 text-sm text-muted">
-                Ainda não há salas abertas à comunidade. Cria uma e deixa marcado «Mostrar nas salas da comunidade».
+                Ainda não há salas abertas. Cria uma e deixa marcado «Mostrar nas salas abertas».
               </p>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -363,20 +369,6 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
           </section>
         )}
 
-        <section className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { icon: <Search size={18} />, title: 'Anime, séries e filmes', text: 'Catálogos completos do AniList e do TMDB: centenas de milhares de títulos.' },
-            { icon: <Globe size={18} />, title: 'Salas da comunidade', text: 'Encontra salas abertas a todos os colaboradores do grupo e junta-te à conversa.' },
-            { icon: <Sparkles size={18} />, title: 'Notas e recomendações', text: 'Dá nota de 1 a 10, escreve a tua opinião e diz se recomendas.' },
-            { icon: <MessagesSquare size={18} />, title: 'Ao vivo', text: 'Vê os cursores, quem está a mover o quê, o chat e a atividade em direto.' },
-          ].map((f) => (
-            <div key={f.title} className="rounded-2xl border border-line bg-surface/70 p-4 backdrop-blur">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-accent/15 text-violet-300">{f.icon}</div>
-              <p className="font-semibold">{f.title}</p>
-              <p className="mt-1 text-sm text-muted">{f.text}</p>
-            </div>
-          ))}
-        </section>
 
         <footer className="mt-12 text-xs text-faint">
           Um espaço para os colaboradores do {COMMUNITY}: sê simpático, é tudo entre colegas.{' '}

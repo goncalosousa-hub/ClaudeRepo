@@ -1,6 +1,6 @@
-# 🎬 Lusiaves Tierlist
+# 🎬 LusiMovies
 
-Uma **webapp** para os colaboradores do **Grupo Lusiaves** fazerem tierlists de **anime, séries e filmes** **com os colegas, em tempo real**: pesquisas qualquer título, arrastas para o tier certo e cada um dá a sua **nota**, **opinião** e **recomendação**. Toda a gente vê o que os outros estão a fazer ao vivo: cursores, cartas a serem arrastadas, quem está a escrever, chat e atividade. As **salas da comunidade** aparecem na página inicial, para qualquer colega, de qualquer empresa ou unidade do grupo, se juntar à conversa.
+Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver: **anime, séries e filmes**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião** e **recomendação**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -37,7 +37,13 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
 
 **Comunidade Lusiaves**
-- **Salas da comunidade**: as salas abertas aparecem na página inicial, com quantas pessoas estão lá nesse momento. Qualquer colega entra sem precisar do link. Ao criar uma sala, a opção "Mostrar nas salas da comunidade" vem ligada; o dono muda isso quando quiser, em **Convidar**.
+- **Comunidade** (a página inicial): toda a gente está lá, sem entrar em salas.
+  - Cada pessoa adiciona títulos, põe-nos na sua tierlist (**A minha**) e dá a sua nota, opinião e recomendação.
+  - A tierlist **Comunidade** é a média das tierlists de todos.
+  - O **Ranking** mostra os melhores, os mais recomendados e os **Recomendados para ti**.
+  - Tem chat e atividade para toda a gente.
+  - Como é de todos, ninguém mexe na tierlist dos outros, os tiers não mudam, e só quem adicionou um título o pode tirar.
+- **Salas** (página **Salas**): tierlists só com quem convidares, como antes. Uma sala pode aparecer nas **Salas abertas**, com quantas pessoas estão lá nesse momento, para qualquer colega entrar sem link. Ao criar uma sala, a opção "Mostrar nas salas abertas" vem ligada; o dono muda isso quando quiser, em **Convidar**.
 - **Empresa ou unidade** (opcional) no perfil, para se saber de onde é cada colega.
 - **Só para colaboradores**: com um código da comunidade, quem não o souber não entra, mesmo com a app pública na internet ([vê como](#-só-para-colaboradores-código-da-comunidade)).
 
@@ -108,7 +114,7 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 | Onde | Como | Custo |
 |---|---|---|
 | **Railway** | *New Project → Deploy from GitHub repo*. Adiciona um **Volume** montado em `/data` e a variável `DATA_DIR=/data`. | Período de teste; depois ~5 USD/mês |
-| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
+| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`, que cria o serviço `lusimovies`, com o link `https://lusimovies.onrender.com` se estiver livre) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
 | **Docker / VPS** | `docker build -t anime-tierlist .` e `docker run -d -p 3000:3000 -v tierlist-data:/data anime-tierlist` | Depende do servidor |
 
 > Os planos grátis sem disco persistente (como o do Render) apagam os ficheiros quando reiniciam. Nesses casos usa sempre `DATABASE_URL` (PostgreSQL). Como estudante, o [GitHub Student Developer Pack](https://education.github.com/pack) também te dá créditos em vários serviços de alojamento.
@@ -150,7 +156,7 @@ A chave fica só no servidor: os browsers pedem as séries e os filmes ao teu se
 
 ## 🔒 Só para colaboradores (código da comunidade)
 
-Com a variável `COMMUNITY_CODE`, a app pede esse código uma vez em cada dispositivo. Quem não o souber vê só o ecrã do código: não consegue criar salas, entrar nelas, ver as salas da comunidade nem usar a API.
+Com a variável `COMMUNITY_CODE`, a app pede esse código uma vez em cada dispositivo. Quem não o souber vê só o ecrã do código: não consegue entrar na Comunidade, criar salas, entrar nelas, ver as salas abertas nem usar a API.
 
 1. Escolhe um código difícil de adivinhar (por exemplo, três palavras juntas).
 2. **No Render**: *Environment → Add Environment Variable*, com `COMMUNITY_CODE` e o código, e guarda. **No teu PC**: acrescenta `COMMUNITY_CODE=o-código` ao `.env` e reinicia. O terminal mostra `Acesso: só com o código da comunidade`.
@@ -233,6 +239,7 @@ flowchart LR
 - **Identidade.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). Cada sala guarda só o *hash* do segredo, para ninguém se fazer passar por ti.
 - **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
 - **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes passam pelo servidor, que tem a chave do TMDB e guarda as respostas em cache. Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
+- **Comunidade.** É uma sala especial (`comunidade`), criada quando o servidor arranca pela primeira vez, com regras próprias: não tem dono nem tierlist partilhada, os tiers são fixos e cada pessoa só mexe na sua tierlist e nos títulos que adicionou. Abre em `/`; as salas estão em `/salas` e em `/r/<código>`.
 - **Tipos de sala.** Cada sala tem um tipo (anime, séries, filmes ou tudo) e só aceita títulos desse tipo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries e `mv:` são filmes. As salas antigas, sem tipo, são salas de anime.
 
 ### Estrutura do projeto

@@ -1,4 +1,5 @@
 import express, { type Request, type Response } from 'express';
+import { GLOBAL_ROOM_ID } from '../shared/constants';
 import { loginSchema, passwordChangeSchema, profileSchema, registerSchema, roomIdSchema, usernameSchema } from '../shared/schema';
 import { loginResult, roomList, type AccountManager } from './accounts';
 import { rateLimit } from './http';
@@ -71,7 +72,7 @@ export function accountRouter(accounts: AccountManager, rooms: RoomManager) {
     // only rooms where it really is a member count.
     if (identity && parsed.data.rooms?.length) {
       const visits = [];
-      for (const r of parsed.data.rooms) {
+      for (const r of parsed.data.rooms.filter((room) => room.id !== GLOBAL_ROOM_ID)) {
         const roomName = await rooms.memberRoomName(r.id, identity.id, identity.secret);
         if (roomName !== null) visits.push({ id: r.id, name: roomName, visitedAt: r.visitedAt });
       }

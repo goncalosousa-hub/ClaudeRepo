@@ -11,7 +11,7 @@ type SortMode = 'avg' | 'count' | 'recommended' | 'controversial' | 'recent';
 type Filter = 'all' | 'unrated' | 'plan';
 
 export function RankingTab() {
-  const { room, me, summaries, titleOf, openAnime, noun } = useRoom();
+  const { room, me, summaries, titleOf, openAnime, noun, place } = useRoom();
   const [sort, setSort] = useState<SortMode>('avg');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -42,7 +42,7 @@ export function RankingTab() {
   if (Object.keys(room.anime).length === 0) {
     return (
       <EmptyState icon="🏆" title="Ainda não há nada para ordenar">
-        Adiciona {noun.many} à sala e dá-lhes nota: aqui aparece o ranking do grupo, {noun.f ? 'as' : 'os'} mais recomendad{noun.f ? 'as' : 'os'} e{' '}
+        Adiciona {noun.many} {place.to} e dá-lhes nota: aqui aparece o ranking do grupo, {noun.f ? 'as' : 'os'} mais recomendad{noun.f ? 'as' : 'os'} e{' '}
         {noun.f ? 'as' : 'os'} mais polémic{noun.f ? 'as' : 'os'}.
       </EmptyState>
     );

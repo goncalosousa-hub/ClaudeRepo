@@ -5,7 +5,7 @@ import { an, kindNoun, mediaNoun } from './words';
 /** Human name of a board, e.g. "do Grupo", "da Ana". */
 export function boardName(board: string, room: RoomState, me: string): string {
   if (board === GROUP_BOARD) return 'do Grupo';
-  if (board === CONSENSUS_BOARD) return 'da Média';
+  if (board === CONSENSUS_BOARD) return room.global ? 'da Comunidade' : 'da Média';
   if (board === me) return 'tua';
   return `de ${room.members[board]?.name ?? '?'}`;
 }
@@ -37,7 +37,7 @@ export function describePresence(
       return 'No chat';
     case 'tierlist':
       if (!p.board || p.board === GROUP_BOARD) return 'Na tierlist do Grupo';
-      if (p.board === CONSENSUS_BOARD) return 'Na tierlist da Média';
+      if (p.board === CONSENSUS_BOARD) return room.global ? 'Na tierlist da Comunidade' : 'Na tierlist da Média';
       if (p.board === p.userId) return 'Na tierlist pessoal';
       if (p.board === me) return 'A espreitar a tua tierlist 👀';
       return `A espreitar a tierlist de ${room.members[p.board]?.name ?? '?'}`;

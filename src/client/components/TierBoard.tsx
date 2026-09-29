@@ -70,7 +70,7 @@ export function TierBoard({
   votes?: Record<string, number>;
   onAdd: () => void;
 }) {
-  const { room, client, me, snap, dispatch, prefs, openAnime, titleOf, summaries, noun } = useRoom();
+  const { room, client, me, snap, dispatch, prefs, openAnime, titleOf, summaries, noun, place } = useRoom();
   const size = prefs.cardSize;
   const cardH = CARD_SIZES[size].h;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -358,7 +358,8 @@ export function TierBoard({
                   />
                 </label>
               )}
-              {boardId !== CONSENSUS_BOARD && (
+              {/* In the community space everyone starts on its tier list: adding must be right there. */}
+              {(boardId !== CONSENSUS_BOARD || room.global) && (
                 <Button size="sm" variant="primary" onClick={onAdd}>
                   <Plus size={15} /> Adicionar {noun.one}
                 </Button>
@@ -386,7 +387,7 @@ export function TierBoard({
           {trayOpen && pool.length === 0 && (
             <p className="border-t border-line px-3 py-2.5 text-center text-sm text-muted">
               {Object.keys(room.anime).length === 0
-                ? `A sala ainda não tem ${noun.many}. Clica em «Adicionar ${noun.one}» ou vai a Explorar.`
+                ? `${place.The} ainda não tem ${noun.many}. Clica em «Adicionar ${noun.one}» ou vai a Explorar.`
                 : boardId === CONSENSUS_BOARD
                   ? `${allThe(noun)} ${noun.many} já têm pelo menos um voto.`
                   : 'Tudo classificado! 🎉'}

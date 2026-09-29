@@ -2,6 +2,18 @@ import { APP_NAME } from '../../shared/brand';
 import { navigate } from '../lib/router';
 import { cn } from './ui';
 
+/** The name in two parts, the second one highlighted: "LusiMovies" → Lusi|Movies, "Tierlist Live" → "Tierlist "|Live. */
+function brandParts(name: string): [string, string] {
+  const space = name.lastIndexOf(' ');
+  if (space > 0) return [name.slice(0, space + 1), name.slice(space + 1)];
+  for (let i = name.length - 1; i > 0; i--) {
+    if (name[i] >= 'A' && name[i] <= 'Z') return [name.slice(0, i), name.slice(i)];
+  }
+  return ['', name];
+}
+
+const BRAND = brandParts(APP_NAME);
+
 export function LogoMark({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
@@ -35,8 +47,8 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       <LogoMark size={compact ? 28 : 32} />
       {!compact && (
         <span className="text-[15px] leading-none">
-          {APP_NAME.slice(0, APP_NAME.lastIndexOf(' '))}{' '}
-          <span className="text-gradient">{APP_NAME.slice(APP_NAME.lastIndexOf(' ') + 1)}</span>
+          {BRAND[0]}
+          <span className="text-gradient">{BRAND[1]}</span>
         </span>
       )}
     </a>

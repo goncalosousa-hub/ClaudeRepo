@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
 import { applyOp, createRoomState } from '../shared/ops';
+import { GLOBAL_ROOM_ID } from '../shared/constants';
 import { communitySummary } from '../shared/media';
 import type { CommunityRoom, Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
 import type { RoomDoc, Storage } from './storage';
@@ -106,6 +107,13 @@ export class RoomManager {
     if (room.doc.state.listed) this.directory?.set(room.id, communitySummary(room.doc.state));
     else this.directory?.delete(room.id);
     return cid ? { seq, op, by, at, cid } : { seq, op, by, at };
+  }
+
+  /** Creates the community space the first time the server starts. */
+  async ensureCommunity(name: string) {
+    if (await this.get(GLOBAL_ROOM_ID)) return;
+    const state = createRoomState(GLOBAL_ROOM_ID, name, Date.now(), null, { kind: 'all', global: true });
+    await this.storage.save(GLOBAL_ROOM_ID, { v: 1, seq: 0, state, secrets: {}, lastSeen: {} });
   }
 
   /** Rooms any colleague can find on the home page: the busiest first. */

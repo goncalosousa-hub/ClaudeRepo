@@ -25,7 +25,8 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'node dist/server/index.js',
+      // Fresh data on every run (the community space is shared by all the tests).
+      command: `node -e "require('fs').rmSync('.e2e-data', { recursive: true, force: true })" && node dist/server/index.js`,
       url: `http://127.0.0.1:${PORT}/api/health`,
       reuseExistingServer: false,
       env: {

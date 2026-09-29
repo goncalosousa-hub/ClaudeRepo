@@ -564,6 +564,55 @@ describe('community rooms', () => {
   });
 });
 
+describe('community space', () => {
+  it('exists from the start, belongs to everyone and only lets people change what is theirs', async () => {
+    const app = await start(await tmpDir());
+    const info = await (await fetch(`${app.url}/api/rooms/comunidade`)).json();
+    expect(info).toMatchObject({ id: 'comunidade', kind: 'all' });
+    const a = await join(app, 'comunidade', user('ana'));
+    const b = await join(app, 'comunidade', user('rui'));
+    expect(a.ack.state).toMatchObject({ global: true, createdBy: null });
+
+    // Each person adds titles, rates them and ranks them in their own tier list…
+    expect(await op(a.s, { type: 'anime.add', anime: anime(5, 'Frieren'), place: { board: a.userId, to: 's' } })).toMatchObject({ ok: true });
+    expect(await op(b.s, { type: 'review.set', key: 'al:5', patch: { rating: 9, recommend: 'yes', opinion: 'Top!' } })).toMatchObject({ ok: true });
+    expect(await op(b.s, { type: 'board.move', board: b.userId, key: 'al:5', to: 'a', index: 0 })).toMatchObject({ ok: true });
+    // …but there is no shared board to fight over, and the space itself is fixed.
+    expect(await op(b.s, { type: 'board.move', board: GROUP_BOARD, key: 'al:5', to: 'f', index: 0 })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await op(b.s, { type: 'anime.add', anime: anime(6), place: { board: GROUP_BOARD, to: 's' } })).toEqual({ ok: false, error: 'forbidden' });
+    for (const o of [
+      { type: 'room.rename', name: 'A minha comunidade' },
+      { type: 'room.listed', listed: true },
+      { type: 'room.owner', to: b.userId },
+      { type: 'tiers.set', tiers: [{ id: 's', label: 'S', color: '#ff0000' }] },
+    ]) {
+      expect(await op(b.s, o)).toEqual({ ok: false, error: 'forbidden' });
+    }
+    // Only whoever added a title can take it out.
+    expect(await op(b.s, { type: 'anime.remove', key: 'al:5' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await op(a.s, { type: 'anime.remove', key: 'al:5' })).toMatchObject({ ok: true });
+
+    // It never shows up in the community rooms nor in "As tuas salas".
+    expect((await communityRooms(app)).map((r) => r.id)).not.toContain('comunidade');
+    const eva = (await register(app, 'eva')).body;
+    const s = client(app);
+    expect((await emit<JoinAck>(s, 'join', { roomId: 'comunidade', user: eva.user, account: 'eva' })).ok).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(await accountRooms(app, eva, 0)).toEqual([]);
+
+    // Restarting does not create it again.
+    const dir = await tmpDir();
+    const app1 = await start(dir);
+    const c = await join(app1, 'comunidade', user('ana'));
+    await op(c.s, { type: 'chat.send', id: 'm1', text: 'Olá a todos' });
+    c.s.disconnect();
+    await app1.close();
+    const app2 = await start(dir);
+    const d = await join(app2, 'comunidade', user('rui'));
+    expect(d.ack.state.chat.map((m) => m.text)).toEqual(['Olá a todos']);
+  });
+});
+
 describe('community code', () => {
   it('keeps everyone without the code out of the API and the live rooms', async () => {
     const app = await start(await tmpDir(), undefined, { communityCode: 'frango-2026' });

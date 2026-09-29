@@ -8,6 +8,9 @@ export const LIMITS = {
   maxTiers: 15,
   maxAnime: 1500,
   maxMembers: 100,
+  /** The community space holds everyone */
+  maxGlobalAnime: 5000,
+  maxGlobalMembers: 10_000,
   opinion: 2000,
   chatText: 500,
   chatHistory: 300,
@@ -16,6 +19,9 @@ export const LIMITS = {
 } as const;
 
 export const ROOM_ID_RE = /^[a-z0-9]{6,16}$/;
+
+/** The community space: the room everyone is in, opened at "/". Random room ids have 8 characters. */
+export const GLOBAL_ROOM_ID = 'comunidade';
 
 /** Account usernames: 3-24 chars, lowercase letters/digits and _ . - (safe as a file name on every OS). */
 export const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_.-]{1,22}[a-z0-9])$/;

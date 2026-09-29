@@ -46,3 +46,24 @@ export const MEDIA_TABS: Record<MediaType, { label: string; emoji: string }> = {
 };
 
 export const kindInfo = (kind: RoomKind) => KINDS.find((k) => k.id === kind) ?? KINDS[0];
+
+/** Words for where things happen: a room ("sala") or the community space ("comunidade"). */
+export interface Place {
+  /** "sala" / "comunidade" */
+  name: string;
+  /** "A sala" / "A comunidade" */
+  The: string;
+  /** "na sala" / "na comunidade" */
+  in: string;
+  /** "Na sala" / "Na comunidade" */
+  In: string;
+  /** "à sala" / "à comunidade" */
+  to: string;
+  /** "da sala" / "da comunidade" */
+  from: string;
+}
+
+export function placeWords(global: boolean): Place {
+  const name = global ? 'comunidade' : 'sala';
+  return { name, The: `A ${name}`, in: `na ${name}`, In: `Na ${name}`, to: `à ${name}`, from: `da ${name}` };
+}

@@ -35,7 +35,7 @@ export function createRoomState(
   name: string,
   at: number,
   createdBy: string | null = null,
-  opts: { kind?: RoomKind; listed?: boolean } = {},
+  opts: { kind?: RoomKind; listed?: boolean; global?: boolean } = {},
 ): RoomState {
   const tiers = DEFAULT_TIERS.map((t) => ({ ...t }));
   return {
@@ -43,6 +43,7 @@ export function createRoomState(
     name,
     kind: opts.kind ?? 'anime',
     listed: opts.listed ?? false,
+    ...(opts.global ? { global: true } : {}),
     createdAt: at,
     createdBy,
     tiers,
@@ -142,7 +143,7 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       }
       if (s.anime[a.key]) return;
       if (a.idMal != null && Object.values(s.anime).some((x) => x.idMal === a.idMal)) return;
-      if (Object.keys(s.anime).length >= LIMITS.maxAnime) throw new OpError('limit_anime');
+      if (Object.keys(s.anime).length >= (s.global ? LIMITS.maxGlobalAnime : LIMITS.maxAnime)) throw new OpError('limit_anime');
 
       s.anime[a.key] = { ...a, genres: [...a.genres], addedBy: m.by, addedAt: m.at };
       let toLabel: string | undefined;
@@ -304,9 +305,12 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
         existing.unit = unit;
         return;
       }
-      if (Object.keys(s.members).length >= LIMITS.maxMembers) throw new OpError('limit_members');
+      if (Object.keys(s.members).length >= (s.global ? LIMITS.maxGlobalMembers : LIMITS.maxMembers)) {
+        throw new OpError('limit_members');
+      }
       s.members[id] = { id, name, color, avatar, unit, joinedAt: m.at };
-      s.createdBy ??= id;
+      // The first member owns a room; the community space belongs to everyone.
+      if (!s.global) s.createdBy ??= id;
       pushActivity(s, m, { kind: 'join' });
       return;
     }

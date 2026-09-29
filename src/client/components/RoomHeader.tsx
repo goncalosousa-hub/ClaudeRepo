@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, UserPlus } from 'lucide-react';
+import { DoorOpen, Globe, Pencil, UserPlus } from 'lucide-react';
 import { LIMITS } from '../../shared/constants';
 import { timeAgo } from '../lib/format';
 import { describePresence } from '../lib/presence-text';
+import { ROOMS_PATH, navigate } from '../lib/router';
 import { kindInfo } from '../lib/words';
 import { Logo } from './Logo';
 import { useRoom } from './RoomContext';
@@ -68,7 +69,10 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
               <Pencil size={13} className="shrink-0 text-faint opacity-0 transition group-hover:opacity-100" />
             </button>
           ) : (
-            <p className="truncate px-1 py-0.5 text-base font-semibold" title={`Só o dono da sala (${ownerName}) pode mudar o nome`}>
+            <p
+              className="truncate px-1 py-0.5 text-base font-semibold"
+              title={room.global ? undefined : `Só o dono da sala (${ownerName}) pode mudar o nome`}
+            >
               {room.name}
             </p>
           )}
@@ -77,8 +81,14 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
             {snap.status === 'joined' ? `${online.length + 1} online` : 'a religar…'} · {Object.keys(room.members).length}{' '}
             {Object.keys(room.members).length === 1 ? 'membro' : 'membros'}
             <span className="hidden sm:inline">
-              · {kindInfo(kind).emoji} {kindInfo(kind).label}
-              {room.listed && ' · 🌍 Comunidade'}
+              {room.global ? (
+                <> · 🌍 Espaço de toda a gente</>
+              ) : (
+                <>
+                  · {kindInfo(kind).emoji} {kindInfo(kind).label}
+                  {room.listed && ' · 🔓 Aberta'}
+                </>
+              )}
             </span>
           </p>
         </div>
@@ -109,6 +119,15 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
           )}
         </div>
 
+        {room.global ? (
+          <Button variant="ghost" size="sm" onClick={() => navigate(ROOMS_PATH)} title="Salas: tierlists só com quem convidares">
+            <DoorOpen size={16} /> <span className="hidden sm:inline">Salas</span>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} title="A comunidade: o espaço de toda a gente">
+            <Globe size={16} /> <span className="hidden sm:inline">Comunidade</span>
+          </Button>
+        )}
         <Button variant="primary" size="sm" onClick={onShare}>
           <UserPlus size={16} />
           <span className="hidden sm:inline">Convidar</span>

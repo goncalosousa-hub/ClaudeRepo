@@ -136,6 +136,11 @@ export interface RoomState {
   kind?: RoomKind;
   /** Shown in the community rooms on the home page, so any colleague can find and join it */
   listed?: boolean;
+  /**
+   * The community space: everyone is in it. It has no owner and no shared "Grupo" board (the
+   * community tier list is the average of everyone's personal ones), and its tiers are fixed.
+   */
+  global?: boolean;
   createdAt: number;
   /** The room's owner: whoever created it (the first member to join), or whoever they handed it to */
   createdBy: string | null;

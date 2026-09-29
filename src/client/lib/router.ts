@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { GLOBAL_ROOM_ID } from '../../shared/constants';
 
-// A tiny history-based router: the app only has "/" and "/r/:roomId".
+// A tiny history-based router: "/" (the community space), "/salas" (rooms) and "/r/:roomId".
 const EVENT = 'atl:navigate';
 
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
@@ -24,8 +25,13 @@ export function usePath() {
   return path;
 }
 
+export const ROOMS_PATH = '/salas';
+
+/** Path of a room; the community space lives at "/". */
+export const roomPath = (id: string) => (id === GLOBAL_ROOM_ID ? '/' : `/r/${id}`);
+
 export function roomUrl(id: string) {
-  return `${location.origin}/r/${id}`;
+  return `${location.origin}${roomPath(id)}`;
 }
 
 /** Accepts a room code or a full link and returns the room id. */

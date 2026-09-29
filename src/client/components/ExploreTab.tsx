@@ -18,6 +18,7 @@ import { TMDB_PRESETS, TMDB_SORTS, catalogName, tmdbGenres } from '../lib/catalo
 import { formatNumber, formatRating, ratingColor } from '../lib/format';
 import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
 import { useBrowse, useDebounced, useInView } from '../hooks/useBrowse';
+import { useTmdbAvailable } from '../hooks/useTmdb';
 import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
 import { Button, Segmented, Select, Spinner, cn, inputClass } from './ui';
@@ -27,8 +28,11 @@ const MOVIE_YEARS = Array.from({ length: new Date().getFullYear() + 2 - 1920 }, 
 
 export function ExploreTab() {
   const { kind } = useRoom();
-  const catalogs = mediaOfKind(kind);
-  const [media, setMedia] = useState<MediaType>(catalogs[0]);
+  const tmdb = useTmdbAvailable();
+  // A room with everything but a server without a TMDB key: anime only.
+  const catalogs = mediaOfKind(kind).filter((m) => kind !== 'all' || m === 'anime' || tmdb !== false);
+  const [chosen, setMedia] = useState<MediaType>(catalogs[0]);
+  const media = catalogs.includes(chosen) ? chosen : catalogs[0];
   const [text, setText] = useState('');
   const [sort, setSort] = useState<SortKey | ''>('');
   const [genre, setGenre] = useState('');
@@ -237,7 +241,7 @@ export function metaLine(a: AnimeMeta) {
 }
 
 function ExploreCard({ anime }: { anime: AnimeMeta }) {
-  const { inRoom, dispatch, titleOf, openAnime, summaries } = useRoom();
+  const { inRoom, dispatch, titleOf, openAnime, summaries, place } = useRoom();
   const toast = useToast();
   const key = inRoom(anime);
   const title = titleOf(anime);
@@ -260,7 +264,7 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
             <span
               className="absolute top-2 right-2 rounded-md bg-black/80 px-1.5 py-0.5 text-[11px] font-bold"
               style={{ color: ratingColor(groupAvg) }}
-              title="Nota média da sala"
+              title={`Nota média ${place.from}`}
             >
               {formatRating(Math.round(groupAvg * 10) / 10)}/10
             </span>
@@ -275,7 +279,7 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
       <div className="px-2.5 pb-2.5">
         {key ? (
           <div className="flex h-8 items-center justify-center gap-1 rounded-lg bg-ok/10 text-xs font-semibold text-ok">
-            <Check size={14} /> Na sala
+            <Check size={14} /> {place.In}
           </div>
         ) : (
           <Button
@@ -284,11 +288,11 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
             className="w-full"
             onClick={() => {
               if (dispatch({ type: 'anime.add', anime })) {
-                toast(`«${title}» ${agree('adicionad', mediaNoun(mediaTypeOf(anime.key)))} à sala.`, 'success');
+                toast(`«${title}» ${agree('adicionad', mediaNoun(mediaTypeOf(anime.key)))} ${place.to}.`, 'success');
               }
             }}
           >
-            <Plus size={14} /> Adicionar à sala
+            <Plus size={14} /> Adicionar {place.to}
           </Button>
         )}
       </div>
