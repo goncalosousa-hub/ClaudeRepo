@@ -3,6 +3,8 @@
 # TMDB_API_KEY (opcional) ativa as salas de séries e filmes: chave grátis em https://www.themoviedb.org/settings/api
 # COMMUNITY_CODE (opcional) fecha a app a quem não souber o código da comunidade (só colaboradores).
 # ADMINS (opcional): contas que podem apagar qualquer título ou foto na comunidade (ex.: ana,rui).
+# GOOGLE_CLIENT_ID + GOOGLE_DOMAIN: "Continuar com Google", só para contas @lusiaves.pt (vê o README).
+# O Client ID não é secreto (aparece na página); o Client secret não é preciso.
 services:
   - type: web
     # O nome dá o link (lusihub.onrender.com) e não se muda depois: outro nome cria outro serviço.
@@ -23,3 +25,7 @@ services:
         sync: false
       - key: ADMINS
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        value: 54331493217-j8ipq4n6rrdfp5pqnhmoqklqvvsq8nd5.apps.googleusercontent.com
+      - key: GOOGLE_DOMAIN
+        value: lusiaves.pt

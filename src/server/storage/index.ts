@@ -32,7 +32,9 @@ export async function importFileAccounts(dataDir: string, target: Storage): Prom
   let imported = 0;
   for (const username of await files.listAccounts()) {
     const doc = await files.loadAccount(username);
-    if (doc && (await target.createAccount(doc))) imported++;
+    if (!doc || !(await target.createAccount(doc))) continue;
+    if (doc.google) await target.linkGoogle(doc.google.sub, doc.username);
+    imported++;
   }
   return imported;
 }

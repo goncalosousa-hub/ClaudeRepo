@@ -1,9 +1,11 @@
 // A small fake of the TMDB API, used by the server tests and (as its own process) by the E2E tests.
-// It also answers as Open Library (/ol) and Photon (/photon): see fake-catalogs.ts.
-//   npx tsx tests/fake-tmdb.ts 4479   → http://127.0.0.1:4479/3, /ol and /photon
+// It also answers as Open Library (/ol) and Photon (/photon): see fake-catalogs.ts; and serves the
+// keys and tokens of a fake Google sign-in (/google): see fake-google.ts.
+//   npx tsx tests/fake-tmdb.ts 4479   → http://127.0.0.1:4479/3, /ol, /photon and /google
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { handleOpenLibrary, handlePhoton } from './fake-catalogs';
+import { handleGoogle } from './fake-google';
 
 export const FAKE_TMDB_KEY = 'fake-tmdb-key';
 /** Same access as the key, as a v4 "API Read Access Token" (sent as a Bearer header). */
@@ -146,7 +148,14 @@ export function handleTmdb(url: URL, auth: string | undefined): { status: number
 
 export async function startFakeTmdb(
   port = 0,
-): Promise<{ url: string; openLibraryUrl: string; photonUrl: string; hits: string[]; close: () => Promise<void> }> {
+): Promise<{
+  url: string;
+  openLibraryUrl: string;
+  photonUrl: string;
+  googleCertsUrl: string;
+  hits: string[];
+  close: () => Promise<void>;
+}> {
   const hits: string[] = [];
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -155,7 +164,9 @@ export async function startFakeTmdb(
       ? handleOpenLibrary(url)
       : url.pathname.startsWith('/photon/')
         ? handlePhoton(url)
-        : handleTmdb(url, req.headers.authorization);
+        : url.pathname.startsWith('/google/')
+          ? handleGoogle(url)
+          : handleTmdb(url, req.headers.authorization);
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(body));
   });
@@ -165,6 +176,7 @@ export async function startFakeTmdb(
     url: `http://127.0.0.1:${actual}/3`,
     openLibraryUrl: `http://127.0.0.1:${actual}/ol`,
     photonUrl: `http://127.0.0.1:${actual}/photon`,
+    googleCertsUrl: `http://127.0.0.1:${actual}/google/certs`,
     hits,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };

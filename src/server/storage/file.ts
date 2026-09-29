@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PHOTO_ID_RE, USERNAME_RE } from '../../shared/constants';
@@ -38,11 +39,13 @@ export class FileStorage implements Storage {
   readonly kind = 'file';
   private dir: string;
   private accountsDir: string;
+  private googleDir: string;
   private photosDir: string;
 
   constructor(dataDir: string) {
     this.dir = path.resolve(dataDir, 'rooms');
     this.accountsDir = path.resolve(dataDir, 'accounts');
+    this.googleDir = path.resolve(dataDir, 'google');
     this.photosDir = path.resolve(dataDir, 'photos');
   }
 
@@ -53,6 +56,7 @@ export class FileStorage implements Storage {
   async init() {
     await mkdir(this.dir, { recursive: true });
     await mkdir(this.accountsDir, { recursive: true });
+    await mkdir(this.googleDir, { recursive: true });
     await mkdir(this.photosDir, { recursive: true });
   }
 
@@ -69,6 +73,11 @@ export class FileStorage implements Storage {
   private accountFile(username: string) {
     if (!USERNAME_RE.test(username)) throw new Error(`invalid username: ${username}`);
     return path.join(this.accountsDir, `${username}.json`);
+  }
+
+  /** Google's ids are case-sensitive and can be long; file names may be neither. */
+  private googleFile(sub: string) {
+    return path.join(this.googleDir, `${createHash('sha256').update(sub).digest('hex')}.json`);
   }
 
   /** Ids of all rooms saved in the folder. */
@@ -118,6 +127,23 @@ export class FileStorage implements Storage {
 
   async saveAccount(doc: AccountDoc) {
     return writeJson(this.accountFile(doc.username), doc);
+  }
+
+  async googleAccount(sub: string) {
+    const link = await readJson<{ sub: string; username: string }>(this.googleFile(sub));
+    return link?.sub === sub ? link.username : null;
+  }
+
+  async linkGoogle(sub: string, username: string) {
+    await mkdir(this.googleDir, { recursive: true });
+    try {
+      // "wx", as for accounts: a Google account never signs in to two accounts.
+      await writeFile(this.googleFile(sub), JSON.stringify({ sub, username }), { flag: 'wx' });
+      return true;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+      throw err;
+    }
   }
 
   async savePhoto(photo: StoredPhoto) {

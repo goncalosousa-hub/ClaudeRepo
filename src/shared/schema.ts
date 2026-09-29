@@ -145,6 +145,10 @@ export const usernameSchema = z.string().trim().toLowerCase().refine(isValidUser
 export const passwordSchema = z.string().min(PASSWORD_MIN).max(128);
 const userIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
 const userSecretSchema = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
+/** Rooms a browser has been in (from its history), to start "As tuas salas" of a new account. */
+const visitedRoomsSchema = z
+  .array(z.object({ id: roomIdSchema, visitedAt: z.number().int().min(0) }))
+  .max(50);
 
 export const registerSchema = z
   .object({
@@ -155,12 +159,28 @@ export const registerSchema = z
     id: userIdSchema.optional(),
     secret: userSecretSchema.optional(),
     // …and the rooms this browser has been in with it, to start "As tuas salas".
-    rooms: z
-      .array(z.object({ id: roomIdSchema, visitedAt: z.number().int().min(0) }))
-      .max(50)
-      .optional(),
+    rooms: visitedRoomsSchema.optional(),
   })
   .refine((d) => !!d.id === !!d.secret, 'id and secret go together');
+
+/** An ID token from the Google button (a signed JWT). */
+const googleCredential = z
+  .string()
+  .max(8192)
+  .regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+
+export const googleLoginSchema = z
+  .object({
+    credential: googleCredential,
+    // What a new account starts with, as in registerSchema (without a name, the one from Google).
+    profile: z.object({ ...memberFields, name: z.string().trim().max(LIMITS.memberName) }).optional(),
+    id: userIdSchema.optional(),
+    secret: userSecretSchema.optional(),
+    rooms: visitedRoomsSchema.optional(),
+  })
+  .refine((d) => !!d.id === !!d.secret, 'id and secret go together');
+
+export const googleLinkSchema = z.object({ credential: googleCredential });
 
 export const loginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) });
 export const profileSchema = z.object(memberFields);

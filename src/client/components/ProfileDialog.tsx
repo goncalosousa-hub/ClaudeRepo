@@ -1,12 +1,25 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Check, Copy, KeyRound, LogOut, Smartphone, TriangleAlert } from 'lucide-react';
+import { COMPANY } from '../../shared/brand';
 import { AVATARS, LIMITS, MEMBER_COLORS, PASSWORD_MIN, isValidUsername } from '../../shared/constants';
-import { AccountError, changePassword, hasAccount, login, register, saveProfile } from '../lib/account-api';
+import {
+  AccountError,
+  changePassword,
+  fetchAccount,
+  googleSignIn,
+  hasAccount,
+  linkGoogle,
+  login,
+  register,
+  saveProfile,
+} from '../lib/account-api';
+import { domainsText, forgetGoogleChoice, googleConfig, type GoogleConfig } from '../lib/google';
 import { clearUser, newUser, profileLink, randomAvatar, randomColor, type LocalUser } from '../lib/identity';
 import { usePrefs } from '../lib/prefs';
 import { copyText } from '../lib/clipboard';
 import { clearRecentRooms, recentRooms } from '../lib/recent-rooms';
-import { Avatar, Button, Modal, ModalHeader, Segmented, Spinner, cn, inputClass } from './ui';
+import { GoogleButton } from './GoogleButton';
+import { Avatar, Button, Divider, Modal, ModalHeader, Segmented, Spinner, cn, inputClass } from './ui';
 import { useToast } from './Toasts';
 
 export type ProfileDialogMode = 'profile' | 'login';
@@ -54,8 +67,14 @@ export function ProfileDialog({
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [google, setGoogle] = useState<GoogleConfig | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [prefs, setPrefs] = usePrefs();
   const toast = useToast();
+
+  useEffect(() => {
+    if (open) void googleConfig().then(setGoogle);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +86,7 @@ export function ProfileDialog({
     setUsername('');
     setPassword('');
     setError(null);
+    setGoogleError(null);
     setBusy(false);
   }, [open, user, initialMode]);
 
@@ -80,6 +100,7 @@ export function ProfileDialog({
   const switchMode = (m: ProfileDialogMode) => {
     setMode(m);
     setError(null);
+    setGoogleError(null);
     setPassword('');
   };
 
@@ -131,6 +152,33 @@ export function ProfileDialog({
     else saveProfileOnly();
   };
 
+  // Signs in to the Google account's account, or creates it: then it keeps the profile this device
+  // already uses (or the one typed here; without a name, the name comes from Google).
+  const signInWithGoogle = async (credential: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setGoogleError(null);
+    try {
+      const profile = { name: trimmed, color, avatar, unit: unit.trim() };
+      const current = user && !hasAccount(user) ? { user, rooms: recentRooms() } : undefined;
+      const res = await googleSignIn(credential, profile, current);
+      onSave(res.user);
+      toast(
+        res.created
+          ? `Olá, ${res.user.name}! Ficaste com conta: da próxima vez é só «Continuar com Google».`
+          : `Olá, ${res.user.name}! Entraste com a Google.`,
+        'success',
+      );
+      onClose?.();
+    } catch (err) {
+      setGoogleError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const googleProps = { busy, error: googleError, onCredential: (c: string) => void signInWithGoogle(c) };
+
   const submitLogin = (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -145,6 +193,7 @@ export function ProfileDialog({
   };
 
   const signOut = () => {
+    forgetGoogleChoice();
     clearUser();
     // The rooms are kept in the account; nothing of this person stays on a shared computer.
     clearRecentRooms();
@@ -192,12 +241,18 @@ export function ProfileDialog({
               </span>
             </p>
           )}
+          {google && (
+            <>
+              <GoogleSignIn config={google} {...googleProps} />
+              <Divider>ou com utilizador e palavra-passe</Divider>
+            </>
+          )}
           <AccountFields
             username={username}
             password={password}
             onUsername={setUsername}
             onPassword={setPassword}
-            autoFocus
+            autoFocus={!google}
             newPassword={false}
           />
           {error && <ErrorText text={error} />}
@@ -214,8 +269,14 @@ export function ProfileDialog({
         </form>
       ) : (
         <>
-          {signedIn && <AccountCard user={user} onSignOut={signOut} />}
+          {signedIn && <AccountCard user={user} google={google} onSignOut={signOut} />}
           <form className="space-y-5 px-5 py-5" onSubmit={submitProfile}>
+            {google && !user && (
+              <>
+                <GoogleSignIn config={google} {...googleProps} />
+                <Divider>ou escolhe tu um nome</Divider>
+              </>
+            )}
             <div className="flex items-center gap-4">
               <Avatar member={{ name: trimmed || '?', color, avatar }} size={56} />
               <div className="flex-1">
@@ -320,6 +381,12 @@ export function ProfileDialog({
                   Com utilizador e palavra-passe entras com {user ? 'este perfil' : 'o teu perfil'} em qualquer link ou
                   dispositivo e ficas com a lista das tuas salas.{!user && ' Deixa em branco para continuar sem conta.'}
                 </p>
+                {google && user && (
+                  <div className="mb-3 space-y-3">
+                    <GoogleSignIn config={google} {...googleProps} hint={false} />
+                    <Divider>ou com utilizador e palavra-passe</Divider>
+                  </div>
+                )}
                 <AccountFields
                   username={username}
                   password={password}
@@ -371,6 +438,41 @@ function ErrorText({ text }: { text: string }) {
     <p role="alert" className="text-sm text-bad">
       {text}
     </p>
+  );
+}
+
+/** "Continuar com Google" and what it does. */
+function GoogleSignIn({
+  config,
+  busy,
+  error,
+  onCredential,
+  hint = true,
+}: {
+  config: GoogleConfig;
+  busy: boolean;
+  error: string | null;
+  onCredential: (credential: string) => void;
+  hint?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <GoogleButton config={config} onCredential={onCredential} />
+      {error && <ErrorText text={error} />}
+      {busy ? (
+        <p className="flex items-center justify-center gap-2 text-xs text-muted">
+          <Spinner size={14} /> A entrar…
+        </p>
+      ) : (
+        hint && (
+          <p className="text-center text-xs text-muted">
+            {config.domains.length
+              ? `Com o email da ${COMPANY} (${domainsText(config.domains)}): és sempre tu, em qualquer dispositivo, sem mais uma palavra-passe.`
+              : 'Com a tua conta Google: és sempre tu, em qualquer dispositivo, sem mais uma palavra-passe.'}
+          </p>
+        )
+      )}
+    </div>
   );
 }
 
@@ -428,14 +530,53 @@ function AccountFields({
   );
 }
 
-/** Signed-in account: username, password change and sign out. */
-function AccountCard({ user, onSignOut }: { user: LocalUser & { account: string }; onSignOut: () => void }) {
+/** Signed-in account: username, how it signs in (password, Google), password change and sign out. */
+function AccountCard({
+  user,
+  google,
+  onSignOut,
+}: {
+  user: LocalUser & { account: string };
+  google: GoogleConfig | null;
+  onSignOut: () => void;
+}) {
   const [changing, setChanging] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<{ google: string | null; password: boolean } | null>(null);
+  const [linking, setLinking] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    let alive = true;
+    fetchAccount(user).then(
+      (a) => alive && setInfo({ google: a.google, password: a.password }),
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+    // Only when the account changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.account, user.secret]);
+
+  const link = async (credential: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await linkGoogle(user, credential);
+      setInfo((i) => ({ password: i?.password ?? true, google: res.google }));
+      setLinking(false);
+      toast('Conta Google ligada: da próxima vez podes entrar com «Continuar com Google».', 'success');
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const change = async () => {
     if (busy) return;
@@ -470,15 +611,39 @@ function AccountCard({ user, onSignOut }: { user: LocalUser & { account: string 
           Conta <span className="font-semibold">@{user.account}</span>
         </span>
       </p>
-      <p className="mt-1 text-xs text-muted">Entra com este utilizador em qualquer link ou dispositivo para seres sempre tu.</p>
+      <p className="mt-1 text-xs text-muted">
+        {info?.google
+          ? info.password
+            ? `Entra com este utilizador ou com a Google (${info.google}) em qualquer link ou dispositivo para seres sempre tu.`
+            : `Entra com «Continuar com Google» (${info.google}) em qualquer link ou dispositivo para seres sempre tu.`
+          : 'Entra com este utilizador em qualquer link ou dispositivo para seres sempre tu.'}
+      </p>
       <div className="mt-2.5 flex flex-wrap gap-2">
-        <Button size="xs" variant="subtle" aria-expanded={changing} onClick={() => setChanging((v) => !v)}>
-          Mudar palavra-passe
-        </Button>
+        {info?.password && (
+          <Button size="xs" variant="subtle" aria-expanded={changing} onClick={() => setChanging((v) => !v)}>
+            Mudar palavra-passe
+          </Button>
+        )}
+        {google && info && !info.google && (
+          <Button size="xs" variant="subtle" aria-expanded={linking} onClick={() => setLinking((v) => !v)}>
+            Ligar à conta Google
+          </Button>
+        )}
         <Button size="xs" variant="subtle" onClick={onSignOut}>
           <LogOut size={13} /> Terminar sessão
         </Button>
       </div>
+      {linking && google && (
+        <div className="mt-3 space-y-2">
+          <GoogleButton config={google} onCredential={(credential) => void link(credential)} />
+          <p className="text-center text-xs text-muted">
+            {busy
+              ? 'A ligar…'
+              : `Escolhe a tua conta Google${google.domains.length ? ` (${domainsText(google.domains)})` : ''}. Depois entras com ela ou com a palavra-passe.`}
+          </p>
+          {error && <ErrorText text={error} />}
+        </div>
+      )}
       {changing && (
         <div className="mt-3 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">

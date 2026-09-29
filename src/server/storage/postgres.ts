@@ -64,6 +64,13 @@ export class PostgresStorage implements Storage {
       )
     `);
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS google_logins (
+        sub TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS photos (
         id TEXT PRIMARY KEY,
         room_id TEXT NOT NULL,
@@ -132,6 +139,19 @@ export class PostgresStorage implements Storage {
        ON CONFLICT (username) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
       [doc.username, JSON.stringify(doc)],
     );
+  }
+
+  async googleAccount(sub: string) {
+    const res = await this.pool.query<{ username: string }>('SELECT username FROM google_logins WHERE sub = $1', [sub]);
+    return res.rows[0]?.username ?? null;
+  }
+
+  async linkGoogle(sub: string, username: string) {
+    const res = await this.pool.query('INSERT INTO google_logins (sub, username) VALUES ($1, $2) ON CONFLICT (sub) DO NOTHING', [
+      sub,
+      username,
+    ]);
+    return res.rowCount === 1;
   }
 
   async savePhoto(p: StoredPhoto) {

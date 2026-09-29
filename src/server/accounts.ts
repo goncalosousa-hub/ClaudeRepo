@@ -1,5 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 import { nanoid } from 'nanoid';
+import { LIMITS, MEMBER_COLORS, isValidUsername } from '../shared/constants';
+import type { GoogleIdentity } from './google';
 import type { AccountDoc, Storage } from './storage';
 
 const scrypt = (password: string, salt: Buffer, keylen: number, options: ScryptOptions) =>
@@ -49,6 +51,25 @@ export interface AccountRoom {
   id: string;
   name: string;
   visitedAt: number;
+}
+
+/**
+ * Usernames to try for a new Google account, from its email: "ana.sofia@lusiaves.pt" → "ana.sofia",
+ * then "ana.sofia2", "ana.sofia3"… when taken.
+ */
+export function googleUsernames(email: string): string[] {
+  let base = (email.split('@')[0] ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, '')
+    .slice(0, 20)
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+  if (!isValidUsername(base)) base = 'colega';
+  const names = [base];
+  for (let n = 2; n <= 30; n++) names.push(`${base}${n}`);
+  for (let i = 0; i < 5; i++) names.push(`${base}${Math.floor(1000 + Math.random() * 9000)}`);
+  return names.filter(isValidUsername);
 }
 
 /** What the browser keeps: the identity used in rooms + the account it belongs to. */
@@ -112,12 +133,78 @@ export class AccountManager {
 
   async login(username: string, password: string): Promise<AccountDoc | null> {
     const doc = await this.storage.loadAccount(username);
-    if (!doc) {
-      // Same amount of work as a real check, so response times do not reveal which usernames exist.
+    if (!doc?.password) {
+      // Same amount of work as a real check, so response times do not reveal which usernames exist
+      // (or which accounts only sign in with Google).
       await hashPassword(password);
       return null;
     }
     return (await verifyPassword(password, doc.password)) ? doc : null;
+  }
+
+  /**
+   * Signs in with Google: to the account linked to that Google account, or to a new one. A new account
+   * keeps `current` (the profile and identity this browser already uses), like `register`.
+   */
+  googleLogin(
+    google: GoogleIdentity,
+    current: { profile?: Partial<Profile>; identity?: { id: string; secret: string } } = {},
+  ): Promise<{ doc: AccountDoc; created: boolean } | null> {
+    return this.serialize(`google:${google.sub}`, async () => {
+      const linked = await this.storage.googleAccount(google.sub);
+      if (linked) {
+        const doc = await this.storage.loadAccount(linked);
+        if (!doc) return null;
+        // The email can change in Google (e.g. a new surname); keep the one shown in the app current.
+        if (doc.google?.email === google.email) return { doc, created: false };
+        const updated = await this.update(linked, doc.secret, (d) => {
+          d.google = { sub: google.sub, email: google.email };
+        });
+        return { doc: updated ?? doc, created: false };
+      }
+      const p = current.profile ?? {};
+      const profile: Profile = {
+        name: p.name?.trim() || google.name.slice(0, LIMITS.memberName).trim(),
+        color: p.color ?? MEMBER_COLORS[Math.floor(Math.random() * MEMBER_COLORS.length)],
+        avatar: p.avatar ?? '',
+        unit: p.unit ?? '',
+      };
+      for (const username of googleUsernames(google.email)) {
+        const doc: AccountDoc = {
+          v: 1,
+          username,
+          userId: current.identity?.id ?? `u_${nanoid(14)}`,
+          secret: current.identity?.secret ?? nanoid(32),
+          password: '',
+          profile,
+          rooms: {},
+          createdAt: Date.now(),
+          google: { sub: google.sub, email: google.email },
+        };
+        if (!(await this.storage.createAccount(doc))) continue;
+        // Only another server could have linked it meanwhile (this one takes them one at a time).
+        return (await this.storage.linkGoogle(google.sub, username)) ? { doc, created: true } : null;
+      }
+      return null;
+    });
+  }
+
+  /**
+   * Links a Google account to an account (signed in with username and password), so either signs in.
+   * "taken" when that Google account signs in to another account, "linked" when this account already
+   * has another Google account.
+   */
+  linkGoogle(username: string, secret: string, google: GoogleIdentity): Promise<AccountDoc | 'taken' | 'linked' | null> {
+    return this.serialize(`google:${google.sub}`, async () => {
+      const doc = await this.authenticate(username, secret);
+      if (!doc) return null;
+      if (doc.google) return doc.google.sub === google.sub ? doc : 'linked';
+      const owner = await this.storage.googleAccount(google.sub);
+      if (owner ? owner !== username : !(await this.storage.linkGoogle(google.sub, username))) return 'taken';
+      return this.update(username, secret, (d) => {
+        d.google = { sub: google.sub, email: google.email };
+      });
+    });
   }
 
   /** The account whose username + secret were sent by the browser (Authorization header). */
