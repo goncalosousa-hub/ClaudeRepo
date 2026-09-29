@@ -127,7 +127,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
 
   const createRoom = async (e: FormEvent) => {
     e.preventDefault();
-    const name = roomName.trim() || 'A nossa tierlist';
+    const name = roomName.trim() || 'A nossa sala';
     withProfile(async () => {
       setCreating(true);
       try {
@@ -193,8 +193,9 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             <span className="text-gradient">Salas</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
-            Uma sala é uma tierlist só com quem convidares: a tua equipa, o teu turno, os teus amigos. Para partilhares a
-            tua opinião com toda a gente, usa a{' '}
+            Uma sala é um espaço só com quem convidares (a tua equipa, o teu turno, os teus amigos), com
+            recomendações, opiniões e, se quiserem, uma tierlist. Para partilhares a tua opinião com toda a gente, usa
+            a{' '}
             <button className="font-medium text-fg underline underline-offset-2 hover:text-violet-200" onClick={() => navigate('/')}>
               Comunidade {COMPANY}
             </button>
@@ -250,7 +251,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
                   servidor.
                 </p>
               ) : (
-                <p className="mt-2 text-xs text-faint">Filmes, séries e anime na mesma tierlist.</p>
+                <p className="mt-2 text-xs text-faint">Filmes, séries e anime na mesma sala.</p>
               ))}
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
               <input

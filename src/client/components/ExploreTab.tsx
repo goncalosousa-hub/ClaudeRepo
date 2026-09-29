@@ -16,7 +16,7 @@ import {
   type SortKey,
 } from '../lib/anime-api';
 import { BOOK_PRESETS, SEARCH_EXAMPLES, TMDB_PRESETS, TMDB_SORTS, bookSubjects, catalogName, tmdbGenres } from '../lib/catalog';
-import { formatNumber, formatRating, ratingColor } from '../lib/format';
+import { formatNumber, formatStars } from '../lib/format';
 import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
 import { useBrowse, useDebounced, useInView } from '../hooks/useBrowse';
 import { useCatalogTabs } from '../hooks/useTmdb';
@@ -362,11 +362,10 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
           )}
           {groupAvg != null && (
             <span
-              className="absolute top-2 right-2 rounded-md bg-black/80 px-1.5 py-0.5 text-[11px] font-bold"
-              style={{ color: ratingColor(groupAvg) }}
-              title={`Nota média ${place.from}`}
+              className="absolute top-2 right-2 rounded-md bg-black/80 px-1.5 py-0.5 text-[11px] font-bold text-amber-300"
+              title={`Média das estrelas ${place.from}`}
             >
-              {formatRating(Math.round(groupAvg * 10) / 10)}/10
+              ★ {formatStars(groupAvg)}
             </span>
           )}
         </div>

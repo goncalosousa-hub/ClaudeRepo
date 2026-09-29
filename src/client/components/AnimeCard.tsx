@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from 'react';
 import type { AnimeMeta, Member } from '../../shared/types';
-import { formatRating, ratingColor } from '../lib/format';
+import { formatStars } from '../lib/format';
 import { Avatar, cn } from './ui';
 import { Cover } from './Cover';
 
@@ -61,11 +61,10 @@ export const AnimeCardView = memo(function AnimeCardView({
       </div>
       {rating != null && (
         <span
-          className="absolute top-1 left-1 rounded bg-black/80 px-1 text-[10px] leading-4 font-bold"
-          style={{ color: ratingColor(rating) }}
-          title="Nota média do grupo"
+          className="absolute top-1 left-1 rounded bg-black/80 px-1 text-[10px] leading-4 font-bold text-amber-300"
+          title="Média das estrelas"
         >
-          {formatRating(Math.round(rating * 10) / 10)}
+          ★ {formatStars(rating)}
         </span>
       )}
       {badge && (

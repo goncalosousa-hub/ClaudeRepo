@@ -27,12 +27,14 @@ export function describePresence(
   if (p.typing) return `A escrever sobre ${t(p.typing)}`;
   if (p.viewing) return `A ver ${t(p.viewing)}`;
   switch (p.tab) {
+    case 'home':
+      return 'Nas recomendações';
     case 'explore':
-      return `A explorar ${kindNoun(roomKind(room)).many}`;
+      return `A procurar ${kindNoun(roomKind(room)).many}`;
     case 'ranking':
       return 'A ver o ranking';
     case 'members':
-      return 'A ver os membros';
+      return 'A ver as pessoas';
     case 'chat':
       return 'No chat';
     case 'tierlist':

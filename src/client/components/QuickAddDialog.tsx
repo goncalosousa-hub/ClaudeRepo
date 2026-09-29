@@ -14,8 +14,21 @@ import { AddSpotDialog } from './AddSpotDialog';
 import { useToast } from './Toasts';
 import { Button, Modal, ModalHeader, Segmented, Spinner, inputClass } from './ui';
 
-/** Search the whole catalogue and add titles to the room without leaving the tier list. */
-export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Search the whole catalogue and add titles to the room. From "Recomendar" (`thenOpen`), choosing a
+ * title also opens it, so the person gives their opinion straight away.
+ */
+export function QuickAddDialog({
+  open,
+  onClose,
+  title,
+  thenOpen,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  thenOpen?: boolean;
+}) {
   const { kind, noun } = useRoom();
   const { catalogs, media, setMedia, waiting, off } = useCatalogTabs(kind);
   const [text, setText] = useState('');
@@ -26,7 +39,7 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
   const { items, loading, error, hasMore, loadMore, retry } = useBrowse(media, search ? { search } : { sort: 'trending' }, ready);
   const sentinel = useInView(loadMore, ready && hasMore && !loading);
   const itemNoun = mediaNoun(media);
-  const label = `Adicionar ${noun.one}`;
+  const label = title ?? `Adicionar ${noun.one}`;
 
   const subtitle =
     catalogs.length > 1
@@ -77,7 +90,7 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
         ) : (
           <>
             {items.map((a) => (
-              <QuickRow key={a.key} anime={a} />
+              <QuickRow key={a.key} anime={a} onChosen={thenOpen ? onClose : undefined} />
             ))}
             {error && (
               <div className="px-2 py-6 text-center text-sm text-muted">
@@ -130,7 +143,7 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
-function QuickRow({ anime }: { anime: AnimeMeta }) {
+function QuickRow({ anime, onChosen }: { anime: AnimeMeta; onChosen?: () => void }) {
   const { inRoom, dispatch, titleOf, openAnime, place } = useRoom();
   const toast = useToast();
   const already = inRoom(anime);
@@ -144,10 +157,33 @@ function QuickRow({ anime }: { anime: AnimeMeta }) {
         <p className="truncate text-sm font-medium">{title}</p>
         <p className="truncate text-xs text-faint">{metaLine(anime)}</p>
       </button>
-      {already ? (
+      {already && onChosen ? (
+        <Button
+          size="sm"
+          variant="subtle"
+          onClick={() => {
+            onChosen();
+            openAnime(already);
+          }}
+        >
+          <Check size={14} /> Já está: ver
+        </Button>
+      ) : already ? (
         <span className="flex items-center gap-1 text-xs font-medium text-ok">
           <Check size={14} /> {place.In}
         </span>
+      ) : onChosen ? (
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            if (!dispatch({ type: 'anime.add', anime })) return;
+            onChosen();
+            openAnime(anime);
+          }}
+        >
+          Escolher
+        </Button>
       ) : (
         <Button
           size="sm"

@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import { LIMITS } from '../../shared/constants';
 import { mediaTypeOf } from '../../shared/media';
 import { GROUP_BOARD, POOL, type Activity, type RoomKind } from '../../shared/types';
-import { RECOMMEND, clockTime, statusInfo, timeAgo } from '../lib/format';
+import { RECOMMEND, clockTime, formatStars, statusInfo, timeAgo } from '../lib/format';
 import { an, kindInfo, mediaNoun } from '../lib/words';
 import { useRoom } from './RoomContext';
 import { Avatar, cn } from './ui';
@@ -262,7 +262,7 @@ function ActivityItem({ a }: { a: Activity }) {
       break;
     case 'review': {
       const bits: string[] = [];
-      if (a.rating != null) bits.push(`${a.rating}/10`);
+      if (a.rating != null) bits.push(`★ ${formatStars(a.rating)}`);
       if (a.recommend) bits.push(`${RECOMMEND[a.recommend].emoji} ${RECOMMEND[a.recommend].short}`);
       if (a.status) {
         const st = statusInfo(mediaTypeOf(a.key ?? ''), a.status);

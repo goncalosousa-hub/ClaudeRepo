@@ -3,7 +3,7 @@ import { Crown, LayoutGrid } from 'lucide-react';
 import { ownerAway } from '../../shared/owner';
 import { affinity, memberStats } from '../../shared/stats';
 import { genreLabel } from '../lib/anime-api';
-import { formatRating, ratingColor, timeAgo } from '../lib/format';
+import { formatStars, timeAgo } from '../lib/format';
 import { describePresence } from '../lib/presence-text';
 import { useRoom } from './RoomContext';
 import { Avatar, Button } from './ui';
@@ -91,23 +91,25 @@ export function MembersTab() {
                     <Crown size={15} />
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setBoard(m.id);
-                    setTab('tierlist');
-                  }}
-                  title="Ver a tierlist"
-                >
-                  <LayoutGrid size={15} />
-                </Button>
+                {!room.global && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setBoard(m.id);
+                      setTab('tierlist');
+                    }}
+                    title="Ver a tierlist"
+                  >
+                    <LayoutGrid size={15} />
+                  </Button>
+                )}
               </div>
 
               <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                 {[
                   { label: 'avaliados', value: stats.rated },
-                  { label: 'média', value: formatRating(stats.avg != null ? Math.round(stats.avg * 10) / 10 : null), color: ratingColor(stats.avg) },
+                  { label: 'estrelas (média)', value: stats.avg != null ? `★ ${formatStars(stats.avg)}` : '—', color: stats.avg != null ? '#fbbf24' : undefined },
                   { label: 'recomenda', value: stats.recommended },
                   { label: 'opiniões', value: stats.opinions },
                 ].map((s) => (

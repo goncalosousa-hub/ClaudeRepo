@@ -1,6 +1,6 @@
 # 🎬 LusiMovies
 
-Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião**, **recomendação** e **fotos**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
+Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria. Cada secção é uma lista de **recomendações**: carregas em "Recomendar", escolhes o filme, livro, restaurante ou sítio e dás as tuas **estrelas** (de 1 a 5), a tua **opinião** e **fotos**; todos veem as dos outros, ao vivo. Não há nada para arrastar. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**, que também podem ter uma tierlist.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -9,7 +9,7 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 ## ✨ Funcionalidades
 
 **Filmes, séries, anime, livros, restaurantes e sítios**
-- Ao criar uma sala escolhes o que vão classificar: **Filmes e séries** (filmes, séries e anime na mesma tierlist, a opção por omissão), **Filmes**, **Séries**, **Anime**, **Livros**, **Restaurantes** ou **Sítios**. O dono da sala pode mudar o tipo depois, no cabeçalho da sala ou em "Explorar".
+- Ao criar uma sala escolhes o que vão recomendar: **Filmes e séries** (filmes, séries e anime juntos, a opção por omissão), **Filmes**, **Séries**, **Anime**, **Livros**, **Restaurantes** ou **Sítios**. O dono da sala pode mudar o tipo depois, no cabeçalho da sala ou em "Procurar".
 - **Filmes e séries**: catálogo completo do [TMDB](https://www.themoviedb.org), com títulos e sinopses em português (quando existem), filtros por género e ano, e atalhos como "Em alta", "Em exibição", "Nos cinemas", "Brevemente" e "Melhores de sempre". Precisa de uma chave grátis do TMDB ([vê como](#-séries-e-filmes-chave-do-tmdb)); sem ela, só aparece o anime.
 - **Anime**: pesquisa em **todo** o catálogo do [AniList](https://anilist.co), com filtros por género, ano, temporada e formato. Se o AniList estiver em baixo ou a limitar pedidos, a app passa sozinha para o **MyAnimeList** (através da API [Jikan](https://jikan.moe)).
 - **Livros**: pesquisa na [Open Library](https://openlibrary.org) (grátis, sem chave), com atalhos "Em alta", "Em português", "Mais lidos" e "Mais bem avaliados" e filtro por género. Mostra autor, ano, páginas e sinopse (quando existe).
@@ -17,7 +17,14 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - **Fotos**: em qualquer título podes juntar fotos (até 6 por pessoa); nos restaurantes e sítios a primeira foto passa a ser a capa. As fotos são reduzidas no browser (1280 px) e perdem os dados EXIF, incluindo a localização GPS. Quem pôs uma foto pode apagá-la; numa sala, o dono também; na comunidade, as contas em `ADMINS`.
 - Scroll infinito, e detalhes de cada título: sinopse, episódios ou temporadas, duração, estúdio, canal ou realização, elenco, trailer e títulos semelhantes.
 
-**Tierlists**
+**Recomendações** (o separador principal, na Comunidade e nas Salas)
+- Cada título é um cartão grande com a foto ou capa, a média das **estrelas**, quantos o recomendam e a última opinião.
+- O botão **Recomendar** leva a um passo só: pesquisar, **Escolher**, e a janela para dar as estrelas e a opinião abre logo.
+- Ordenar por **Recentes**, **Mais estrelas** ou **Mais comentados**; filtrar por filmes, séries ou anime; procurar na lista.
+- "Os colegas recomendam-te": o que os colegas recomendam e tu ainda não viste (quando a lista já é grande).
+
+**Tierlists (só nas Salas, opcional)**
+- Pensadas para grupos que gostam do formato: na Comunidade não há tierlist, para ninguém ter de arrastar nada.
 - **Grupo**: uma tierlist partilhada onde todos arrastam títulos ao mesmo tempo.
 - **A minha**: cada pessoa tem a sua tierlist pessoal, que todos podem ver em direto.
 - **Média**: gerada automaticamente a partir das tierlists pessoais de todos (o consenso da turma).
@@ -26,10 +33,9 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - Exportar qualquer tierlist como **imagem PNG** para partilhar.
 
 **Opiniões**
-- Nota de **1 a 10**, **recomendação** (👍 Recomendo / 🤔 Talvez / 👎 Não recomendo), **estado** (Já vi / A ver / Quero ver / Desisti; nos livros Já li / A ler / Quero ler; nos restaurantes e sítios Já fui / Quero ir) e **opinião escrita**, gravada automaticamente.
-- **Ranking** da sala: melhores notas, mais avaliados, mais recomendados e mais polémicos.
-- **Recomendados para ti**: animes que os colegas recomendam e que tu ainda não viste.
-- **Membros**: estatísticas de cada um, géneros favoritos e **afinidade de gostos** contigo.
+- **Estrelas de 1 a 5**, **recomendação** (👍 Recomendo / 🤔 Talvez / 👎 Não recomendo), **estado** (Já vi / A ver / Quero ver / Desisti; nos livros Já li / A ler / Quero ler; nos restaurantes e sítios Já fui / Quero ir) e **opinião escrita**, gravada automaticamente.
+- As notas guardam-se de 1 a 10 (uma estrela vale 2): as notas dadas antes das estrelas continuam a contar (7/10 são 3,5 estrelas).
+- **Pessoas**: estatísticas de cada um, géneros favoritos e **afinidade de gostos** contigo.
 
 **Tempo real**
 - Quem está online e o que está a fazer ("A mover Frieren", "A escrever sobre One Piece"…).
@@ -40,18 +46,17 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 - As alterações aparecem logo no teu ecrã e sincronizam com os outros em milissegundos. Se perderes a ligação, o que fizeres é enviado quando voltar.
 
 **Comunidade Lusiaves**
-- **Comunidade** (a página inicial): toda a gente está lá, sem entrar em salas. Tem quatro secções, cada uma com a sua tierlist, ranking e chat: **🍿 Filmes e séries** (`/`), **📚 Livros** (`/livros`), **🍽️ Restaurantes** (`/restaurantes`) e **📍 Sítios** (`/sitios`).
-  - Cada pessoa adiciona títulos, põe-nos na sua tierlist (**A minha**) e dá a sua nota, opinião e recomendação.
-  - A tierlist **Comunidade** é a média das tierlists de todos.
-  - O **Ranking** mostra os melhores, os mais recomendados e os **Recomendados para ti**.
+- **Comunidade** (a página inicial): toda a gente está lá, sem entrar em salas. Tem quatro secções, cada uma com as suas recomendações e chat: **🍿 Filmes e séries** (`/`), **📚 Livros** (`/livros`), **🍽️ Restaurantes** (`/restaurantes`) e **📍 Sítios** (`/sitios`).
+  - Cada pessoa recomenda títulos e dá as suas estrelas, opinião, recomendação e fotos.
+  - Os separadores são só três: **Recomendações**, **Procurar** e **Pessoas** (mais o chat).
   - Tem chat e atividade para toda a gente.
-  - Como é de todos, ninguém mexe na tierlist dos outros, os tiers não mudam, e só quem adicionou um título (ou uma foto) o pode tirar. As contas em `ADMINS` podem tirar qualquer título ou foto (moderação).
-- **Salas** (página **Salas**): tierlists só com quem convidares, como antes. Uma sala pode aparecer nas **Salas abertas**, com quantas pessoas estão lá nesse momento, para qualquer colega entrar sem link. Ao criar uma sala, a opção "Mostrar nas salas abertas" vem ligada; o dono muda isso quando quiser, em **Convidar**.
+  - Como é de todos, só quem adicionou um título (ou uma foto) o pode tirar. As contas em `ADMINS` podem tirar qualquer título ou foto (moderação).
+- **Salas** (página **Salas**): espaços só com quem convidares, com as mesmas recomendações e, se quiserem, uma **Tierlist**. Uma sala pode aparecer nas **Salas abertas**, com quantas pessoas estão lá nesse momento, para qualquer colega entrar sem link. Ao criar uma sala, a opção "Mostrar nas salas abertas" vem ligada; o dono muda isso quando quiser, em **Convidar**.
 - **Empresa ou unidade** (opcional) no perfil, para se saber de onde é cada colega.
 - **Só para colaboradores**: com um código da comunidade, quem não o souber não entra, mesmo com a app pública na internet ([vê como](#-só-para-colaboradores-código-da-comunidade)).
 
 **Dono da sala**
-- Quem cria a sala é o dono (👑): só o dono muda o nome da sala, e pode passá-la a outro membro no separador **Membros**.
+- Quem cria a sala é o dono (👑): só o dono muda o nome da sala, e pode passá-la a outro membro no separador **Pessoas**.
 - Se o dono não aparecer durante uma semana (por exemplo, porque perdeu o perfil), qualquer membro pode ficar com a sala.
 
 **Contas (opcionais)**
@@ -250,7 +255,7 @@ flowchart LR
 - **Identidade.** O browser gera um id e um segredo aleatórios (guardados em `localStorage`). Cada sala guarda só o *hash* do segredo, para ninguém se fazer passar por ti.
 - **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
 - **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes (TMDB), livros (Open Library) e restaurantes e sítios (Photon/OpenStreetMap) passam pelo servidor, que guarda as respostas em cache (e tem a chave do TMDB). Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
-- **Comunidade.** São quatro salas especiais (`comunidade`, `livros`, `restaurantes`, `sitios`), criadas quando o servidor arranca, com regras próprias: não têm dono nem tierlist partilhada, os tiers são fixos e cada pessoa só mexe na sua tierlist e nos títulos e fotos que adicionou. Abrem em `/`, `/livros`, `/restaurantes` e `/sitios`; as salas estão em `/salas` e em `/r/<código>`.
+- **Comunidade.** São quatro salas especiais (`comunidade`, `livros`, `restaurantes`, `sitios`), criadas quando o servidor arranca, com regras próprias: não têm dono nem tierlist (a interface só mostra as recomendações) e cada pessoa só mexe nas suas opiniões e nos títulos e fotos que adicionou. Abrem em `/`, `/livros`, `/restaurantes` e `/sitios`; as salas estão em `/salas` e em `/r/<código>`.
 - **Fotos.** O browser reduz cada foto (1280 px e uma versão de 360 px para as listas, em JPEG) e envia-a para `POST /api/rooms/<sala>/photos` com a identidade do membro. O servidor confirma que é membro da sala e que é mesmo um JPEG, guarda-a (ficheiro ou PostgreSQL) e acrescenta-a à sala com a operação `photo.add`, que chega logo a toda a gente. Apagar uma foto, ou o título dela, apaga também a imagem.
 - **Tipos de sala.** Cada sala tem um tipo (filmes e séries, filmes, séries, anime, livros, restaurantes ou sítios) e só aceita títulos desse tipo. O dono pode mudar o tipo (`room.kind`) desde que os títulos que já lá estão caibam no novo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries, `mv:` são filmes, `bk:` são livros, `rs:` restaurantes e `pl:` sítios (com o id do OpenStreetMap, ou `x…` quando foram adicionados à mão). As salas antigas, sem tipo, são salas de anime.
 
@@ -284,7 +289,7 @@ src/
     storage/     gravação em ficheiros JSON ou PostgreSQL
   client/
     lib/         catálogos, fotos (reduzir e enviar), ligação à sala, perfil, exportar PNG…
-    components/  interface (tierlist, explorar, ranking, membros, chat…)
+    components/  interface (recomendações, tierlist das salas, procurar, pessoas, chat…)
 tests/           testes unitários, de integração e E2E (Playwright)
 ```
 
