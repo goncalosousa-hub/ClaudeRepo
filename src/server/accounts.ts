@@ -72,6 +72,11 @@ export function googleUsernames(email: string): string[] {
   return names.filter(isValidUsername);
 }
 
+/** Admins (ADMINS) are named by username or by the email of the account's Google account. */
+export function isAdminAccount(doc: AccountDoc, admins: ReadonlySet<string>) {
+  return admins.has(doc.username) || (!!doc.google && admins.has(doc.google.email));
+}
+
 /** What the browser keeps: the identity used in rooms + the account it belongs to. */
 export function loginResult(doc: AccountDoc) {
   return {
@@ -205,6 +210,23 @@ export class AccountManager {
         d.google = { sub: google.sub, email: google.email };
       });
     });
+  }
+
+  /** Every account (the admins' page). */
+  all(): Promise<AccountDoc[]> {
+    return this.storage.allAccounts();
+  }
+
+  /** Deletes an account and its Google link (an admin removing someone). Returns what was deleted. */
+  async remove(username: string): Promise<AccountDoc | null> {
+    const doc = await this.serialize(username, async () => {
+      const found = await this.storage.loadAccount(username);
+      if (found) await this.storage.deleteAccount(username);
+      return found;
+    });
+    const google = doc?.google;
+    if (google) await this.serialize(`google:${google.sub}`, () => this.storage.unlinkGoogle(google.sub));
+    return doc;
   }
 
   /** The account whose username + secret were sent by the browser (Authorization header). */

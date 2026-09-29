@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CommunityGate } from './components/CommunityGate';
+import { AdminPage } from './components/AdminPage';
 import { Home } from './components/Home';
 import { PRIVACY_PATH, PrivacyPage } from './components/PrivacyPage';
 import { RoomPage } from './components/RoomPage';
@@ -41,6 +42,7 @@ export function App() {
   const room = path.match(/^\/r\/([a-z0-9]{6,16})\/?$/i);
   if (room) return <RoomPage key={room[1]} roomId={room[1].toLowerCase()} user={user} setUser={setUser} />;
   if (/^\/salas\/?$/.test(path)) return <Home user={user} setUser={setUser} />;
+  if (/^\/admin\/?$/.test(path)) return <AdminPage user={user} setUser={setUser} />;
   const section = sectionAt(path);
   return <RoomPage key={section.id} roomId={section.id} user={user} setUser={setUser} />;
 }

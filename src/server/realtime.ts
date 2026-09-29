@@ -3,7 +3,7 @@ import { OpError } from '../shared/ops';
 import { ownerAway } from '../shared/owner';
 import { cursorSchema, joinSchema, opMessageSchema, presencePatchSchema } from '../shared/schema';
 import { GROUP_BOARD, type AckError, type JoinAck, type Op, type OpAck, type SyncAck } from '../shared/types';
-import type { AccountManager } from './accounts';
+import { isAdminAccount, type AccountManager } from './accounts';
 import type { LiveRoom, RoomManager } from './rooms';
 
 /** Simple token bucket to stop a misbehaving client from flooding the room. */
@@ -134,7 +134,7 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
         joining = true;
         const doc = await accounts.authenticate(account, user.secret).catch(() => null);
         joining = false;
-        admin = doc?.userId === user.id && (admins.has(doc.username) || (!!doc.google && admins.has(doc.google.email)));
+        admin = !!doc && doc.userId === user.id && isAdminAccount(doc, admins);
         if (socket.disconnected) return;
       }
 

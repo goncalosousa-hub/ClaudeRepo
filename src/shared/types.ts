@@ -221,6 +221,8 @@ export type Op =
   | { type: 'photo.add'; key: string; photo: { id: string; w: number; h: number } }
   | { type: 'photo.remove'; key: string; id: string }
   | { type: 'member.join'; member: MemberInput }
+  /** Sent by the server when an admin deletes someone: they leave with what was only theirs */
+  | { type: 'member.remove'; id: string }
   | { type: 'member.update'; name: string; color: string; avatar: string; unit?: string }
   | { type: 'chat.send'; id: string; text: string };
 

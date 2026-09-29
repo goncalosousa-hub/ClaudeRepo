@@ -24,6 +24,8 @@ export interface AccountInfo {
   google: string | null;
   /** Whether it has a password (accounts made with Google have none) */
   password: boolean;
+  /** Named in ADMINS: can open the admins' page */
+  admin: boolean;
 }
 
 type Profile = Pick<LocalUser, 'name' | 'color' | 'avatar' | 'unit'>;
@@ -47,6 +49,11 @@ const MESSAGES: Record<string, string> = {
   google_taken: `Essa conta Google já entra noutra conta do ${APP_NAME}.`,
   google_linked: 'Esta conta já está ligada a outra conta Google.',
   community_locked: 'Primeiro escreve o código da comunidade.',
+  forbidden: 'Esta conta não é de administrador.',
+  cannot_delete_self: 'Não te podes eliminar a ti próprio aqui.',
+  cannot_delete_admin: 'Os administradores não se eliminam aqui: tira-os primeiro de ADMINS.',
+  not_found: 'Já não existe (se calhar alguém já o eliminou).',
+  room_not_found: 'Essa sala já não existe.',
 };
 
 export class AccountError extends Error {
@@ -55,7 +62,8 @@ export class AccountError extends Error {
   }
 }
 
-async function request<T>(method: string, url: string, body?: unknown, user?: SignedIn): Promise<T> {
+/** A request made as the signed-in account (also used by the admins' page). */
+export async function request<T>(method: string, url: string, body?: unknown, user?: SignedIn): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (user) headers.Authorization = `Account ${user.account}:${user.secret}`;

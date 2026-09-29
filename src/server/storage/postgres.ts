@@ -1,6 +1,6 @@
 import pg from 'pg';
 import type { CommunityRoom, RoomKind } from '../../shared/types';
-import type { AccountDoc, RoomDoc, Storage, StoredPhoto } from './types';
+import type { AccountDoc, RoomDoc, RoomRow, Storage, StoredPhoto } from './types';
 
 /**
  * node-postgres currently treats `sslmode=require` (what Neon & co. put in their links) as
@@ -120,6 +120,51 @@ export class PostgresStorage implements Storage {
     }));
   }
 
+  async allRooms(): Promise<RoomRow[]> {
+    const res = await this.pool.query<{
+      id: string;
+      name: string;
+      kind: string;
+      listed: boolean;
+      members: number;
+      titles: number;
+      created: string | null;
+      updated: string;
+    }>(
+      `SELECT id,
+              doc->'state'->>'name' AS name,
+              COALESCE(doc->'state'->>'kind', 'anime') AS kind,
+              COALESCE(doc->'state'->>'listed', 'false') = 'true' AS listed,
+              (SELECT count(*) FROM jsonb_object_keys(COALESCE(doc->'state'->'members', '{}'::jsonb)))::int AS members,
+              (SELECT count(*) FROM jsonb_object_keys(COALESCE(doc->'state'->'anime', '{}'::jsonb)))::int AS titles,
+              doc->'state'->>'createdAt' AS created,
+              (extract(epoch FROM updated_at) * 1000)::bigint AS updated
+         FROM rooms
+        WHERE COALESCE(doc->'state'->>'global', 'false') <> 'true'
+        ORDER BY updated_at DESC
+        LIMIT 5000`,
+    );
+    return res.rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind as RoomKind,
+      listed: r.listed,
+      members: r.members,
+      titles: r.titles,
+      createdAt: Number(r.created) || 0,
+      updatedAt: Number(r.updated),
+    }));
+  }
+
+  async roomsWithMember(userId: string) {
+    const res = await this.pool.query<{ id: string }>(`SELECT id FROM rooms WHERE doc->'state'->'members' ? $1`, [userId]);
+    return res.rows.map((r) => r.id);
+  }
+
+  async deleteRoom(id: string) {
+    await this.pool.query('DELETE FROM rooms WHERE id = $1', [id]);
+  }
+
   async loadAccount(username: string): Promise<AccountDoc | null> {
     const res = await this.pool.query<{ doc: AccountDoc }>('SELECT doc FROM accounts WHERE username = $1', [username]);
     return res.rows[0]?.doc ?? null;
@@ -139,6 +184,19 @@ export class PostgresStorage implements Storage {
        ON CONFLICT (username) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
       [doc.username, JSON.stringify(doc)],
     );
+  }
+
+  async allAccounts() {
+    const res = await this.pool.query<{ doc: AccountDoc }>('SELECT doc FROM accounts ORDER BY created_at');
+    return res.rows.map((r) => r.doc);
+  }
+
+  async deleteAccount(username: string) {
+    await this.pool.query('DELETE FROM accounts WHERE username = $1', [username]);
+  }
+
+  async unlinkGoogle(sub: string) {
+    await this.pool.query('DELETE FROM google_logins WHERE sub = $1', [sub]);
   }
 
   async googleAccount(sub: string) {

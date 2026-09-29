@@ -10,6 +10,7 @@ import { attachRealtime } from './realtime';
 import { RoomManager, type RoomManagerOptions } from './rooms';
 import { AccountManager } from './accounts';
 import { accountRouter } from './account-routes';
+import { adminRouter } from './admin-routes';
 import { catalogRouter } from './catalog-routes';
 import { CommunityGate } from './community';
 import { GoogleAuth, type GoogleOptions } from './google';
@@ -103,7 +104,8 @@ export async function createApp(opts: AppOptions) {
     perMessageDeflate: { threshold: 4096 },
   });
   io.use((socket, next) => (gate.allows(socket.request.headers.cookie) ? next() : next(new Error('community_locked'))));
-  attachRealtime(io, rooms, accounts, new Set(opts.admins ?? []));
+  const admins = new Set(opts.admins ?? []);
+  attachRealtime(io, rooms, accounts, admins);
 
   const publish = (room: Parameters<typeof rooms.apply>[0], op: Parameters<typeof rooms.apply>[1], by: string) => {
     const env = rooms.apply(room, op, by);
@@ -113,9 +115,27 @@ export async function createApp(opts: AppOptions) {
 
   app.use('/api', gate.router());
   app.use('/api', gate.middleware());
-  app.use('/api', accountRouter(accounts, rooms, google, gate));
+  const photosMaxBytes = (opts.photosMaxMb ?? 300) * 1024 * 1024;
+  app.use('/api', accountRouter(accounts, rooms, google, gate, admins));
+  app.use(
+    '/api',
+    adminRouter({
+      accounts,
+      rooms,
+      storage,
+      admins,
+      io,
+      info: {
+        google: google.publicConfig ? { domains: google.domains } : null,
+        communityCode: gate.enabled,
+        tmdb: tmdb.configured,
+        admins: [...admins],
+        photosMaxBytes,
+      },
+    }),
+  );
   app.use('/api', catalogRouter(tmdb, books, places));
-  app.use('/api', photoRouter(rooms, storage, { maxBytes: (opts.photosMaxMb ?? 300) * 1024 * 1024, publish }));
+  app.use('/api', photoRouter(rooms, storage, { maxBytes: photosMaxBytes, publish }));
   app.use('/api', apiRouter(rooms));
 
   let closeVite: (() => Promise<void>) | undefined;

@@ -41,6 +41,15 @@ class MemoryStorage implements Storage {
   async listedRooms() {
     return [];
   }
+  async allRooms() {
+    return [];
+  }
+  async roomsWithMember(userId: string) {
+    return [...this.rooms].filter(([, d]) => d.state.members[userId]).map(([id]) => id);
+  }
+  async deleteRoom(id: string) {
+    this.rooms.delete(id);
+  }
   async loadAccount(username: string) {
     return this.accounts.get(username) ?? null;
   }
@@ -51,6 +60,15 @@ class MemoryStorage implements Storage {
   }
   async saveAccount(d: AccountDoc) {
     this.accounts.set(d.username, d);
+  }
+  async allAccounts() {
+    return [...this.accounts.values()];
+  }
+  async deleteAccount(username: string) {
+    this.accounts.delete(username);
+  }
+  async unlinkGoogle(sub: string) {
+    this.google.delete(sub);
   }
   async googleAccount(sub: string) {
     return this.google.get(sub) ?? null;
@@ -145,6 +163,40 @@ describe('storage helpers', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: 'room0001', name: 'Aberta', kind: 'movies', members: 1, titles: 0 });
     expect(rows[0].updatedAt).toBeGreaterThan(0);
+  });
+
+  it('lists, finds and deletes rooms and accounts for the admins', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'atl-storage-'));
+    dirs.push(dir);
+    const files = new FileStorage(dir);
+    await files.init();
+    const ana = { id: 'ana', name: 'Ana', color: '#ff0000', avatar: '🦊', joinedAt: 0 };
+    const withAna = doc('room0001', 'Turma');
+    withAna.state.members.ana = ana;
+    const community = doc('comunidade', 'Comunidade');
+    community.state.global = true;
+    community.state.members.ana = ana;
+    await files.save('room0001', withAna);
+    await files.save('room0002', doc('room0002', 'Vazia'));
+    await files.save('comunidade', community);
+
+    // The community spaces are not rooms to manage.
+    expect((await files.allRooms()).map((r) => r.id).sort()).toEqual(['room0001', 'room0002']);
+    expect((await files.allRooms()).find((r) => r.id === 'room0001')).toMatchObject({ name: 'Turma', members: 1, listed: false });
+    expect((await files.roomsWithMember('ana')).sort()).toEqual(['comunidade', 'room0001']);
+    await files.deleteRoom('room0001');
+    expect(await files.load('room0001')).toBeNull();
+    expect(await files.roomsWithMember('ana')).toEqual(['comunidade']);
+
+    await files.createAccount(account('ana'));
+    await files.createAccount(account('bruno'));
+    await files.linkGoogle('sub-ana', 'ana');
+    expect((await files.allAccounts()).map((a) => a.username).sort()).toEqual(['ana', 'bruno']);
+    await files.deleteAccount('ana');
+    await files.unlinkGoogle('sub-ana');
+    expect(await files.loadAccount('ana')).toBeNull();
+    expect(await files.googleAccount('sub-ana')).toBeNull();
+    expect((await files.allAccounts()).map((a) => a.username)).toEqual(['bruno']);
   });
 
   it('spells out sslmode=verify-full so node-postgres does not print a warning', () => {

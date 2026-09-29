@@ -431,3 +431,54 @@ describe('works on immutable (Immer) state too', () => {
     expect(Object.isFrozen(next)).toBe(true);
   });
 });
+
+describe('member.remove (an admin deleting someone)', () => {
+  it('takes the person out with what was only theirs', () => {
+    const s = room();
+    apply(s, { type: 'member.join', member: { id: 'eva', name: 'Eva', color: '#0000ff', avatar: '🐙' } }, 'eva');
+    // Eva adds three titles: one nobody else touched, one Ana reviewed, one Rui put in a tier.
+    apply(s, { type: 'anime.add', anime: anime(1, 'Só da Eva') }, 'eva');
+    apply(s, { type: 'anime.add', anime: anime(2, 'Com opinião da Ana') }, 'eva');
+    apply(s, { type: 'anime.add', anime: anime(3, 'No tier do Rui') }, 'eva');
+    apply(s, { type: 'anime.add', anime: anime(4, 'Da Ana') });
+    apply(s, { type: 'review.set', key: 'al:2', patch: { rating: 8 } }, 'ana');
+    apply(s, { type: 'board.move', board: 'rui', key: 'al:3', to: 'a', index: 0 }, 'rui');
+    // Eva's own things.
+    apply(s, { type: 'review.set', key: 'al:4', patch: { rating: 2, opinion: 'teste' } }, 'eva');
+    apply(s, { type: 'board.move', board: 'eva', key: 'al:4', to: 's', index: 0 }, 'eva');
+    apply(s, { type: 'chat.send', id: 'm1', text: 'olá, sou a Eva' }, 'eva');
+    apply(s, { type: 'chat.send', id: 'm2', text: 'olá Eva' }, 'ana');
+    apply(s, { type: 'room.owner', to: 'eva' }, 'ana');
+
+    apply(s, { type: 'member.remove', id: 'eva' }, 'ana');
+    expect(Object.keys(s.members).sort()).toEqual(['ana', 'rui']);
+    expect(s.boards.eva).toBeUndefined();
+    expect(s.reviews['al:4']).toBeUndefined();
+    expect(s.reviews['al:2'].ana.rating).toBe(8);
+    expect(Object.keys(s.anime).sort()).toEqual(['al:2', 'al:3', 'al:4']);
+    expect(s.chat.map((c) => c.text)).toEqual(['olá Eva']);
+    expect(s.activity.some((a) => a.by === 'eva' || a.to === 'eva')).toBe(false);
+    // The room she owned can now be taken over (her id no longer names a member).
+    expect(s.members[s.createdBy!]).toBeUndefined();
+    // Removing someone who is not there changes nothing.
+    const before = JSON.stringify(s);
+    apply(s, { type: 'member.remove', id: 'eva' }, 'ana');
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('takes their photos, and titles that only had their photos', () => {
+    const s = room();
+    s.kind = 'restaurants';
+    apply(s, { type: 'anime.add', anime: spot('restaurant', 1, 'Tasca') }, 'rui');
+    apply(s, { type: 'anime.add', anime: spot('restaurant', 2, 'Só com fotos da Ana') }, 'ana');
+    const photo = (n: number) => ({ id: `photo${String(n).padStart(16, '0')}`, w: 100, h: 100 });
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: photo(1) }, 'ana');
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: photo(2) }, 'rui');
+    apply(s, { type: 'photo.add', key: 'rs:n2', photo: photo(3) }, 'ana');
+    apply(s, { type: 'member.remove', id: 'ana' }, 'rui');
+    expect(s.photos!['rs:n1'].map((p) => p.by)).toEqual(['rui']);
+    expect(s.photos!['rs:n2']).toBeUndefined();
+    expect(s.anime['rs:n2']).toBeUndefined();
+    expect(s.anime['rs:n1']).toBeDefined();
+  });
+});

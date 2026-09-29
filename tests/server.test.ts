@@ -905,6 +905,176 @@ describe('sign in with Google', () => {
   });
 });
 
+describe('admin page', () => {
+  const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(2000, 7)]);
+  type Person = {
+    id: string;
+    name: string;
+    sections: string[];
+    titles: number;
+    reviews: number;
+    photos: number;
+    messages: number;
+    online: boolean;
+    account: { username: string; admin: boolean } | null;
+  };
+  const people = async (app: App, admin: LoginResult) =>
+    (await api<{ people: Person[]; me: string }>(app, 'GET', '/api/admin/people', undefined, auth(admin))).body;
+
+  it('is only for the accounts in ADMINS', async () => {
+    const app = await start(await tmpDir(), undefined, { admins: ['chefe'] });
+    expect((await api(app, 'GET', '/api/admin/overview')).status).toBe(401);
+    const rui = (await register(app, 'rui')).body;
+    expect(await api(app, 'GET', '/api/admin/people', undefined, auth(rui))).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect((await api(app, 'DELETE', `/api/admin/people/${rui.user.id}`, undefined, auth(rui))).status).toBe(403);
+    const chefe = (await register(app, 'chefe')).body;
+    expect((await api(app, 'GET', '/api/admin/overview', undefined, { username: 'chefe', secret: 'x'.repeat(32) })).status).toBe(401);
+    expect((await api(app, 'GET', '/api/account', undefined, auth(chefe))).body).toMatchObject({ admin: true });
+    expect((await api(app, 'GET', '/api/account', undefined, auth(rui))).body).toMatchObject({ admin: false });
+
+    const overview = await api(app, 'GET', '/api/admin/overview', undefined, auth(chefe));
+    expect(overview.status).toBe(200);
+    expect(overview.body).toMatchObject({
+      accounts: 2,
+      googleAccounts: 0,
+      rooms: 0,
+      config: { google: null, communityCode: false, tmdb: false, admins: ['chefe'], photosMaxBytes: 300 * 1024 * 1024 },
+    });
+    expect((overview.body.sections as { id: string }[]).map((s) => s.id)).toEqual(['comunidade', 'livros', 'restaurantes', 'sitios']);
+  });
+
+  it('lists the people and deletes a test profile everywhere, live', async () => {
+    const app = await start(await tmpDir(), undefined, { admins: ['chefe'] });
+    const chefe = (await register(app, 'chefe')).body;
+    const teste = (await register(app, 'goncalo2', 'pass-1234', { name: 'Gonçalo' })).body;
+    const ana = user('ana', 'Ana');
+
+    // The test profile is in three community spaces and in a room, with titles, opinions, a photo and a message.
+    const a = await join(app, 'comunidade', ana);
+    await op(a.s, { type: 'anime.add', anime: anime(2, 'Da Ana') });
+    const t = await join(app, 'comunidade', teste.user);
+    await op(t.s, { type: 'anime.add', anime: anime(1, 'Teste') });
+    await op(t.s, { type: 'review.set', key: 'al:1', patch: { rating: 10 } });
+    await op(t.s, { type: 'review.set', key: 'al:2', patch: { rating: 2, opinion: 'teste' } });
+    await op(t.s, { type: 'chat.send', id: 'c1', text: 'testar 1 2 3' });
+    (await join(app, 'livros', teste.user)).s.disconnect();
+    const r = await join(app, 'restaurantes', teste.user);
+    await op(r.s, { type: 'anime.add', anime: spot('restaurant', 9, 'Tasca de teste') });
+    const uploaded = await fetch(`${app.url}/api/rooms/restaurantes/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Member ${teste.user.id}:${teste.user.secret}` },
+      body: JSON.stringify({ key: 'rs:n9', image: `data:image/jpeg;base64,${JPEG.toString('base64')}`, thumb: `data:image/jpeg;base64,${JPEG.toString('base64')}`, w: 10, h: 10 }),
+    });
+    const photoId = ((await uploaded.json()) as { id: string }).id;
+    expect(uploaded.status).toBe(201);
+    r.s.disconnect();
+    const roomId = await createRoom(app, 'Sala de testes');
+    (await join(app, roomId, teste.user)).s.disconnect();
+
+    const list = await people(app, chefe);
+    expect(list.me).toBe(chefe.user.id);
+    const found = list.people.find((p) => p.id === teste.user.id)!;
+    expect(found).toMatchObject({
+      name: 'Gonçalo',
+      titles: 2,
+      reviews: 2,
+      photos: 1,
+      messages: 1,
+      online: true,
+      account: { username: 'goncalo2', admin: false },
+    });
+    expect(found.sections.sort()).toEqual(['comunidade', 'livros', 'restaurantes']);
+    expect(list.people.find((p) => p.id === ana.id)).toMatchObject({ name: 'Ana', account: null, titles: 1 });
+    // Accounts that never came to the community are listed too.
+    expect(list.people.find((p) => p.id === chefe.user.id)).toMatchObject({ sections: [], account: { username: 'chefe', admin: true } });
+    // Nothing that proves who is who leaves the server.
+    expect(JSON.stringify(list)).not.toContain(teste.user.secret);
+    expect(JSON.stringify(list)).not.toContain('scrypt');
+
+    const kicked = new Promise((resolve) => t.s.on('disconnect', resolve));
+    const seen = next<OpEnvelope>(a.s, 'op', (env) => env.op.type === 'member.remove');
+    const deleted = await api(app, 'DELETE', `/api/admin/people/${teste.user.id}`, undefined, auth(chefe));
+    expect(deleted.status).toBe(200);
+    expect((deleted.body.rooms as string[]).sort()).toEqual(['comunidade', 'livros', 'restaurantes', roomId].sort());
+    expect(deleted.body.accounts).toEqual(['goncalo2']);
+    await kicked;
+    // Ana sees them leave at once.
+    expect((await seen).op).toEqual({ type: 'member.remove', id: teste.user.id });
+
+    const state = (await (await fetch(`${app.url}/api/rooms/comunidade/state`)).json()) as { state: RoomState };
+    expect(state.state.members[teste.user.id]).toBeUndefined();
+    expect(Object.keys(state.state.anime)).toEqual(['al:2']);
+    expect(state.state.reviews['al:2']).toBeUndefined();
+    expect(state.state.chat).toEqual([]);
+    await waitFor(async () => (await fetch(`${app.url}/api/photos/${photoId}`)).status === 404);
+    expect((await (await fetch(`${app.url}/api/rooms/${roomId}`)).json()) as { members: number }).toMatchObject({ members: 0 });
+    expect((await login(app, 'goncalo2')).status).toBe(401);
+    expect((await people(app, chefe)).people.some((p) => p.id === teste.user.id)).toBe(false);
+    expect((await api(app, 'DELETE', `/api/admin/people/${teste.user.id}`, undefined, auth(chefe))).status).toBe(404);
+  });
+
+  it('never deletes the admin doing it, or another admin', async () => {
+    const app = await start(await tmpDir(), undefined, { admins: ['chefe', 'outra'] });
+    const chefe = (await register(app, 'chefe')).body;
+    const outra = (await register(app, 'outra')).body;
+    const del = (id: string) => api(app, 'DELETE', `/api/admin/people/${id}`, undefined, auth(chefe));
+    expect(await del(chefe.user.id)).toEqual({ status: 400, body: { error: 'cannot_delete_self' } });
+    expect(await del(outra.user.id)).toEqual({ status: 400, body: { error: 'cannot_delete_admin' } });
+    expect((await del(encodeURIComponent('../../etc'))).status).toBe(400);
+    expect((await del('bad%20id')).status).toBe(400);
+    expect((await login(app, 'outra')).status).toBe(200);
+  });
+
+  it('lists and deletes rooms, never the community spaces', async () => {
+    const dir = await tmpDir();
+    const app = await start(dir, undefined, { admins: ['chefe'] });
+    const chefe = (await register(app, 'chefe')).body;
+    const roomId = await createRoom(app, 'Sala de testes');
+    const a = await join(app, roomId, user('ana'));
+    const rooms = await api<{ rooms: { id: string }[] }>(app, 'GET', '/api/admin/rooms', undefined, auth(chefe));
+    expect(rooms.body.rooms).toEqual([expect.objectContaining({ id: roomId, name: 'Sala de testes', members: 1, online: 1, listed: false })]);
+
+    const gone = new Promise((resolve) => a.s.on('disconnect', resolve));
+    expect((await api(app, 'DELETE', `/api/admin/rooms/${roomId}`, undefined, auth(chefe))).body).toEqual({ ok: true });
+    await gone;
+    expect((await fetch(`${app.url}/api/rooms/${roomId}`)).status).toBe(404);
+    // Its members' browsers find nothing when they come back.
+    const again = client(app);
+    expect(await emit<JoinAck>(again, 'join', { roomId, user: user('ana') })).toEqual({ ok: false, error: 'room_not_found' });
+    expect((await api(app, 'DELETE', '/api/admin/rooms/comunidade', undefined, auth(chefe))).status).toBe(400);
+    expect((await api(app, 'DELETE', `/api/admin/rooms/${roomId}`, undefined, auth(chefe))).status).toBe(404);
+    expect((await api(app, 'GET', '/api/admin/rooms', undefined, auth(chefe))).body).toEqual({ rooms: [] });
+
+    // Still gone after a restart: nothing saved it again.
+    await app.close();
+    const app2 = await start(dir);
+    expect((await fetch(`${app2.url}/api/rooms/${roomId}`)).status).toBe(404);
+  });
+
+  it.runIf(process.env.TEST_DATABASE_URL)('does the same with PostgreSQL', async () => {
+    const app = await start(await tmpDir(), process.env.TEST_DATABASE_URL, { admins: ['chefe'] });
+    // The test database outlives the tests: names of their own for each run.
+    const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const chefe = (await login(app, 'chefe')).status === 200 ? (await login(app, 'chefe')).body : (await register(app, 'chefe')).body;
+    const teste = (await register(app, `teste.${tag}`)).body;
+    const roomId = await createRoom(app, `Sala ${tag}`);
+    (await join(app, roomId, teste.user)).s.disconnect();
+    (await join(app, 'sitios', teste.user)).s.disconnect();
+    // Written to the database, then read back from it.
+    await app.rooms.flushAll();
+    expect((await app.storage.roomsWithMember(teste.user.id)).sort()).toEqual([roomId, 'sitios'].sort());
+    expect((await app.storage.allRooms()).find((r) => r.id === roomId)).toMatchObject({ name: `Sala ${tag}`, members: 1 });
+
+    const deleted = await api(app, 'DELETE', `/api/admin/people/${teste.user.id}`, undefined, auth(chefe));
+    expect(deleted.body).toMatchObject({ ok: true, accounts: [`teste.${tag}`] });
+    await app.rooms.flushAll();
+    expect(await app.storage.roomsWithMember(teste.user.id)).toEqual([]);
+    expect(await app.storage.loadAccount(`teste.${tag}`)).toBeNull();
+    expect((await api(app, 'DELETE', `/api/admin/rooms/${roomId}`, undefined, auth(chefe))).body).toEqual({ ok: true });
+    expect(await app.storage.load(roomId)).toBeNull();
+  });
+});
+
 describe('company or unit', () => {
   it('travels with the profile: rooms and accounts', async () => {
     const app = await start(await tmpDir());

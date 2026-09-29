@@ -1,10 +1,10 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
-import { applyOp, createRoomState } from '../shared/ops';
+import { applyOp, createRoomState, OpError } from '../shared/ops';
 import { COMMUNITY_SECTIONS } from '../shared/constants';
 import { communitySummary } from '../shared/media';
-import type { CommunityRoom, Op, OpEnvelope, PresencePatch, PresenceState, RoomKind } from '../shared/types';
-import type { RoomDoc, Storage } from './storage';
+import type { CommunityRoom, Op, OpEnvelope, PresencePatch, PresenceState, RoomKind, RoomState } from '../shared/types';
+import type { RoomDoc, RoomRow, Storage } from './storage';
 
 // No 0/o, 1/l/i: codes are easy to read aloud or type from a phone.
 const newRoomId = customAlphabet('abcdefghjkmnpqrstuvwxyz23456789', 8);
@@ -21,6 +21,8 @@ export interface LiveRoom {
   /** user id -> socket ids (a user can have several tabs open) */
   userSockets: Map<string, Set<string>>;
   idleSince: number;
+  /** Deleted by an admin: never saved again (sockets closing late would bring it back). */
+  deleted?: boolean;
 }
 
 export interface RoomManagerOptions {
@@ -31,6 +33,12 @@ export interface RoomManagerOptions {
 
 function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex');
+}
+
+/** The ids of a title's photos, or of all the room's photos. */
+function photoIds(s: RoomState, key: string | null): string[] {
+  const lists = key ? [s.photos?.[key] ?? []] : Object.values(s.photos ?? {});
+  return lists.flat().map((p) => p.id);
 }
 
 /**
@@ -99,16 +107,17 @@ export class RoomManager {
 
   /** Applies an op to the authoritative state. Throws OpError when the op is invalid. */
   apply(room: LiveRoom, op: Op, by: string, cid?: string): OpEnvelope {
+    if (room.deleted) throw new OpError('room_not_found');
     const at = Date.now();
     const seq = room.doc.seq + 1;
-    // Photos that leave the room (removed, or with their title) are deleted from storage.
+    // Photos that leave the room (removed, with their title or with the person) are deleted from storage.
     const key = op.type === 'photo.remove' || op.type === 'anime.remove' ? op.key : null;
-    const before = key ? (room.doc.state.photos?.[key] ?? []).map((p) => p.id) : [];
+    const before = key || op.type === 'member.remove' ? photoIds(room.doc.state, key) : [];
     applyOp(room.doc.state, op, { by, at, seq, cid });
     room.doc.seq = seq;
     this.markDirty(room);
     if (before.length) {
-      const kept = new Set((room.doc.state.photos?.[key!] ?? []).map((p) => p.id));
+      const kept = new Set(photoIds(room.doc.state, key));
       const gone = before.filter((id) => !kept.has(id));
       if (gone.length) {
         this.storage.deletePhotos(gone).catch((err) => console.error('[rooms] could not delete photos', gone, err));
@@ -117,6 +126,73 @@ export class RoomManager {
     if (room.doc.state.listed) this.directory?.set(room.id, communitySummary(room.doc.state));
     else this.directory?.delete(room.id);
     return cid ? { seq, op, by, at, cid } : { seq, op, by, at };
+  }
+
+  /**
+   * Takes someone out of a room (an admin deleting them): everyone in it gets the op, and the
+   * identity is forgotten there (its secret and last visit), so the room keeps nothing of theirs.
+   * Their open connections must be closed first (see admin-routes.ts).
+   */
+  removeMember(room: LiveRoom, userId: string, by: string): OpEnvelope | null {
+    if (!room.doc.state.members[userId]) return null;
+    const env = this.apply(room, { type: 'member.remove', id: userId }, by);
+    delete room.doc.secrets[userId];
+    delete room.doc.lastSeen[userId];
+    return env;
+  }
+
+  /** The rooms (saved or in memory) where this user id is a member. */
+  async roomsOf(userId: string): Promise<string[]> {
+    const ids = new Set(await this.storage.roomsWithMember(userId));
+    // The copy in memory is the current one.
+    for (const room of this.live.values()) {
+      if (room.doc.state.members[userId]) ids.add(room.id);
+      else ids.delete(room.id);
+    }
+    return [...ids];
+  }
+
+  /** Every room that is not a community space (the admins' page), with who is in it right now. */
+  async allRooms(): Promise<(RoomRow & { online: number })[]> {
+    const rows = new Map((await this.storage.allRooms()).map((r) => [r.id, r]));
+    for (const room of this.live.values()) {
+      const s = room.doc.state;
+      if (s.global) continue;
+      const saved = rows.get(room.id);
+      rows.set(room.id, {
+        ...communitySummary(s),
+        listed: !!s.listed,
+        createdAt: s.createdAt,
+        updatedAt: Math.max(communitySummary(s).updatedAt, saved?.updatedAt ?? 0),
+      });
+    }
+    return [...rows.values()]
+      .map((r) => {
+        const room = this.live.get(r.id);
+        return { ...r, online: room ? this.onlineCount(room) : 0 };
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /**
+   * Deletes a room and its photos (not the community spaces). Returns the ids of the sockets that
+   * were in it, for the caller to close.
+   */
+  async deleteRoom(id: string): Promise<string[] | null> {
+    const room = await this.get(id);
+    if (!room || room.doc.state.global) return null;
+    room.deleted = true;
+    room.dirty = false;
+    if (room.saveTimer) clearTimeout(room.saveTimer);
+    room.saveTimer = null;
+    this.live.delete(id);
+    this.directory?.delete(id);
+    const sockets = [...room.userSockets.values()].flatMap((set) => [...set]);
+    await room.saving;
+    await this.storage.deleteRoom(id);
+    const photos = photoIds(room.doc.state, null);
+    if (photos.length) await this.storage.deletePhotos(photos);
+    return sockets;
   }
 
   /** Creates the community spaces (one per category) that do not exist yet. */
@@ -228,6 +304,7 @@ export class RoomManager {
   }
 
   private markDirty(room: LiveRoom) {
+    if (room.deleted) return;
     room.dirty = true;
     const now = Date.now();
     if (!room.firstDirtyAt) room.firstDirtyAt = now;
@@ -247,7 +324,7 @@ export class RoomManager {
       room.saveTimer = null;
     }
     const run = async () => {
-      if (!room.dirty) return;
+      if (!room.dirty || room.deleted) return;
       room.dirty = false;
       room.firstDirtyAt = 0;
       try {
