@@ -350,7 +350,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   // --- A series room -------------------------------------------------------------------
   await ana.goto('/salas');
   const kinds = ana.locator('form').filter({ hasText: 'Criar uma sala' }).getByRole('radio');
-  await expect(kinds).toHaveText([/Tudo/, /Filmes/, /Séries/, /Anime/]);
+  await expect(kinds).toHaveText(['🍿 Filmes e séries', '🎬 Filmes', '📺 Séries', '🎌 Anime', '📚 Livros', '🍽️ Restaurantes', '📍 Sítios']);
   await expect(kinds.first()).toHaveAttribute('aria-checked', 'true');
   await ana.getByRole('radio', { name: /Séries/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Séries da turma');
@@ -408,11 +408,12 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   const kindDialog = ana.getByRole('dialog', { name: 'Tipo da sala' });
   // Films only would leave Breaking Bad out.
   await expect(kindDialog.getByRole('radio', { name: 'Filmes', exact: true })).toBeDisabled();
-  await expect(kindDialog.getByText('Não dá enquanto a sala tiver 1 série.')).toHaveCount(2);
+  // …and so would anime, books, restaurants or places.
+  await expect(kindDialog.getByText('Não dá enquanto a sala tiver 1 série.')).toHaveCount(5);
   await shot(ana, '15b-room-kind');
-  await kindDialog.getByRole('radio', { name: 'Tudo', exact: true }).click();
+  await kindDialog.getByRole('radio', { name: 'Filmes e séries', exact: true }).click();
   await expect(kindDialog).toBeHidden();
-  await expect(rui.getByRole('banner').getByText('✨ Tudo')).toBeVisible();
+  await expect(rui.getByRole('banner').getByText('🍿 Filmes e séries')).toBeVisible();
   await expect(rui.getByText('📺 Esta sala é só de séries.')).toHaveCount(0);
   await expect(rui.getByRole('main').getByRole('radio')).toHaveText([/Filmes/, /Séries/, /Anime/]);
   await rui.getByRole('main').getByRole('radio', { name: /Anime/ }).click();
@@ -420,7 +421,7 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
 
   // --- A room with everything: anime and movies side by side ------------------------------
   await ana.goto('/salas');
-  await ana.getByRole('radio', { name: /Tudo/ }).click();
+  await ana.getByRole('radio', { name: '🍿 Filmes e séries' }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Tudo junto');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
@@ -534,4 +535,97 @@ test('everyone shares opinions in the community space, without rooms', async ({ 
   await rui.getByRole('button', { name: 'Salas' }).click();
   await expect(rui).toHaveURL(/\/salas$/);
   await expect(rui.getByRole('heading', { name: 'Salas', exact: true })).toBeVisible();
+});
+
+test('books, restaurants and places have their own spaces, with photos', async ({ browser }) => {
+  const ana = await newPerson(browser);
+  const rui = await newPerson(browser);
+
+  // --- Books -------------------------------------------------------------------------------
+  await ana.goto('/');
+  await fillProfile(ana, 'Ana');
+  const sections = ana.getByRole('navigation', { name: 'Secções da comunidade' }).getByRole('button');
+  await expect(sections).toHaveText(['🍿 Filmes e séries', '📚 Livros', '🍽️ Restaurantes', '📍 Sítios']);
+  await sections.filter({ hasText: 'Livros' }).click();
+  await expect(ana).toHaveURL(/\/livros$/);
+  await expect(ana.getByRole('heading', { name: 'Tierlist da Comunidade', exact: true })).toBeVisible();
+  await ana.getByRole('button', { name: 'Adicionar livro' }).click();
+  const books = ana.getByRole('dialog', { name: 'Adicionar livro' });
+  await books.getByPlaceholder(/Os Maias/).fill('saramago');
+  await books.locator('[data-anime="bk:1002"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(books.locator('[data-anime="bk:1002"]').getByText('Na comunidade')).toBeVisible();
+  await ana.keyboard.press('Escape');
+  await ana.getByRole('button', { name: 'Explorar' }).click();
+  await ana.getByRole('button', { name: '🇵🇹 Em português' }).click();
+  await expect(ana.locator('[data-anime="bk:1001"]')).toContainText('Eça de Queirós');
+  await expect(ana.locator('[data-anime="bk:1003"]')).toHaveCount(0);
+  await ana.locator('[data-anime="bk:1001"]').getByRole('button', { name: 'Ver Os Maias' }).click();
+  const maias = ana.getByRole('dialog', { name: 'Os Maias' });
+  await expect(maias.getByText('716 páginas')).toBeVisible();
+  await expect(maias.getByText('A história de três gerações da família Maia.')).toBeVisible();
+  await ana.keyboard.press('Escape');
+
+  // --- Restaurants: from the map, and by hand with a photo ------------------------------------
+  await sections.filter({ hasText: 'Restaurantes' }).click();
+  await expect(ana).toHaveURL(/\/restaurantes$/);
+  await ana.getByRole('button', { name: 'Tierlist' }).click();
+  await ana.getByRole('button', { name: 'Adicionar restaurante' }).click();
+  const quick = ana.getByRole('dialog', { name: 'Adicionar restaurante' });
+  await quick.getByPlaceholder(/Tasca do Zé/).fill('leiria');
+  await expect(quick.locator('[data-anime="rs:n1234567890"]')).toContainText('Restaurante · Leiria');
+  await quick.locator('[data-anime="rs:n1234567890"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(quick.locator('[data-anime="rs:n1234567890"]').getByText('Na comunidade')).toBeVisible();
+  await quick.getByPlaceholder(/Tasca do Zé/).fill('Cantinho da Avó');
+  await quick.getByRole('button', { name: 'Adicionar à mão' }).click();
+  const byHand = ana.getByRole('dialog', { name: 'Adicionar restaurante', exact: true }).last();
+  await expect(byHand.getByLabel('Nome')).toHaveValue('Cantinho da Avó');
+  await byHand.getByLabel('Localidade').fill('Marinha Grande');
+  await byHand.getByRole('button', { name: 'Adicionar', exact: true }).click();
+
+  // The details open: Ana adds a photo (made in the browser, as a phone camera would).
+  const cantinho = ana.getByRole('dialog', { name: 'Cantinho da Avó' });
+  await expect(cantinho.getByText('Marinha Grande')).toBeVisible();
+  const jpeg = await ana.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 1600;
+    c.height = 1200;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#e67e22';
+    x.fillRect(0, 0, 1600, 1200);
+    x.fillStyle = '#ffffff';
+    x.fillRect(400, 300, 800, 600);
+    return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+  });
+  await cantinho.locator('input[type=file]').setInputFiles({ name: 'almoco.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg, 'base64') });
+  await expect(cantinho.getByRole('heading', { name: /Fotos/ })).toContainText('(1)');
+  await cantinho.getByRole('button', { name: /Quero ir/ }).click();
+  await shot(ana, '19-restaurant-photo');
+  await ana.keyboard.press('Escape');
+  // The photo is the card's cover.
+  const card1 = card(ana.getByTestId('pool'), 'Cantinho da Avó');
+  await expect(card1.locator('img')).toHaveAttribute('src', /\/api\/photos\/[\w-]{21}\/thumb$/);
+
+  // --- Rui sees it all, live ---------------------------------------------------------------
+  await rui.goto('/restaurantes');
+  await fillProfile(rui, 'Rui');
+  await expect(card(rui.getByTestId('pool'), 'Tasca do Zé')).toBeVisible();
+  const cantinhoRui = await openCard(rui, card(rui.getByTestId('pool'), 'Cantinho da Avó'), 'Cantinho da Avó');
+  await expect(cantinhoRui.getByText('📌 Quero ir')).toBeVisible();
+  await cantinhoRui.getByRole('button', { name: 'Foto de Ana' }).click();
+  const lightbox = rui.getByRole('dialog', { name: 'Foto' });
+  await expect(lightbox.getByRole('img', { name: 'Foto de Ana' })).toBeVisible();
+  // Only Ana (or an admin) can delete her photo.
+  await expect(lightbox.getByRole('button', { name: 'Apagar' })).toHaveCount(0);
+  await rui.keyboard.press('Escape');
+  await expect(lightbox).toBeHidden();
+  await expect(cantinhoRui).toBeVisible();
+  await rui.keyboard.press('Escape');
+
+  // --- Places to visit ---------------------------------------------------------------------
+  await rui.getByRole('navigation', { name: 'Secções da comunidade' }).getByRole('button', { name: /Sítios/ }).click();
+  await expect(rui).toHaveURL(/\/sitios$/);
+  await rui.getByRole('button', { name: 'Explorar' }).click();
+  await rui.getByPlaceholder(/Praia da Tocha/).fill('leiria');
+  await expect(rui.locator('[data-anime="pl:r555"]')).toContainText('Castelo');
+  await expect(rui.locator('[data-anime="pl:n666"]')).toHaveCount(0);
 });

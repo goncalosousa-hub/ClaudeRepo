@@ -1,4 +1,4 @@
-import type { Recommend, WatchStatus } from '../../shared/types';
+import type { MediaType, Recommend, WatchStatus } from '../../shared/types';
 
 const rtf = new Intl.RelativeTimeFormat('pt-PT', { numeric: 'auto' });
 
@@ -72,6 +72,32 @@ export const WATCH_STATUS: Record<WatchStatus, { label: string; emoji: string }>
   dropped: { label: 'Desisti', emoji: '🛑' },
 };
 
+type StatusWords = Partial<Record<WatchStatus, { label: string; emoji: string }>>;
+const BOOK_STATUS: StatusWords = {
+  watched: { label: 'Já li', emoji: '✅' },
+  watching: { label: 'A ler', emoji: '📖' },
+  plan: { label: 'Quero ler', emoji: '📌' },
+  dropped: { label: 'Desisti', emoji: '🛑' },
+};
+const RESTAURANT_STATUS: StatusWords = {
+  watched: { label: 'Já fui', emoji: '✅' },
+  plan: { label: 'Quero ir', emoji: '📌' },
+  dropped: { label: 'Não volto', emoji: '🛑' },
+};
+const PLACE_STATUS: StatusWords = {
+  watched: { label: 'Já fui', emoji: '✅' },
+  plan: { label: 'Quero ir', emoji: '📌' },
+};
+const statusWords = (media: MediaType): StatusWords =>
+  media === 'book' ? BOOK_STATUS : media === 'restaurant' ? RESTAURANT_STATUS : media === 'place' ? PLACE_STATUS : WATCH_STATUS;
+
+/** The states someone can pick for a title: "Já vi", "Já li", "Já fui"… depending on what it is. */
+export const statusOptions = (media: MediaType) =>
+  Object.entries(statusWords(media)).map(([id, w]) => ({ id: id as WatchStatus, ...w }));
+
+/** Label and emoji of a state, in the words of the title's kind. */
+export const statusInfo = (media: MediaType, status: WatchStatus) => statusWords(media)[status] ?? WATCH_STATUS[status];
+
 const ERRORS: Record<string, string> = {
   room_not_found: 'Esta sala não existe (ou o link está incompleto).',
   auth_failed: 'Este perfil está protegido por outra chave. Cria um perfil novo neste dispositivo.',
@@ -82,6 +108,11 @@ const ERRORS: Record<string, string> = {
   rate_limited: 'Calma! Estás a fazer alterações depressa demais.',
   limit_anime: 'A sala chegou ao limite de títulos.',
   kind_conflict: 'A sala já tem títulos que esse tipo não aceita (por exemplo, animes numa sala só de filmes).',
+  already_in_room: 'Já existe um sítio com esse nome nessa localidade.',
+  limit_photos_title: 'Já puseste o máximo de fotos neste título.',
+  limit_photos: 'Esta sala chegou ao limite de fotos.',
+  photos_full: 'O espaço para fotos do servidor está cheio. Fala com quem gere a app.',
+  invalid_image: 'Esse ficheiro não é uma imagem que dê para usar.',
   media_not_allowed: 'Esta sala não aceita esse tipo de título (vê se é uma sala de filmes, séries ou anime).',
   limit_members: 'A sala está cheia.',
   anime_not_found: 'Esse título já não está na sala.',

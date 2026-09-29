@@ -1,4 +1,4 @@
-// Portuguese words for what a room holds ("anime", "série", "filme"…), with their gender.
+// Portuguese words for what a room holds ("anime", "série", "filme", "livro"…), with their gender.
 import type { MediaType, RoomKind } from '../../shared/types';
 
 export interface Noun {
@@ -12,14 +12,26 @@ const NOUNS: Record<MediaType | 'title', Noun> = {
   anime: { one: 'anime', many: 'animes', f: false },
   tv: { one: 'série', many: 'séries', f: true },
   movie: { one: 'filme', many: 'filmes', f: false },
+  book: { one: 'livro', many: 'livros', f: false },
+  restaurant: { one: 'restaurante', many: 'restaurantes', f: false },
+  place: { one: 'sítio', many: 'sítios', f: false },
   title: { one: 'título', many: 'títulos', f: false },
 };
 
 export const mediaNoun = (media: MediaType): Noun => NOUNS[media];
 
+const KIND_NOUNS: Record<RoomKind, Noun> = {
+  anime: NOUNS.anime,
+  series: NOUNS.tv,
+  movies: NOUNS.movie,
+  all: NOUNS.title,
+  books: NOUNS.book,
+  restaurants: NOUNS.restaurant,
+  places: NOUNS.place,
+};
+
 /** What the room holds, e.g. "séries"; "títulos" when it mixes anime, series and movies. */
-export const kindNoun = (kind: RoomKind): Noun =>
-  kind === 'series' ? NOUNS.tv : kind === 'movies' ? NOUNS.movie : kind === 'all' ? NOUNS.title : NOUNS.anime;
+export const kindNoun = (kind: RoomKind): Noun => KIND_NOUNS[kind];
 
 /** "um" / "uma" */
 export const an = (n: Noun) => (n.f ? 'uma' : 'um');
@@ -32,18 +44,27 @@ export const thisOne = (n: Noun) => (n.f ? 'Esta' : 'Este');
 /** Agreement of a participle: added("adicionad", série) → "adicionada" */
 export const agree = (stem: string, n: Noun) => `${stem}${n.f ? 'a' : 'o'}`;
 
-/** Room types, in the order they are offered: everything first, then films, series and anime. */
-export const KINDS: { id: RoomKind; label: string; emoji: string }[] = [
-  { id: 'all', label: 'Tudo', emoji: '✨' },
-  { id: 'movies', label: 'Filmes', emoji: '🎬' },
-  { id: 'series', label: 'Séries', emoji: '📺' },
-  { id: 'anime', label: 'Anime', emoji: '🎌' },
+/**
+ * Room types, in the order they are offered: films, series and anime together first, then each of
+ * them, then books, restaurants and places.
+ */
+export const KINDS: { id: RoomKind; label: string; emoji: string; about: string }[] = [
+  { id: 'all', label: 'Filmes e séries', emoji: '🍿', about: 'Filmes, séries e anime na mesma tierlist.' },
+  { id: 'movies', label: 'Filmes', emoji: '🎬', about: 'Só filmes.' },
+  { id: 'series', label: 'Séries', emoji: '📺', about: 'Só séries.' },
+  { id: 'anime', label: 'Anime', emoji: '🎌', about: 'Só anime.' },
+  { id: 'books', label: 'Livros', emoji: '📚', about: 'Livros de todo o mundo (Open Library).' },
+  { id: 'restaurants', label: 'Restaurantes', emoji: '🍽️', about: 'Restaurantes, cafés e bares, com fotos.' },
+  { id: 'places', label: 'Sítios', emoji: '📍', about: 'Praias, trilhos, miradouros, museus… com fotos.' },
 ];
 
 export const MEDIA_TABS: Record<MediaType, { label: string; emoji: string }> = {
   anime: { label: 'Anime', emoji: '🎌' },
   tv: { label: 'Séries', emoji: '📺' },
   movie: { label: 'Filmes', emoji: '🎬' },
+  book: { label: 'Livros', emoji: '📚' },
+  restaurant: { label: 'Restaurantes', emoji: '🍽️' },
+  place: { label: 'Sítios', emoji: '📍' },
 };
 
 export const kindInfo = (kind: RoomKind) => KINDS.find((k) => k.id === kind) ?? KINDS.find((k) => k.id === 'anime')!;

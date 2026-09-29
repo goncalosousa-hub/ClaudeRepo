@@ -51,6 +51,14 @@ class MemoryStorage implements Storage {
   async saveAccount(d: AccountDoc) {
     this.accounts.set(d.username, d);
   }
+  async savePhoto() {}
+  async loadPhoto() {
+    return null;
+  }
+  async deletePhotos() {}
+  async photoBytes() {
+    return 0;
+  }
   async close() {}
 }
 

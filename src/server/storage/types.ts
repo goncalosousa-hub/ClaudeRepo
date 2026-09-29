@@ -25,6 +25,16 @@ export interface AccountDoc {
   createdAt: number;
 }
 
+/** A photo someone added to a title: the full image and a small one for lists (both JPEG). */
+export interface StoredPhoto {
+  id: string;
+  roomId: string;
+  key: string;
+  userId: string;
+  data: Buffer;
+  thumb: Buffer;
+}
+
 export interface Storage {
   readonly kind: string;
   /** Human description shown when the server starts (never contains passwords). */
@@ -38,5 +48,11 @@ export interface Storage {
   /** Adds a new account; returns false (and changes nothing) when the username is taken. */
   createAccount(doc: AccountDoc): Promise<boolean>;
   saveAccount(doc: AccountDoc): Promise<void>;
+  savePhoto(photo: StoredPhoto): Promise<void>;
+  /** The JPEG of a photo (or of its small version), null when it does not exist. */
+  loadPhoto(id: string, thumb: boolean): Promise<Buffer | null>;
+  deletePhotos(ids: string[]): Promise<void>;
+  /** Space taken by all the photos, in bytes. */
+  photoBytes(): Promise<number>;
   close(): Promise<void>;
 }

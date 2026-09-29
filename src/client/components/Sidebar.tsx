@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import { LIMITS } from '../../shared/constants';
 import { mediaTypeOf } from '../../shared/media';
 import { GROUP_BOARD, POOL, type Activity, type RoomKind } from '../../shared/types';
-import { RECOMMEND, WATCH_STATUS, clockTime, timeAgo } from '../lib/format';
+import { RECOMMEND, clockTime, statusInfo, timeAgo } from '../lib/format';
 import { an, kindInfo, mediaNoun } from '../lib/words';
 import { useRoom } from './RoomContext';
 import { Avatar, cn } from './ui';
@@ -264,7 +264,10 @@ function ActivityItem({ a }: { a: Activity }) {
       const bits: string[] = [];
       if (a.rating != null) bits.push(`${a.rating}/10`);
       if (a.recommend) bits.push(`${RECOMMEND[a.recommend].emoji} ${RECOMMEND[a.recommend].short}`);
-      if (a.status) bits.push(`${WATCH_STATUS[a.status].emoji} ${WATCH_STATUS[a.status].label}`);
+      if (a.status) {
+        const st = statusInfo(mediaTypeOf(a.key ?? ''), a.status);
+        bits.push(`${st.emoji} ${st.label}`);
+      }
       if (a.opinion) bits.push('✍️ opinião');
       body = (
         <>
@@ -302,6 +305,13 @@ function ActivityItem({ a }: { a: Activity }) {
       );
       break;
     }
+    case 'photo':
+      body = (
+        <>
+          {(a.count ?? 1) === 1 ? 'pôs uma foto de' : `pôs ${a.count} fotos de`} {animeName()} 📷
+        </>
+      );
+      break;
     case 'listed':
       body = a.listed ? <>abriu a sala a todos os colegas 🔓</> : <>fechou a sala: agora só entra quem tiver o link 🔒</>;
       break;

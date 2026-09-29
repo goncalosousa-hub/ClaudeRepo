@@ -40,6 +40,8 @@ export interface RoomSnapshot {
   /** Cards recently changed by someone else (for a short highlight) */
   flashes: Record<string, Flash>;
   pendingCount: number;
+  /** Community admin: can remove any title or photo */
+  admin: boolean;
 }
 
 interface PendingOp {
@@ -102,6 +104,7 @@ export class RoomClient {
     lastSeen: {},
     flashes: {},
     pendingCount: 0,
+    admin: false,
   };
   private listeners = new Set<Listener>();
   private cursorListeners = new Set<CursorListener>();
@@ -226,7 +229,7 @@ export class RoomClient {
       this.seq = ack.seq;
       const presence: Record<string, PresenceState> = {};
       for (const p of ack.presence) if (p.userId !== this.user.id) presence[p.userId] = p;
-      this.set({ status: 'joined', error: null, presence, lastSeen: ack.lastSeen });
+      this.set({ status: 'joined', error: null, presence, lastSeen: ack.lastSeen, admin: !!ack.admin });
       this.recompute();
       // Ops made while offline (or not yet confirmed) are sent again: they are idempotent.
       for (const p of this.pending) this.send(p);

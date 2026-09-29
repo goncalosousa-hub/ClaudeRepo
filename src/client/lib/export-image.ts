@@ -1,16 +1,17 @@
 // Draws a tier list on a <canvas> and downloads it as a PNG (to share on WhatsApp, Discord…).
 import { APP_NAME } from '../../shared/brand';
-import type { AnimeMeta, Board, Tier } from '../../shared/types';
+import type { AnimeMeta, Board, Photo, Tier } from '../../shared/types';
 import { readableOn } from './format';
 
 const FONT = "'Inter Variable', ui-sans-serif, system-ui, sans-serif";
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
+  if (!url) return Promise.resolve(null);
   return new Promise((resolve) => {
     const img = new Image();
     img.decoding = 'async';
-    // Same-origin copy served by our server, so the canvas can be exported.
-    img.src = `/api/img?url=${encodeURIComponent(url)}`;
+    // Same-origin copy served by our server, so the canvas can be exported (photos already are).
+    img.src = url.startsWith('/api/') ? url : `/api/img?url=${encodeURIComponent(url)}`;
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
   });
@@ -88,6 +89,7 @@ export async function exportTierlistImage(opts: {
   lists: Board;
   anime: Record<string, AnimeMeta>;
   titleOf: (a: AnimeMeta) => string;
+  photos?: Record<string, Photo[]>;
 }) {
   const { title, subtitle, tiers, lists, anime, titleOf } = opts;
   const W = 1200;
@@ -110,7 +112,9 @@ export async function exportTierlistImage(opts: {
 
   await document.fonts?.ready;
   const allKeys = rows.flatMap((r) => r.keys);
-  const images = new Map(await Promise.all(allKeys.map(async (k) => [k, await loadImage(anime[k].cover)] as const)));
+  // Restaurants and places have no cover: their first photo, if any.
+  const coverOf = (k: string) => anime[k].cover || (opts.photos?.[k]?.[0] ? `/api/photos/${opts.photos[k][0].id}/thumb` : '');
+  const images = new Map(await Promise.all(allKeys.map(async (k) => [k, await loadImage(coverOf(k))] as const)));
 
   const dpr = 2;
   const canvas = document.createElement('canvas');

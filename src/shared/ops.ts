@@ -50,11 +50,15 @@ export function createRoomState(
     anime: {},
     boards: { [GROUP_BOARD]: emptyBoard(tiers) },
     reviews: {},
+    photos: {},
     members: {},
     chat: [],
     activity: [],
   };
 }
+
+/** "Tasca do Zé" and "tasca do ze" are the same name. */
+const sameName = (a: string, b: string) => a.trim().localeCompare(b.trim(), 'pt', { sensitivity: 'base' }) === 0;
 
 export function emptyBoard(tiers: Tier[]): Board {
   const b: Board = {};
@@ -143,6 +147,14 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       }
       if (s.anime[a.key]) return;
       if (a.idMal != null && Object.values(s.anime).some((x) => x.idMal === a.idMal)) return;
+      // Restaurants and places added by hand: the same name in the same town is the same place.
+      if (a.source === 'user') {
+        const city = a.place?.city ?? '';
+        const twin = Object.values(s.anime).some(
+          (x) => mediaTypeOf(x.key) === mediaTypeOf(a.key) && sameName(x.title, a.title) && sameName(x.place?.city ?? '', city),
+        );
+        if (twin) throw new OpError('already_in_room');
+      }
       if (Object.keys(s.anime).length >= (s.global ? LIMITS.maxGlobalAnime : LIMITS.maxAnime)) throw new OpError('limit_anime');
 
       s.anime[a.key] = { ...a, genres: [...a.genres], addedBy: m.by, addedAt: m.at };
@@ -165,8 +177,39 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
           if (i >= 0) b[tid].splice(i, 1);
         }
       }
-      // Reviews are kept on purpose: if the anime is added again, the opinions come back.
+      // Reviews are kept on purpose: if the anime is added again, the opinions come back. Photos
+      // take space, so they go (the server deletes the images).
+      if (s.photos) delete s.photos[op.key];
       pushActivity(s, m, { kind: 'remove', key: op.key, text: anime.title });
+      return;
+    }
+
+    case 'photo.add': {
+      if (!s.anime[op.key]) throw new OpError('anime_not_found');
+      const photos = (s.photos ??= {});
+      const list = photos[op.key] ?? [];
+      if (list.some((p) => p.id === op.photo.id)) return;
+      if (list.filter((p) => p.by === m.by).length >= LIMITS.photosPerMember) throw new OpError('limit_photos_title');
+      const total = Object.values(photos).reduce((n, l) => n + l.length, 0);
+      if (total >= (s.global ? LIMITS.maxGlobalPhotos : LIMITS.maxPhotos)) throw new OpError('limit_photos');
+      photos[op.key] = [...list, { id: op.photo.id, by: m.by, at: m.at, w: op.photo.w, h: op.photo.h }];
+      // Several photos in a row are one entry: "added 3 photos to X".
+      const last = s.activity.at(-1);
+      if (last && last.kind === 'photo' && last.by === m.by && last.key === op.key && m.at - last.at < 10 * 60_000) {
+        last.count = (last.count ?? 1) + 1;
+        last.at = m.at;
+        return;
+      }
+      pushActivity(s, m, { kind: 'photo', key: op.key, count: 1 });
+      return;
+    }
+
+    case 'photo.remove': {
+      const list = s.photos?.[op.key];
+      if (!list?.some((p) => p.id === op.id)) return;
+      const rest = list.filter((p) => p.id !== op.id);
+      if (rest.length) s.photos![op.key] = rest;
+      else delete s.photos![op.key];
       return;
     }
 

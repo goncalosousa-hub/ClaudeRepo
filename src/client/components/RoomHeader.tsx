@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DoorOpen, Globe, Pencil, UserPlus } from 'lucide-react';
-import { LIMITS } from '../../shared/constants';
+import { COMPANY } from '../../shared/brand';
+import { COMMUNITY_SECTIONS, LIMITS } from '../../shared/constants';
 import { timeAgo } from '../lib/format';
 import { describePresence } from '../lib/presence-text';
 import { ROOMS_PATH, navigate } from '../lib/router';
@@ -73,7 +74,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
               className="truncate px-1 py-0.5 text-base font-semibold"
               title={room.global ? undefined : `Só o dono da sala (${ownerName}) pode mudar o nome`}
             >
-              {room.name}
+              {room.global ? `Comunidade ${COMPANY}` : room.name}
             </p>
           )}
           <p className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
@@ -145,6 +146,23 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
           <Avatar member={user} size={34} />
         </button>
       </div>
+      {room.global && (
+        <nav aria-label="Secções da comunidade" className="mx-auto flex max-w-[1680px] gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-5">
+          {COMMUNITY_SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => s.id !== room.id && navigate(s.path)}
+              aria-current={s.id === room.id ? 'page' : undefined}
+              className={cn(
+                'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition',
+                s.id === room.id ? 'bg-accent/20 text-fg ring-1 ring-accent/50' : 'text-muted hover:bg-white/5 hover:text-fg',
+              )}
+            >
+              <span aria-hidden>{s.emoji}</span> {s.label}
+            </button>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

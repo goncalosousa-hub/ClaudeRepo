@@ -15,6 +15,9 @@ const ADD_HINT: Record<RoomKind, string> = {
   series: 'Pesquisa qualquer série do TMDB.',
   movies: 'Pesquisa qualquer filme do TMDB.',
   all: 'Pesquisa filmes, séries e animes.',
+  books: 'Pesquisa qualquer livro da Open Library.',
+  restaurants: 'Procura no mapa ou adiciona à mão.',
+  places: 'Procura no mapa ou adiciona à mão.',
 };
 
 export function TierlistTab({ onShare }: { onShare: () => void }) {
@@ -72,6 +75,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
         lists,
         anime: room.anime,
         titleOf,
+        photos: room.photos,
       });
     } catch (err) {
       console.error(err);

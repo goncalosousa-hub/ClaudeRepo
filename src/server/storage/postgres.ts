@@ -1,6 +1,6 @@
 import pg from 'pg';
 import type { CommunityRoom, RoomKind } from '../../shared/types';
-import type { AccountDoc, RoomDoc, Storage } from './types';
+import type { AccountDoc, RoomDoc, Storage, StoredPhoto } from './types';
 
 /**
  * node-postgres currently treats `sslmode=require` (what Neon & co. put in their links) as
@@ -63,6 +63,18 @@ export class PostgresStorage implements Storage {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS photos (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        item_key TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        data BYTEA NOT NULL,
+        thumb BYTEA NOT NULL,
+        bytes INTEGER NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
   }
 
   async load(id: string): Promise<RoomDoc | null> {
@@ -120,6 +132,28 @@ export class PostgresStorage implements Storage {
        ON CONFLICT (username) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
       [doc.username, JSON.stringify(doc)],
     );
+  }
+
+  async savePhoto(p: StoredPhoto) {
+    await this.pool.query(
+      `INSERT INTO photos (id, room_id, item_key, user_id, data, thumb, bytes) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (id) DO NOTHING`,
+      [p.id, p.roomId, p.key, p.userId, p.data, p.thumb, p.data.length + p.thumb.length],
+    );
+  }
+
+  async loadPhoto(id: string, thumb: boolean) {
+    const res = await this.pool.query<{ img: Buffer }>(`SELECT ${thumb ? 'thumb' : 'data'} AS img FROM photos WHERE id = $1`, [id]);
+    return res.rows[0]?.img ?? null;
+  }
+
+  async deletePhotos(ids: string[]) {
+    if (ids.length) await this.pool.query('DELETE FROM photos WHERE id = ANY($1::text[])', [ids]);
+  }
+
+  async photoBytes() {
+    const res = await this.pool.query<{ total: string }>('SELECT COALESCE(SUM(bytes), 0)::bigint AS total FROM photos');
+    return Number(res.rows[0]?.total ?? 0);
   }
 
   async close() {

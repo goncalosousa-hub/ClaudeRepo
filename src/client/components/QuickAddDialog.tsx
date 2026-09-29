@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Check, Plus, Search } from 'lucide-react';
-import { mediaTypeOf } from '../../shared/media';
+import { Check, PencilLine, Plus, Search } from 'lucide-react';
+import { isPlaceMedia, mediaTypeOf } from '../../shared/media';
 import type { AnimeMeta } from '../../shared/types';
 import { SEARCH_EXAMPLES, catalogName } from '../lib/catalog';
 import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
@@ -9,6 +9,8 @@ import { useCatalogTabs } from '../hooks/useTmdb';
 import { CatalogOff, metaLine } from './ExploreTab';
 import { useRoom } from './RoomContext';
 import { RoomKindHint } from './RoomKindDialog';
+import { Cover } from './Cover';
+import { AddSpotDialog } from './AddSpotDialog';
 import { useToast } from './Toasts';
 import { Button, Modal, ModalHeader, Segmented, Spinner, inputClass } from './ui';
 
@@ -17,6 +19,8 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
   const { kind, noun } = useRoom();
   const { catalogs, media, setMedia, waiting, off } = useCatalogTabs(kind);
   const [text, setText] = useState('');
+  const [adding, setAdding] = useState(false);
+  const isSpot = isPlaceMedia(media);
   const search = useDebounced(text.trim(), 380);
   const ready = open && !waiting && !off;
   const { items, loading, error, hasMore, loadMore, retry } = useBrowse(media, search ? { search } : { sort: 'trending' }, ready);
@@ -25,7 +29,11 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
   const label = `Adicionar ${noun.one}`;
 
   const subtitle =
-    catalogs.length > 1 ? 'Filmes e séries do TMDB, anime do AniList.' : `Pesquisa em todo o catálogo do ${catalogName(media)}.`;
+    catalogs.length > 1
+      ? 'Filmes e séries do TMDB, anime do AniList.'
+      : isSpot
+        ? 'Procura no mapa (OpenStreetMap) ou adiciona à mão.'
+        : `Pesquisa em todo o catálogo ${media === 'book' ? 'da' : 'do'} ${catalogName(media)}.`;
 
   return (
     <Modal open={open} onClose={onClose} label={label} className="max-w-xl">
@@ -53,7 +61,7 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
                 aria-label={`Pesquisar ${itemNoun.many}`}
               />
             </label>
-            <p className="text-xs text-faint">{search ? 'Resultados' : 'Em alta agora'}</p>
+            <p className="text-xs text-faint">{search ? 'Resultados' : isSpot ? '' : 'Em alta agora'}</p>
           </>
         )}
       </div>
@@ -79,10 +87,24 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
                 </Button>
               </div>
             )}
-            {!loading && !error && items.length === 0 && (
+            {!loading && !error && items.length === 0 && !isSpot && (
               <p className="px-2 py-6 text-center text-sm text-muted">
                 {none(itemNoun)} {itemNoun.one} {agree('encontrad', itemNoun)}.
               </p>
+            )}
+            {isSpot && !loading && (
+              <div className="px-2 py-5 text-center text-sm text-muted">
+                <p>
+                  {search.length < 2
+                    ? `Escreve o nome ${itemNoun.f ? 'da' : 'do'} ${itemNoun.one} ou a terra.`
+                    : items.length === 0
+                      ? 'Não está no mapa.'
+                      : 'Não está na lista?'}
+                </p>
+                <Button size="sm" className="mt-3" onClick={() => setAdding(true)}>
+                  <PencilLine size={14} /> Adicionar à mão
+                </Button>
+              </div>
             )}
             {loading && (
               <div className="flex justify-center py-5 text-muted">
@@ -93,6 +115,17 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
         )}
         <div ref={sentinel} />
       </div>
+      {isSpot && (
+        <AddSpotDialog
+          open={adding}
+          type={media === 'restaurant' ? 'restaurant' : 'place'}
+          name={text.trim()}
+          onClose={() => {
+            setAdding(false);
+            onClose();
+          }}
+        />
+      )}
     </Modal>
   );
 }
@@ -105,7 +138,7 @@ function QuickRow({ anime }: { anime: AnimeMeta }) {
   return (
     <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/[0.03]" data-anime={anime.key}>
       <button className="shrink-0" onClick={() => openAnime(anime)} aria-label={`Ver ${title}`}>
-        <img src={anime.cover} alt="" loading="lazy" className="h-16 w-11 rounded-md object-cover" />
+        <Cover meta={anime} className="h-16 w-11 rounded-md" />
       </button>
       <button className="min-w-0 flex-1 text-left" onClick={() => openAnime(anime)}>
         <p className="truncate text-sm font-medium">{title}</p>

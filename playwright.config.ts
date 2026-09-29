@@ -19,7 +19,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   webServer: [
     {
-      // A fake TMDB (series and movies catalogue), so the tests run offline and without a key.
+      // A fake TMDB (series and movies), Open Library (books) and Photon (map), so the tests run offline.
       command: `npx tsx tests/fake-tmdb.ts ${TMDB_PORT}`,
       url: `http://127.0.0.1:${TMDB_PORT}/3/configuration`,
       reuseExistingServer: false,
@@ -35,6 +35,9 @@ export default defineConfig({
         DATA_DIR: '.e2e-data',
         TMDB_API_KEY: 'fake-tmdb-key',
         TMDB_API_URL: `http://127.0.0.1:${TMDB_PORT}/3`,
+        // The same fake answers as Open Library (books) and Photon (restaurants and places).
+        OPENLIBRARY_URL: `http://127.0.0.1:${TMDB_PORT}/ol`,
+        PHOTON_URL: `http://127.0.0.1:${TMDB_PORT}/photon`,
       },
     },
   ],

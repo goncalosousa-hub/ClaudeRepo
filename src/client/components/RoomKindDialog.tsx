@@ -8,13 +8,6 @@ import { useRoom } from './RoomContext';
 import { useToast } from './Toasts';
 import { Modal, ModalHeader, cn } from './ui';
 
-const ABOUT: Record<RoomKind, string> = {
-  all: 'Filmes, séries e anime na mesma tierlist.',
-  movies: 'Só filmes.',
-  series: 'Só séries.',
-  anime: 'Só anime.',
-};
-
 /** "3 animes e 1 série": the titles in the room that a room type would not take. */
 function misfits(keys: string[], kind: RoomKind) {
   const count = new Map<MediaType, number>();
@@ -71,7 +64,7 @@ export function RoomKindDialog({ open, onClose }: { open: boolean; onClose: () =
                   {k.label}
                 </span>
                 <span id={`${id}-${k.id}-about`} className="block text-xs text-muted">
-                  {blocked ? `Não dá enquanto a sala tiver ${blocked}.` : ABOUT[k.id]}
+                  {blocked ? `Não dá enquanto a sala tiver ${blocked}.` : k.about}
                 </span>
               </span>
             </button>

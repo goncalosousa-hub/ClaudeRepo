@@ -1,4 +1,4 @@
-import type { Tier } from './types';
+import type { RoomKind, Tier } from './types';
 
 export const LIMITS = {
   roomName: 60,
@@ -16,12 +16,35 @@ export const LIMITS = {
   chatHistory: 300,
   activityHistory: 200,
   synopsis: 1500,
+  /** Photos one person adds to one title */
+  photosPerMember: 6,
+  maxPhotos: 300,
+  maxGlobalPhotos: 3000,
+  /** Largest photo accepted (they are resized in the browser first) */
+  photoBytes: 1_200_000,
+  photoThumbBytes: 150_000,
 } as const;
 
 export const ROOM_ID_RE = /^[a-z0-9]{6,16}$/;
 
 /** The community space: the room everyone is in, opened at "/". Random room ids have 8 characters. */
 export const GLOBAL_ROOM_ID = 'comunidade';
+
+/**
+ * The community has one space per category, each a room everyone is in (with its own tier list,
+ * ranking and chat). The first one is the original community room, opened at "/".
+ */
+export const COMMUNITY_SECTIONS: { id: string; kind: RoomKind; path: string; label: string; emoji: string }[] = [
+  { id: GLOBAL_ROOM_ID, kind: 'all', path: '/', label: 'Filmes e séries', emoji: '🍿' },
+  { id: 'livros', kind: 'books', path: '/livros', label: 'Livros', emoji: '📚' },
+  { id: 'restaurantes', kind: 'restaurants', path: '/restaurantes', label: 'Restaurantes', emoji: '🍽️' },
+  { id: 'sitios', kind: 'places', path: '/sitios', label: 'Sítios', emoji: '📍' },
+];
+
+export const communitySection = (roomId: string) => COMMUNITY_SECTIONS.find((s) => s.id === roomId) ?? null;
+
+/** Photo ids (nanoid). */
+export const PHOTO_ID_RE = /^[A-Za-z0-9_-]{21}$/;
 
 /** Account usernames: 3-24 chars, lowercase letters/digits and _ . - (safe as a file name on every OS). */
 export const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_.-]{1,22}[a-z0-9])$/;
@@ -94,7 +117,8 @@ export function isAllowedImageUrl(value: string): boolean {
     h === 'img.anili.st' ||
     h === 'myanimelist.net' ||
     h.endsWith('.myanimelist.net') ||
-    h === 'image.tmdb.org'
+    h === 'image.tmdb.org' ||
+    h === 'covers.openlibrary.org'
   );
 }
 
@@ -112,6 +136,8 @@ export function isAllowedSiteUrl(value: string): boolean {
     h.endsWith('.anilist.co') ||
     h === 'myanimelist.net' ||
     h.endsWith('.myanimelist.net') ||
-    h === 'www.themoviedb.org'
+    h === 'www.themoviedb.org' ||
+    h === 'openlibrary.org' ||
+    h === 'www.openstreetmap.org'
   );
 }

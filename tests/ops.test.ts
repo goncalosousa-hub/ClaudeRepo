@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { applyOp, createRoomState, OpError, tierOf } from '../src/shared/ops';
+import { LIMITS } from '../src/shared/constants';
 import { GROUP_BOARD, POOL, type Op, type OpMeta, type RoomState } from '../src/shared/types';
-import { anime, title } from './fixtures';
+import { anime, book, spot, title } from './fixtures';
 
 let seq = 0;
 const meta = (by = 'ana', at = 1_000): OpMeta => ({ by, at, seq: ++seq });
@@ -337,6 +338,84 @@ describe('room owner', () => {
     expect(s.activity).toHaveLength(before);
     expect(() => apply(s, { type: 'room.owner', to: 'ghost' }, 'rui')).toThrow(new OpError('not_member'));
     expect(s.createdBy).toBe('rui');
+  });
+});
+
+describe('books, restaurants and places', () => {
+  it('each has its own kind of room', () => {
+    const books = createRoomState('livros', 'Livros', 0, null, { kind: 'books', global: true });
+    apply(books, { type: 'anime.add', anime: book(45804, 'Os Maias') });
+    expect(() => apply(books, { type: 'anime.add', anime: spot('restaurant', 1) })).toThrow(new OpError('media_not_allowed'));
+    const food = createRoomState('restaurantes', 'Restaurantes', 0, null, { kind: 'restaurants' });
+    apply(food, { type: 'anime.add', anime: spot('restaurant', 1, 'Tasca do Zé') });
+    expect(() => apply(food, { type: 'anime.add', anime: spot('place', 2) })).toThrow(new OpError('media_not_allowed'));
+    expect(() => apply(food, { type: 'anime.add', anime: book(1) })).toThrow(new OpError('media_not_allowed'));
+  });
+
+  it('a place added by hand twice (same name, same town) is refused', () => {
+    const s = createRoomState('restaurantes', 'Restaurantes', 0, null, { kind: 'restaurants' });
+    apply(s, { type: 'anime.add', anime: spot('restaurant', 'xaaaaaaaaaa', 'Tasca do Zé', 'Leiria') });
+    const twin = spot('restaurant', 'xbbbbbbbbbb', ' tasca do ze ', 'LEIRIA');
+    expect(() => apply(s, { type: 'anime.add', anime: twin })).toThrow(new OpError('already_in_room'));
+    // Same name somewhere else is another restaurant.
+    apply(s, { type: 'anime.add', anime: spot('restaurant', 'xcccccccccc', 'Tasca do Zé', 'Porto') });
+    expect(Object.keys(s.anime)).toHaveLength(2);
+  });
+});
+
+describe('photos', () => {
+  const id = (n: number) => `photo${String(n).padStart(16, '0')}`;
+  const withPlace = () => {
+    const s = room();
+    s.kind = 'restaurants';
+    apply(s, { type: 'anime.add', anime: spot('restaurant', 1, 'Tasca do Zé') });
+    return s;
+  };
+
+  it('are added to a title, in order, as one activity entry for several in a row', () => {
+    const s = withPlace();
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(1), w: 1280, h: 960 } }, 'ana', 1_000);
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(2), w: 960, h: 1280 } }, 'ana', 2_000);
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(2), w: 960, h: 1280 } }, 'ana', 2_500); // repeated
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(3), w: 800, h: 800 } }, 'rui', 3_000);
+    expect(s.photos!['rs:n1'].map((p) => [p.id, p.by])).toEqual([
+      [id(1), 'ana'],
+      [id(2), 'ana'],
+      [id(3), 'rui'],
+    ]);
+    const photoActivity = s.activity.filter((a) => a.kind === 'photo');
+    expect(photoActivity.map((a) => [a.by, a.count])).toEqual([
+      ['ana', 2],
+      ['rui', 1],
+    ]);
+    expect(() => apply(s, { type: 'photo.add', key: 'rs:n9', photo: { id: id(4), w: 1, h: 1 } })).toThrow(
+      new OpError('anime_not_found'),
+    );
+  });
+
+  it('have limits per person and per room', () => {
+    const s = withPlace();
+    for (let i = 0; i < LIMITS.photosPerMember; i++) apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(i), w: 1, h: 1 } });
+    expect(() => apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(99), w: 1, h: 1 } })).toThrow(
+      new OpError('limit_photos_title'),
+    );
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(99), w: 1, h: 1 } }, 'rui');
+    const full = withPlace();
+    full.photos = { 'rs:n1': Array.from({ length: LIMITS.maxPhotos }, (_, i) => ({ id: id(i), by: `m${i}`, at: 0, w: 1, h: 1 })) };
+    expect(() => apply(full, { type: 'photo.add', key: 'rs:n1', photo: { id: id(9999), w: 1, h: 1 } })).toThrow(
+      new OpError('limit_photos'),
+    );
+  });
+
+  it('are removed one by one, or all together with their title', () => {
+    const s = withPlace();
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(1), w: 1, h: 1 } });
+    apply(s, { type: 'photo.add', key: 'rs:n1', photo: { id: id(2), w: 1, h: 1 } });
+    apply(s, { type: 'photo.remove', key: 'rs:n1', id: id(1) });
+    expect(s.photos!['rs:n1'].map((p) => p.id)).toEqual([id(2)]);
+    apply(s, { type: 'photo.remove', key: 'rs:n1', id: id(1) }); // already gone: nothing happens
+    apply(s, { type: 'anime.remove', key: 'rs:n1' });
+    expect(s.photos!['rs:n1']).toBeUndefined();
   });
 });
 

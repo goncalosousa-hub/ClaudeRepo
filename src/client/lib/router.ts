@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { GLOBAL_ROOM_ID } from '../../shared/constants';
+import { COMMUNITY_SECTIONS, communitySection } from '../../shared/constants';
 
-// A tiny history-based router: "/" (the community space), "/salas" (rooms) and "/r/:roomId".
+// A tiny history-based router: "/" and "/livros", "/restaurantes", "/sitios" (the community spaces),
+// "/salas" (rooms) and "/r/:roomId".
 const EVENT = 'atl:navigate';
 
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
@@ -27,8 +28,12 @@ export function usePath() {
 
 export const ROOMS_PATH = '/salas';
 
-/** Path of a room; the community space lives at "/". */
-export const roomPath = (id: string) => (id === GLOBAL_ROOM_ID ? '/' : `/r/${id}`);
+/** Path of a room; the community spaces live at "/", "/livros"… */
+export const roomPath = (id: string) => communitySection(id)?.path ?? `/r/${id}`;
+
+/** The community space shown at a path ("/" and anything unknown: the first one). */
+export const sectionAt = (path: string) =>
+  COMMUNITY_SECTIONS.find((s) => s.path !== '/' && (path === s.path || path === `${s.path}/`)) ?? COMMUNITY_SECTIONS[0];
 
 export function roomUrl(id: string) {
   return `${location.origin}${roomPath(id)}`;
