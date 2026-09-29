@@ -2,7 +2,8 @@
 # reinícios, por isso define DATABASE_URL (ex.: PostgreSQL gratuito do Neon) para não perder as salas.
 # TMDB_API_KEY (opcional) ativa as salas de séries e filmes: chave grátis em https://www.themoviedb.org/settings/api
 # COMMUNITY_CODE (opcional) fecha a app a quem não souber o código da comunidade (só colaboradores).
-# ADMINS (opcional): contas que podem apagar qualquer título ou foto na comunidade (ex.: ana,rui).
+# ADMINS (opcional): contas (utilizador ou email da conta Google) com a página de administração (/admin),
+# que também podem apagar qualquer título ou foto na comunidade (ex.: goncalo.sousa@grupolusiaves.pt).
 # GOOGLE_CLIENT_ID + GOOGLE_DOMAIN: "Continuar com Google", só para as contas Google do trabalho
 # (@grupolusiaves.pt e @lusiaves.pt; outros domínios do grupo juntam-se com vírgulas). Vê o README.
 # O Client ID não é secreto (aparece na página); o Client secret não é preciso.

@@ -5,7 +5,7 @@ import { PHOTO_ID_RE, USERNAME_RE } from '../../shared/constants';
 import { communitySummary } from '../../shared/media';
 import { ROOM_ID_RE } from '../../shared/schema';
 import type { CommunityRoom } from '../../shared/types';
-import type { AccountDoc, RoomDoc, Storage, StoredPhoto } from './types';
+import type { AccountDoc, RoomDoc, RoomRow, Storage, StoredPhoto } from './types';
 
 async function readJson<T>(file: string): Promise<T | null> {
   try {
@@ -109,6 +109,36 @@ export class FileStorage implements Storage {
     return out;
   }
 
+  async allRooms(): Promise<RoomRow[]> {
+    const out: RoomRow[] = [];
+    for (const id of await this.list()) {
+      const doc = await this.load(id).catch(() => null);
+      if (!doc || doc.state.global) continue;
+      const saved = await stat(this.file(id)).then((s) => s.mtimeMs, () => 0);
+      const summary = communitySummary(doc.state);
+      out.push({
+        ...summary,
+        listed: !!doc.state.listed,
+        createdAt: doc.state.createdAt,
+        updatedAt: Math.max(summary.updatedAt, Math.round(saved)),
+      });
+    }
+    return out.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async roomsWithMember(userId: string) {
+    const ids: string[] = [];
+    for (const id of await this.list()) {
+      const doc = await this.load(id).catch(() => null);
+      if (doc?.state.members[userId]) ids.push(id);
+    }
+    return ids;
+  }
+
+  async deleteRoom(id: string) {
+    await rm(this.file(id), { force: true });
+  }
+
   async loadAccount(username: string) {
     return readJson<AccountDoc>(this.accountFile(username));
   }
@@ -127,6 +157,23 @@ export class FileStorage implements Storage {
 
   async saveAccount(doc: AccountDoc) {
     return writeJson(this.accountFile(doc.username), doc);
+  }
+
+  async allAccounts() {
+    const docs: AccountDoc[] = [];
+    for (const username of await this.listAccounts()) {
+      const doc = await this.loadAccount(username).catch(() => null);
+      if (doc) docs.push(doc);
+    }
+    return docs;
+  }
+
+  async deleteAccount(username: string) {
+    await rm(this.accountFile(username), { force: true });
+  }
+
+  async unlinkGoogle(sub: string) {
+    await rm(this.googleFile(sub), { force: true });
   }
 
   async googleAccount(sub: string) {

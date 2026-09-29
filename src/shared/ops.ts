@@ -74,6 +74,19 @@ function activityId(m: OpMeta): string {
   return m.seq > 0 ? `s${m.seq}` : `p${m.cid ?? m.at}`;
 }
 
+function removeFromBoards(s: RoomState, key: string) {
+  for (const b of Object.values(s.boards)) {
+    for (const tid of Object.keys(b)) {
+      const i = b[tid].indexOf(key);
+      if (i >= 0) b[tid].splice(i, 1);
+    }
+  }
+}
+
+function onAnyBoard(s: RoomState, key: string) {
+  return Object.values(s.boards).some((b) => Object.values(b).some((list) => list.includes(key)));
+}
+
 function pushActivity(s: RoomState, m: OpMeta, a: Omit<Activity, 'id' | 'at' | 'by'>) {
   s.activity.push({ id: activityId(m), at: m.at, by: m.by, ...a });
   if (s.activity.length > LIMITS.activityHistory) {
@@ -171,12 +184,7 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       const anime = s.anime[op.key];
       if (!anime) return;
       delete s.anime[op.key];
-      for (const b of Object.values(s.boards)) {
-        for (const tid of Object.keys(b)) {
-          const i = b[tid].indexOf(op.key);
-          if (i >= 0) b[tid].splice(i, 1);
-        }
-      }
+      removeFromBoards(s, op.key);
       // Reviews are kept on purpose: if the anime is added again, the opinions come back. Photos
       // take space, so they go (the server deletes the images).
       if (s.photos) delete s.photos[op.key];
@@ -364,6 +372,33 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       // The first member owns a room; the community space belongs to everyone.
       if (!s.global) s.createdBy ??= id;
       pushActivity(s, m, { kind: 'join' });
+      return;
+    }
+
+    case 'member.remove': {
+      const id = op.id;
+      if (!s.members[id]) return;
+      delete s.members[id];
+      delete s.boards[id];
+      for (const [key, byMember] of Object.entries(s.reviews)) {
+        delete byMember[id];
+        if (!Object.keys(byMember).length) delete s.reviews[key];
+      }
+      if (s.photos) {
+        for (const [key, list] of Object.entries(s.photos)) {
+          const kept = list.filter((p) => p.by !== id);
+          if (kept.length) s.photos[key] = kept;
+          else delete s.photos[key];
+        }
+      }
+      // The titles they added go too, unless a colleague gave an opinion, a photo or a tier to them.
+      for (const [key, a] of Object.entries(s.anime)) {
+        if (a.addedBy !== id || s.reviews[key] || s.photos?.[key]?.length || onAnyBoard(s, key)) continue;
+        delete s.anime[key];
+      }
+      s.chat = s.chat.filter((c) => c.by !== id);
+      s.activity = s.activity.filter((a) => a.by !== id && a.to !== id);
+      // A room they owned can be taken over by its members (see owner.ts).
       return;
     }
 

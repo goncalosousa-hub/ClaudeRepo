@@ -10,7 +10,7 @@ import {
   roomIdSchema,
   usernameSchema,
 } from '../shared/schema';
-import { loginResult, roomList, type AccountManager } from './accounts';
+import { isAdminAccount, loginResult, roomList, type AccountManager } from './accounts';
 import type { CommunityGate } from './community';
 import { GoogleError, type GoogleAuth, type GoogleIdentity } from './google';
 import { rateLimit } from './http';
@@ -18,7 +18,7 @@ import type { RoomManager } from './rooms';
 import type { AccountDoc } from './storage';
 
 /** Browsers authenticate account requests with `Authorization: Account <username>:<secret>`. */
-function credentials(req: Request): { username: string; secret: string } | null {
+export function credentials(req: Request): { username: string; secret: string } | null {
   const m = (req.get('authorization') ?? '').match(/^Account ([^:\s]+):(\S+)$/);
   if (!m) return null;
   const username = usernameSchema.safeParse(m[1]);
@@ -60,7 +60,13 @@ const GOOGLE_STATUS: Record<GoogleError['code'], number> = {
   google_unreachable: 502,
 };
 
-export function accountRouter(accounts: AccountManager, rooms: RoomManager, google: GoogleAuth, gate: CommunityGate) {
+export function accountRouter(
+  accounts: AccountManager,
+  rooms: RoomManager,
+  google: GoogleAuth,
+  gate: CommunityGate,
+  admins: ReadonlySet<string> = new Set(),
+) {
   const router = express.Router();
   const failed = new FailedLogins(10, 15 * 60_000);
   const unauthorized = (res: Response) => res.status(401).json({ error: 'unauthorized' });
@@ -180,6 +186,7 @@ export function accountRouter(accounts: AccountManager, rooms: RoomManager, goog
       rooms: roomList(a.doc),
       google: a.doc.google?.email ?? null,
       password: !!a.doc.password,
+      admin: isAdminAccount(a.doc, admins),
     });
   });
 

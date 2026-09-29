@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Check, Copy, KeyRound, LogOut, Smartphone, TriangleAlert } from 'lucide-react';
+import { Check, Copy, KeyRound, LogOut, ShieldCheck, Smartphone, TriangleAlert } from 'lucide-react';
 import { COMPANY } from '../../shared/brand';
 import { AVATARS, LIMITS, MEMBER_COLORS, PASSWORD_MIN, isValidUsername } from '../../shared/constants';
 import {
@@ -16,6 +16,7 @@ import {
 import { domainsText, forgetGoogleChoice, googleConfig, type GoogleConfig } from '../lib/google';
 import { clearUser, newUser, profileLink, randomAvatar, randomColor, type LocalUser } from '../lib/identity';
 import { usePrefs } from '../lib/prefs';
+import { navigate } from '../lib/router';
 import { copyText } from '../lib/clipboard';
 import { clearRecentRooms, recentRooms } from '../lib/recent-rooms';
 import { GoogleButton } from './GoogleButton';
@@ -270,7 +271,17 @@ export function ProfileDialog({
         </form>
       ) : (
         <>
-          {signedIn && <AccountCard user={user} google={google} onSignOut={signOut} />}
+          {signedIn && (
+            <AccountCard
+              user={user}
+              google={google}
+              onSignOut={signOut}
+              onAdmin={() => {
+                onClose?.();
+                navigate('/admin');
+              }}
+            />
+          )}
           <form className="space-y-5 px-5 py-5" onSubmit={submitProfile}>
             {google && !user && (
               <>
@@ -539,24 +550,26 @@ function AccountCard({
   user,
   google,
   onSignOut,
+  onAdmin,
 }: {
   user: LocalUser & { account: string };
   google: GoogleConfig | null;
   onSignOut: () => void;
+  onAdmin: () => void;
 }) {
   const [changing, setChanging] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<{ google: string | null; password: boolean } | null>(null);
+  const [info, setInfo] = useState<{ google: string | null; password: boolean; admin: boolean } | null>(null);
   const [linking, setLinking] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
     let alive = true;
     fetchAccount(user).then(
-      (a) => alive && setInfo({ google: a.google, password: a.password }),
+      (a) => alive && setInfo({ google: a.google, password: a.password, admin: a.admin }),
       () => {},
     );
     return () => {
@@ -572,7 +585,7 @@ function AccountCard({
     setError(null);
     try {
       const res = await linkGoogle(user, credential);
-      setInfo((i) => ({ password: i?.password ?? true, google: res.google }));
+      setInfo((i) => ({ password: i?.password ?? true, admin: i?.admin ?? false, google: res.google }));
       setLinking(false);
       toast('Conta Google ligada: da próxima vez podes entrar com «Continuar com Google».', 'success');
     } catch (err) {
@@ -631,6 +644,11 @@ function AccountCard({
         {google && info && !info.google && (
           <Button size="xs" variant="subtle" aria-expanded={linking} onClick={() => setLinking((v) => !v)}>
             Ligar à conta Google
+          </Button>
+        )}
+        {info?.admin && (
+          <Button size="xs" variant="subtle" onClick={onAdmin}>
+            <ShieldCheck size={13} /> Administração
           </Button>
         )}
         <Button size="xs" variant="subtle" onClick={onSignOut}>

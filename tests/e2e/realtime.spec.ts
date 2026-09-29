@@ -490,6 +490,88 @@ test('behind the community code, a colleague gets in with the Google account of 
   await shot(visitor, '33-privacy');
 });
 
+test('an admin deletes test profiles and rooms on the admin page', async ({ browser }) => {
+  const tag = Date.now().toString(36);
+  const testName = `Teste ${tag}`;
+
+  // Two test profiles with the same name, whose browsers are then closed, and a colleague who stays.
+  for (let i = 0; i < 2; i++) {
+    const teste = await newPerson(browser);
+    await teste.goto('/');
+    await fillProfile(teste, testName);
+    await expect(teste.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
+    await teste.context().close();
+  }
+  const marta = await newPerson(browser);
+  await marta.goto('/');
+  await fillProfile(marta, `Marta ${tag}`);
+  await tab(marta, 'Pessoas').click();
+  await expect(marta.getByText(testName)).toHaveCount(2);
+
+  // Only an account named in ADMINS gets in.
+  const other = await newPerson(browser);
+  await other.goto('/admin');
+  await expect(other.getByText('Entra com a tua conta de administrador')).toBeVisible();
+
+  const admin = await newPerson(browser);
+  const created = await admin.request.post('/api/auth/register', {
+    data: { username: 'chefe', password: 'segredo-123', name: 'Chefe', color: '#3366ff', avatar: '' },
+  });
+  expect(created.status()).toBe(201);
+  const roomRes = await admin.request.post('/api/rooms', { data: { name: `Sala de testes ${tag}` } });
+  const { id: roomId } = (await roomRes.json()) as { id: string };
+  await admin.goto('/admin');
+  await admin.getByRole('button', { name: 'Entrar' }).click();
+  const login = admin.getByRole('dialog', { name: 'Perfil' });
+  await login.getByLabel('Utilizador').fill('chefe');
+  await login.getByLabel('Palavra-passe').fill('segredo-123');
+  await login.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(admin.getByText('Pessoas na comunidade')).toBeVisible();
+  await expect(admin.getByText('Administradores:')).toBeVisible();
+  await shot(admin, '40-admin-overview');
+
+  // The two test profiles: same name, so marked.
+  await admin.getByRole('radio', { name: /^Pessoas/ }).click();
+  await admin.getByLabel('Procurar pessoas').fill(testName);
+  const rows = admin.locator('[data-person]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Nome repetido');
+  await expect(rows.nth(0)).toContainText('Sem conta');
+  const boxes = admin.getByRole('checkbox', { name: `Selecionar ${testName}` });
+  await boxes.nth(0).check();
+  await boxes.nth(1).check();
+  await shot(admin, '41-admin-people');
+  await admin.getByRole('button', { name: 'Eliminar selecionadas' }).click();
+  const confirm = admin.getByRole('dialog', { name: 'Eliminar 2 pessoas?' });
+  await expect(confirm).toContainText('Não dá para desfazer.');
+  await confirm.getByRole('button', { name: 'Eliminar', exact: true }).click();
+  await expect(admin.getByText('2 pessoas eliminadas.')).toBeVisible();
+  await expect(rows).toHaveCount(0);
+  // Marta sees them leave, live.
+  await expect(marta.getByText(testName)).toHaveCount(0);
+  await expect(marta.getByText(`Marta ${tag}`).first()).toBeVisible();
+
+  // The admin cannot delete themselves.
+  await admin.getByLabel('Procurar pessoas').fill('chefe');
+  await expect(admin.getByRole('button', { name: 'Eliminar Chefe' })).toBeDisabled();
+
+  // A test room.
+  await admin.getByRole('radio', { name: /^Salas/ }).click();
+  const room = admin.locator(`[data-room="${roomId}"]`);
+  await expect(room).toContainText(`Sala de testes ${tag}`);
+  await room.getByRole('button', { name: `Eliminar Sala de testes ${tag}` }).click();
+  await admin.getByRole('dialog').getByRole('button', { name: 'Eliminar', exact: true }).click();
+  await expect(admin.getByText(`Sala «Sala de testes ${tag}» eliminada.`)).toBeVisible();
+  await expect(room).toHaveCount(0);
+  expect((await admin.request.get(`/api/rooms/${roomId}`)).status()).toBe(404);
+
+  // Admins find the page in their profile.
+  await admin.goto('/');
+  await admin.getByRole('button', { name: 'O teu perfil' }).click();
+  await admin.getByRole('dialog', { name: 'Perfil' }).getByRole('button', { name: 'Administração' }).click();
+  await expect(admin).toHaveURL(/\/admin$/);
+});
+
 test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   const ana = await newPerson(browser);
   const rui = await newPerson(browser);

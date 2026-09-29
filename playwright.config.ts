@@ -47,6 +47,8 @@ export default defineConfig({
         // The same fake answers as Open Library (books) and Photon (restaurants and places).
         OPENLIBRARY_URL: `http://127.0.0.1:${TMDB_PORT}/ol`,
         PHOTON_URL: `http://127.0.0.1:${TMDB_PORT}/photon`,
+        // The admins' page (/admin), for the account "chefe".
+        ADMINS: 'chefe',
         ...GOOGLE,
       },
     },

@@ -199,6 +199,18 @@ Com `GOOGLE_DOMAIN=grupolusiaves.pt,lusiaves.pt` só entram as contas do Google 
 
 ---
 
+## 🛡️ Administração
+
+As contas em `ADMINS` (nome de utilizador ou email da conta Google, separados por vírgulas, ex.: `ADMINS=goncalo.sousa@grupolusiaves.pt`) veem o botão **Administração** no seu perfil, que abre a página **`/admin`**:
+
+- **Resumo**: pessoas na comunidade (e quantas estão online), contas, recomendações, opiniões, fotos (e o espaço que ocupam), mensagens e salas, secção a secção; e como o servidor está configurado (Google, código da comunidade, TMDB, administradores).
+- **Pessoas**: toda a gente da comunidade e todas as contas, com pesquisa (nome, empresa, utilizador ou email), filtros (com conta, sem conta, **nomes repetidos**, úteis para encontrar perfis de teste), as secções onde cada pessoa entrou, o que fez e quando foi vista. **Eliminar** (uma ou várias de uma vez) tira a pessoa de todas as secções e salas, com as opiniões, fotos e mensagens; os títulos que adicionou saem também, menos os que tiverem opiniões, fotos ou tiers de colegas; e a conta é apagada. Quem estiver a ver a comunidade vê-a desaparecer logo. Se essa pessoa voltar a abrir a app, entra como alguém novo. Não dá para te eliminares a ti nem a outros administradores (tira-os primeiro de `ADMINS`).
+- **Salas**: todas as salas (as secções da comunidade não), com membros, títulos e atividade; **Eliminar** apaga a sala e as fotos dela, e quem lá estava passa a ver «Sala não encontrada».
+
+Os administradores também podem tirar qualquer título ou foto diretamente na comunidade.
+
+---
+
 ## 🔏 Privacidade
 
 A política de privacidade está em **`/privacidade`** (`src/client/components/PrivacyPage.tsx`), aberta a todos, mesmo quando a app pede o código da comunidade: é o link que a Google pede para publicar o login com a Google, e aparece também no ecrã do código, junto ao botão da Google e no rodapé das Salas. Diz que dados a app guarda (perfil, conta, email e identificador da conta Google, o que cada um partilha, fotos sem EXIF), com quem (alojamento, Google, catálogos públicos) e como pedir para os ver ou apagar. O contacto é `CONTACT_EMAIL`, em `src/shared/brand.ts`. Se a app passar a guardar outras coisas, atualiza o texto e a data.
@@ -256,7 +268,7 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `TMDB_API_KEY` | — | Chave do TMDB (API Key ou API Read Access Token) para as salas de séries e filmes |
 | `COMMUNITY_CODE` | — | Código da comunidade: se definido, só quem o souber usa a app |
 | `PHOTOS_MAX_MB` | `300` | Espaço máximo para todas as fotos, em MB |
-| `ADMINS` | — | Contas (nomes de utilizador ou emails das contas Google, separados por vírgulas) que podem apagar qualquer título ou foto na comunidade |
+| `ADMINS` | — | Contas (nomes de utilizador ou emails das contas Google, separados por vírgulas) com acesso à página de administração (`/admin`) e que podem apagar qualquer título ou foto na comunidade |
 | `GOOGLE_CLIENT_ID` | — | Client ID da Google (Google Cloud): ativa o botão **Continuar com Google** |
 | `GOOGLE_DOMAIN` | — | Só as contas Google destes domínios do Google Workspace entram com a Google (ex.: `grupolusiaves.pt,lusiaves.pt`). Com `COMMUNITY_CODE`, também abrem a app sem o código |
 | `OPENLIBRARY_URL`, `PHOTON_URL`, `GOOGLE_CERTS_URL` | serviços públicos | Outro servidor para os livros, o mapa ou as chaves da Google (usado nos testes) |
@@ -313,6 +325,7 @@ src/
     rooms.ts     salas em memória, gravação e autenticação
     accounts.ts  contas: palavras-passe (scrypt), contas Google, perfil e "As tuas salas"
     account-routes.ts  API das contas (criar, entrar, entrar com a Google, perfil, palavra-passe)
+    admin-routes.ts    API da página de administração (resumo, pessoas, salas; só para ADMINS)
     google.ts    entrar com a Google: verifica o token (assinatura, app, validade, domínio)
     tmdb.ts      séries e filmes: pedidos ao TMDB, cache e conversão para o formato da app
     books.ts     livros: pesquisa na Open Library
