@@ -42,7 +42,10 @@ export class FileStorage implements Storage {
   private googleDir: string;
   private photosDir: string;
 
+  private settingsFile: string;
+
   constructor(dataDir: string) {
+    this.settingsFile = path.resolve(dataDir, 'settings.json');
     this.dir = path.resolve(dataDir, 'rooms');
     this.accountsDir = path.resolve(dataDir, 'accounts');
     this.googleDir = path.resolve(dataDir, 'google');
@@ -191,6 +194,15 @@ export class FileStorage implements Storage {
       if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
       throw err;
     }
+  }
+
+  async setting(key: string, create: () => string) {
+    const settings = (await readJson<Record<string, string>>(this.settingsFile)) ?? {};
+    if (typeof settings[key] === 'string') return settings[key];
+    settings[key] = create();
+    await mkdir(path.dirname(this.settingsFile), { recursive: true });
+    await writeJson(this.settingsFile, settings);
+    return settings[key];
   }
 
   async savePhoto(photo: StoredPhoto) {

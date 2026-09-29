@@ -630,18 +630,18 @@ function AccountCard({
       </p>
       <p className="mt-1 text-xs text-muted">
         {info?.google
-          ? info.password
+          ? info.password && !google?.only
             ? `Entra com este utilizador ou com a Google (${info.google}) em qualquer link ou dispositivo para seres sempre tu.`
             : `Entra com «Continuar com Google» (${info.google}) em qualquer link ou dispositivo para seres sempre tu.`
           : 'Entra com este utilizador em qualquer link ou dispositivo para seres sempre tu.'}
       </p>
       <div className="mt-2.5 flex flex-wrap gap-2">
-        {info?.password && (
+        {info?.password && !google?.only && (
           <Button size="xs" variant="subtle" aria-expanded={changing} onClick={() => setChanging((v) => !v)}>
             Mudar palavra-passe
           </Button>
         )}
-        {google && info && !info.google && (
+        {google && !google.only && info && !info.google && (
           <Button size="xs" variant="subtle" aria-expanded={linking} onClick={() => setLinking((v) => !v)}>
             Ligar à conta Google
           </Button>

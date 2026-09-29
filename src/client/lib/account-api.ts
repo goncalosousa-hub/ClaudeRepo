@@ -49,6 +49,7 @@ const MESSAGES: Record<string, string> = {
   google_taken: `Essa conta Google já entra noutra conta do ${APP_NAME}.`,
   google_linked: 'Esta conta já está ligada a outra conta Google.',
   community_locked: 'Primeiro escreve o código da comunidade.',
+  google_only: 'Aqui só se entra com a conta Google.',
   forbidden: 'Esta conta não é de administrador.',
   cannot_delete_self: 'Não te podes eliminar a ti próprio aqui.',
   cannot_delete_admin: 'Os administradores não se eliminam aqui: tira-os primeiro de ADMINS.',

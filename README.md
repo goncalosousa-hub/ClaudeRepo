@@ -2,7 +2,7 @@
 
 Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria. Cada secção é uma lista de **recomendações**: carregas em "Recomendar", escolhes o filme, livro, restaurante ou sítio e dás as tuas **estrelas** (de 1 a 5), a tua **opinião** e **fotos**; todos veem as dos outros, ao vivo. Não há nada para arrastar. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**, que também podem ter uma tierlist.
 
-Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (a conta Google do email da Lusiaves, ou utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
+Na instalação da Lusiaves **entra-se com a conta Google do email do trabalho** (`GOOGLE_ONLY`): uma conta é sempre a mesma pessoa, em qualquer link ou dispositivo, com a lista das suas salas. Noutras instalações a app também pode funcionar sem conta (crias uma sala, partilhas o link e pronto) ou com utilizador e palavra-passe.
 
 ---
 
@@ -179,6 +179,8 @@ Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a 
 
 ## 🔑 Entrar com a Google (contas da Lusiaves)
 
+> **Só com a Google (`GOOGLE_ONLY=true`, ligado no `render.yaml`).** A app só se usa com uma conta Google: quem abre o site vê apenas «Continuar com Google». Não há perfis sem conta, nem utilizador e palavra-passe, nem código da comunidade (`COMMUNITY_CODE` deixa de abrir a app). O servidor garante-o, não é só a interface: sem entrar com a Google não se lê nada da API, e nas salas só entra a identidade de uma conta Google. Quem já usava a app neste browser fica com o que tinha: um perfil sem conta passa a ser o da conta nova, e uma conta com palavra-passe passa a entrar com a Google (fica a mesma conta). O cookie de acesso é feito com um segredo que o servidor cria uma vez e guarda (na base de dados ou em `data/`), por isso reiniciar não obriga ninguém a entrar outra vez. Para voltar ao modo aberto, apaga a variável.
+
 Com `GOOGLE_CLIENT_ID` aparece o botão **Continuar com Google**: os colegas entram com a conta Google do email do trabalho, sem inventar um utilizador nem decorar mais uma palavra-passe, e são sempre a mesma pessoa em qualquer dispositivo.
 
 Com `GOOGLE_DOMAIN=grupolusiaves.pt,lusiaves.pt` só entram as contas do Google Workspace do grupo (é lá que estão os emails `@grupolusiaves.pt` e `@lusiaves.pt`). O servidor confirma a assinatura da Google e o domínio que a própria Google indica no token (`hd`, o domínio da organização no Workspace); um Gmail pessoal, ou uma conta Google criada com um email da empresa mas fora do Workspace, é recusado. Quem sai da empresa e perde a conta do Workspace deixa de conseguir entrar com a Google. Se outras empresas do grupo tiverem domínios próprios, junta-os com vírgulas.
@@ -271,6 +273,7 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `ADMINS` | — | Contas (nomes de utilizador ou emails das contas Google, separados por vírgulas) com acesso à página de administração (`/admin`) e que podem apagar qualquer título ou foto na comunidade |
 | `GOOGLE_CLIENT_ID` | — | Client ID da Google (Google Cloud): ativa o botão **Continuar com Google** |
 | `GOOGLE_DOMAIN` | — | Só as contas Google destes domínios do Google Workspace entram com a Google (ex.: `grupolusiaves.pt,lusiaves.pt`). Com `COMMUNITY_CODE`, também abrem a app sem o código |
+| `GOOGLE_ONLY` | — | `true`: só se entra com a conta Google (sem perfis sem conta, sem palavras-passe, sem código). Precisa de `GOOGLE_CLIENT_ID` |
 | `OPENLIBRARY_URL`, `PHOTON_URL`, `GOOGLE_CERTS_URL` | serviços públicos | Outro servidor para os livros, o mapa ou as chaves da Google (usado nos testes) |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 

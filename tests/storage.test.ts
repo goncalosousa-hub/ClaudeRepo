@@ -78,6 +78,11 @@ class MemoryStorage implements Storage {
     this.google.set(sub, username);
     return true;
   }
+  settings = new Map<string, string>();
+  async setting(key: string, create: () => string) {
+    if (!this.settings.has(key)) this.settings.set(key, create());
+    return this.settings.get(key)!;
+  }
   async savePhoto() {}
   async loadPhoto() {
     return null;
@@ -197,6 +202,15 @@ describe('storage helpers', () => {
     expect(await files.loadAccount('ana')).toBeNull();
     expect(await files.googleAccount('sub-ana')).toBeNull();
     expect((await files.allAccounts()).map((a) => a.username)).toEqual(['bruno']);
+  });
+
+  it('keeps server settings: created once, the same after a restart', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'atl-storage-'));
+    dirs.push(dir);
+    const first = await new FileStorage(dir).setting('access', () => 'secret-1');
+    expect(first).toBe('secret-1');
+    expect(await new FileStorage(dir).setting('access', () => 'secret-2')).toBe('secret-1');
+    expect(await new FileStorage(dir).setting('other', () => 'x')).toBe('x');
   });
 
   it('spells out sslmode=verify-full so node-postgres does not print a warning', () => {

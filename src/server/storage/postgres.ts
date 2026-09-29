@@ -64,6 +64,12 @@ export class PostgresStorage implements Storage {
       )
     `);
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS google_logins (
         sub TEXT PRIMARY KEY,
         username TEXT NOT NULL,
@@ -210,6 +216,13 @@ export class PostgresStorage implements Storage {
       username,
     ]);
     return res.rowCount === 1;
+  }
+
+  async setting(key: string, create: () => string) {
+    // Two servers starting together keep the same value: the first insert wins.
+    await this.pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING', [key, create()]);
+    const res = await this.pool.query<{ value: string }>('SELECT value FROM settings WHERE key = $1', [key]);
+    return res.rows[0].value;
   }
 
   async savePhoto(p: StoredPhoto) {

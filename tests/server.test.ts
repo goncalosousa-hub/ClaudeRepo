@@ -727,7 +727,7 @@ describe('sign in with Google', () => {
   it('creates an account on the first sign-in and signs in to the same one after', async () => {
     const { app, fake } = await withGoogle();
     expect((await api(app, 'GET', '/api/auth/providers')).body).toEqual({
-      google: { clientId: FAKE_GOOGLE_CLIENT_ID, domains: ['lusiaves.pt'] },
+      google: { clientId: FAKE_GOOGLE_CLIENT_ID, domains: ['lusiaves.pt'], only: false },
     });
     // The page may load Google's button.
     const csp = (await fetch(`${app.url}/`)).headers.get('content-security-policy')!;
@@ -890,6 +890,75 @@ describe('sign in with Google', () => {
     const again = await google(app2, token);
     expect(again.body).toMatchObject({ created: false, username: `pg.${tag}` });
     expect(again.body.user).toEqual(first.body.user);
+  });
+
+  it('with GOOGLE_ONLY only Google accounts get in: no profiles without one, no passwords, no code', async () => {
+    const dir = await tmpDir();
+    const fake = await startFakeTmdb();
+    cleanups.push(fake.close);
+    const googleOpts = { clientId: FAKE_GOOGLE_CLIENT_ID, domains: ['lusiaves.pt'], certsUrl: fake.googleCertsUrl };
+    const opts = { google: googleOpts, googleOnly: true, communityCode: 'frango-2026' };
+    // An account made with a password before the switch.
+    const before = await start(dir, undefined, { google: googleOpts });
+    const ana = (await register(before, 'ana')).body;
+    await before.close();
+
+    const app = await start(dir, undefined, opts);
+    expect((await api(app, 'GET', '/api/auth/providers')).body).toMatchObject({ google: { only: true } });
+    expect(await (await fetch(`${app.url}/api/community/status`)).json()).toEqual({ required: true, unlocked: false });
+    // Nothing without signing in, and the code no longer opens it.
+    expect((await fetch(`${app.url}/api/rooms/comunidade/state`)).status).toBe(401);
+    const unlock = await fetch(`${app.url}/api/community/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'frango-2026' }),
+    });
+    expect(unlock.status).toBe(403);
+    expect(unlock.headers.get('set-cookie')).toBeNull();
+
+    // Google: in, with the cookie.
+    const signed = await google(app, googleToken());
+    expect(signed.status).toBe(201);
+    const cookie = signed.res.headers.get('set-cookie')!.split(';')[0];
+    expect((await fetch(`${app.url}/api/rooms/comunidade/state`, { headers: { cookie } })).status).toBe(200);
+    // No usernames and passwords, not even from inside.
+    const post = (path: string, body: object) =>
+      fetch(`${app.url}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify(body) });
+    const reg = await post('/api/auth/register', { username: 'rui', password: 'pass-1234', ...profile('Rui') });
+    expect([reg.status, await reg.json()]).toEqual([403, { error: 'google_only' }]);
+    expect((await post('/api/auth/login', { username: 'ana', password: 'pass-1234' })).status).toBe(403);
+
+    // In the rooms: only the identity of an account signed in with Google.
+    const socket = (c: string) => {
+      const s = connect(app.url, { transports: ['websocket'], forceNew: true, reconnection: false, extraHeaders: { cookie: c } });
+      cleanups.push(async () => void s.disconnect());
+      return s;
+    };
+    const s = socket(cookie);
+    expect(await emit<JoinAck>(s, 'join', { roomId: 'comunidade', user: user('guest') })).toEqual({ ok: false, error: 'login_required' });
+    expect(await emit<JoinAck>(s, 'join', { roomId: 'comunidade', user: ana.user, account: 'ana' })).toEqual({
+      ok: false,
+      error: 'login_required',
+    });
+    expect((await emit<JoinAck>(s, 'join', { roomId: 'comunidade', user: signed.body.user, account: signed.body.username })).ok).toBe(true);
+
+    // Ana moves her account to Google from a browser without the cookie: she keeps it, and gets in.
+    const link = await fetch(`${app.url}/api/account/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Account ana:${ana.user.secret}` },
+      body: JSON.stringify({ credential: googleToken({ sub: '7007', email: 'ana@lusiaves.pt', name: 'Ana' }) }),
+    });
+    expect(link.status).toBe(200);
+    const anaCookie = link.headers.get('set-cookie')!.split(';')[0];
+    expect((await emit<JoinAck>(socket(anaCookie), 'join', { roomId: 'comunidade', user: ana.user, account: 'ana' })).ok).toBe(true);
+
+    // The cookie survives a restart: the secret it is made from is kept.
+    await app.close();
+    const again = await start(dir, undefined, opts);
+    expect(await (await fetch(`${again.url}/api/community/status`, { headers: { cookie } })).json()).toEqual({
+      required: true,
+      unlocked: true,
+    });
   });
 
   it('lets ADMINS name the email of a Google account', async () => {
