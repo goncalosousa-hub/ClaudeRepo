@@ -21,6 +21,7 @@ import type {
   SyncAck,
 } from '../../shared/types';
 import type { LocalUser } from './identity';
+import type { CachedRoom } from './room-cache';
 
 export type RoomStatus = 'connecting' | 'joined' | 'reconnecting' | 'error';
 
@@ -94,6 +95,8 @@ export class RoomClient {
   private syncing = false;
   private destroyed = false;
   private everJoined = false;
+  /** Between the join answer and a disconnect: only then do the room's events belong to this state. */
+  private live = false;
   private myPresence: PresencePatch = {};
   private queuedPresence: PresencePatch = {};
   private snapshot: RoomSnapshot = {
@@ -122,9 +125,18 @@ export class RoomClient {
     if (this.snapshot.status === 'joined') this.socket.volatile.emit('cursor', c);
   });
 
-  constructor(roomId: string, user: LocalUser, opts: { url?: string; transports?: string[] } = {}) {
+  /**
+   * `initial`: the room as it was last seen (see room-cache.ts). It shows at once, while connecting;
+   * the join answer then replaces it with the current state.
+   */
+  constructor(roomId: string, user: LocalUser, opts: { url?: string; transports?: string[]; initial?: CachedRoom } = {}) {
     this.roomId = roomId;
     this.user = user;
+    if (opts.initial) {
+      this.confirmed = opts.initial.state;
+      this.seq = opts.initial.seq;
+      this.snapshot = { ...this.snapshot, room: opts.initial.state, lastSeen: opts.initial.lastSeen };
+    }
     this.socket = io(opts.url ?? '', {
       autoConnect: false,
       transports: opts.transports,
@@ -133,6 +145,7 @@ export class RoomClient {
     });
     this.socket.on('connect', () => this.join());
     this.socket.on('disconnect', () => {
+      this.live = false;
       if (this.destroyed || this.snapshot.status === 'error') return;
       this.set({ status: this.everJoined ? 'reconnecting' : 'connecting', presence: {} });
     });
@@ -147,17 +160,18 @@ export class RoomClient {
     });
     this.socket.on('op', (env: OpEnvelope) => this.handleOp(env));
     this.socket.on('presence', (p: PresenceState) => {
-      if (p.userId === this.user.id) return;
+      if (!this.live || p.userId === this.user.id) return;
       this.set({ presence: { ...this.snapshot.presence, [p.userId]: p } });
     });
     this.socket.on('presence:leave', ({ userId, at }: { userId: string; at: number }) => {
-      if (userId === this.user.id) return;
+      if (!this.live || userId === this.user.id) return;
       const presence = { ...this.snapshot.presence };
       delete presence[userId];
       this.set({ presence, lastSeen: { ...this.snapshot.lastSeen, [userId]: at } });
       for (const l of this.cursorListeners) l(userId, null);
     });
     this.socket.on('cursor', ({ userId, cursor }: { userId: string; cursor: CursorState | null }) => {
+      if (!this.live) return;
       for (const l of this.cursorListeners) l(userId, cursor);
     });
     this.socket.connect();
@@ -225,6 +239,7 @@ export class RoomClient {
         return;
       }
       this.everJoined = true;
+      this.live = true;
       this.confirmed = ack.state;
       this.seq = ack.seq;
       const presence: Record<string, PresenceState> = {};
@@ -238,7 +253,7 @@ export class RoomClient {
   }
 
   private handleOp(env: OpEnvelope) {
-    if (!this.confirmed || this.syncing) return;
+    if (!this.live || !this.confirmed || this.syncing) return;
     if (env.seq <= this.seq) return;
     if (env.seq !== this.seq + 1) return this.resync();
     try {
@@ -375,8 +390,14 @@ export class RoomClient {
     }
   }
 
+  /** The room as the server last confirmed it, to show at once next time (null before any state). */
+  cacheable(): CachedRoom | null {
+    return this.confirmed ? { state: this.confirmed, seq: this.seq, lastSeen: this.snapshot.lastSeen } : null;
+  }
+
   destroy() {
     this.destroyed = true;
+    this.live = false;
     this.sendPresence.cancel();
     this.sendCursorThrottled.cancel();
     if (this.flashTimer) clearTimeout(this.flashTimer);

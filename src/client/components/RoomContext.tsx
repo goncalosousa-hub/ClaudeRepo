@@ -22,7 +22,8 @@ export interface RoomContextValue {
   summaries: Record<string, ReviewSummary>;
   /** Applies an op (optimistically). Shows a toast and returns false when it is refused. */
   dispatch: (op: Op) => boolean;
-  openAnime: (target: string | AnimeMeta) => void;
+  /** Opens a title's details; `added`: the person has just added it (they are then asked for their opinion). */
+  openAnime: (target: string | AnimeMeta, opts?: { added?: boolean }) => void;
   titleOf: (a: Pick<AnimeMeta, 'title' | 'titleEnglish'>) => string;
   isOnline: (userId: string) => boolean;
   memberName: (userId: string) => string;

@@ -24,6 +24,7 @@
   --animate-pop: pop 0.16s ease-out;
   --animate-flash: flash 1.8s ease-out;
   --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-progress: progress 1.1s ease-in-out infinite;
 
   @keyframes pop {
     from {
@@ -43,6 +44,14 @@
     }
     100% {
       box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  @keyframes progress {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
     }
   }
   @keyframes fade-in {
@@ -124,4 +133,11 @@ dialog::backdrop {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-progress {
+    animation: none;
+  }
 }

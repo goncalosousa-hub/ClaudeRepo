@@ -2,9 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { customAlphabet } from 'nanoid';
 import { PLACE_KINDS, type PlaceType } from '../../shared/catalog';
 import type { AnimeMeta } from '../../shared/types';
-import { agree, mediaNoun } from '../lib/words';
+import { mediaNoun } from '../lib/words';
 import { useRoom } from './RoomContext';
-import { useToast } from './Toasts';
 import { Button, Modal, ModalHeader, inputClass } from './ui';
 
 const newId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
@@ -17,8 +16,7 @@ const KINDS: Record<PlaceType, string[]> = {
 
 /** A restaurant or place that is not on the map: the person writes its name and where it is. */
 export function AddSpotDialog({ open, type, name, onClose }: { open: boolean; type: PlaceType; name: string; onClose: () => void }) {
-  const { dispatch, openAnime, place: room } = useRoom();
-  const toast = useToast();
+  const { dispatch, openAnime } = useRoom();
   const noun = mediaNoun(type);
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState(KINDS[type][0]);
@@ -61,9 +59,9 @@ export function AddSpotDialog({ open, type, name, onClose }: { open: boolean; ty
       place: { address: address.trim().slice(0, 200) || null, city: city.trim().slice(0, 100) || null, lat: null, lon: null },
     };
     if (!dispatch({ type: 'anime.add', anime: meta })) return;
-    toast(`«${meta.title}» ${agree('adicionad', noun)} ${room.to}. Junta uma foto e a tua opinião!`, 'success');
     onClose();
-    openAnime(meta);
+    // The details say it was added (a toast would stay hidden behind them).
+    openAnime(meta, { added: true });
   };
 
   return (

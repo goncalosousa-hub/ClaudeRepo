@@ -79,7 +79,8 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
           )}
           <p className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
             <span className={cn('h-1.5 w-1.5 rounded-full', snap.status === 'joined' ? 'bg-ok' : 'animate-pulse bg-warn')} />
-            {snap.status === 'joined' ? `${online.length + 1} online` : 'a religar…'} · {Object.keys(room.members).length}{' '}
+            {snap.status === 'joined' ? `${online.length + 1} online` : snap.status === 'connecting' ? 'a atualizar…' : 'a religar…'} ·{' '}
+            {Object.keys(room.members).length}{' '}
             {Object.keys(room.members).length === 1 ? 'membro' : 'membros'}
             <span className="hidden sm:inline">
               {room.global ? (
@@ -146,23 +147,38 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
           <Avatar member={user} size={34} />
         </button>
       </div>
-      {room.global && (
-        <nav aria-label="Secções da comunidade" className="mx-auto flex max-w-[1680px] gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-5">
-          {COMMUNITY_SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => s.id !== room.id && navigate(s.path)}
-              aria-current={s.id === room.id ? 'page' : undefined}
-              className={cn(
-                'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition',
-                s.id === room.id ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : 'text-muted hover:bg-fg/5 hover:text-fg',
-              )}
-            >
-              <span aria-hidden>{s.emoji}</span> {s.label}
-            </button>
-          ))}
-        </nav>
-      )}
+      {room.global && <CommunitySections current={room.id} />}
+      {/* The room shown is the one last seen: a thin line while the current one arrives. */}
+      {snap.status === 'connecting' && <SyncBar />}
     </header>
+  );
+}
+
+/** The community spaces (films and series, books, restaurants, places), under the header. */
+export function CommunitySections({ current }: { current: string }) {
+  return (
+    <nav aria-label="Secções da comunidade" className="mx-auto flex max-w-[1680px] gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-5">
+      {COMMUNITY_SECTIONS.map((s) => (
+        <button
+          key={s.id}
+          onClick={() => s.id !== current && navigate(s.path)}
+          aria-current={s.id === current ? 'page' : undefined}
+          className={cn(
+            'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition',
+            s.id === current ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : 'text-muted hover:bg-fg/5 hover:text-fg',
+          )}
+        >
+          <span aria-hidden>{s.emoji}</span> {s.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+export function SyncBar() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden" aria-hidden>
+      <div className="h-full w-1/3 animate-progress rounded-full bg-accent/60" />
+    </div>
   );
 }

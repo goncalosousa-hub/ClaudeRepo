@@ -661,15 +661,18 @@ test('everyone shares recommendations in the community space, without rooms or t
   await quick.getByRole('radio', { name: /Anime/ }).click();
   await quick.locator('[data-anime="al:154587"]').getByRole('button', { name: 'Escolher' }).click();
   const review = ana.getByRole('dialog', { name: 'Sousou no Frieren' });
+  // It says it was added, and asks for the opinion, with a button to finish.
+  await expect(review.getByRole('status')).toContainText('«Sousou no Frieren» adicionado à comunidade!');
   await expect(review.getByRole('heading', { name: 'A tua opinião' })).toBeVisible();
   // No tier list in the community.
   await expect(review.getByText('Onde está nas tierlists')).toHaveCount(0);
   await review.getByRole('radio', { name: '5 estrelas' }).click();
   await review.getByRole('button', { name: /Recomendo/ }).first().click();
   await review.getByPlaceholder(/O que achaste/).fill('Obrigatório para toda a gente!');
-  await review.getByPlaceholder(/O que achaste/).blur();
-  await expect(review.getByText('Guardado')).toBeVisible();
-  await ana.keyboard.press('Escape');
+  await shot(ana, '19-publish');
+  await review.getByRole('button', { name: 'Publicar' }).click();
+  await expect(review).toBeHidden();
+  await expect(ana.getByText('Obrigado! A tua recomendação de «Sousou no Frieren» foi publicada.')).toBeVisible();
   const anaCard = ana.locator('article[data-anime="al:154587"]');
   await expect(anaCard).toContainText('«Obrigatório para toda a gente!» — Tu');
   await expect(anaCard.getByRole('img', { name: '5 de 5 estrelas' }).first()).toBeVisible();
@@ -684,8 +687,13 @@ test('everyone shares recommendations in the community space, without rooms or t
   await ruiCard.getByRole('button', { name: 'Dar a minha opinião' }).click();
   const ruiReview = rui.getByRole('dialog', { name: 'Sousou no Frieren' });
   await expect(ruiReview.getByText('Obrigatório para toda a gente!')).toBeVisible();
+  // A title already there: no "added" message, and "Guardar" once there is something to save.
+  await expect(ruiReview.getByRole('status')).toHaveCount(0);
+  await expect(ruiReview.getByRole('button', { name: 'Guardar' })).toHaveCount(0);
   await ruiReview.getByRole('radio', { name: '4 estrelas' }).click();
-  await rui.keyboard.press('Escape');
+  await ruiReview.getByRole('button', { name: 'Guardar' }).click();
+  await expect(ruiReview).toBeHidden();
+  await expect(rui.getByText('A tua opinião foi guardada.')).toBeVisible();
   // Ana sees the average of both, live.
   await expect(anaCard.getByRole('img', { name: '4,5 de 5 estrelas' })).toBeVisible();
   await expect(anaCard).toContainText('2 opiniões');
@@ -771,6 +779,10 @@ test('books, restaurants and places have their own spaces, with photos', async (
   await expect(card1.locator('img').first()).toHaveAttribute('src', /\/api\/photos\/[\w-]{21}\/thumb$/);
 
   // --- Rui sees it all, live ---------------------------------------------------------------
+  const prefetched: string[] = [];
+  rui.on('response', (res) => {
+    if (res.url().endsWith('/state')) prefetched.push(res.url());
+  });
   await rui.goto('/restaurantes');
   await fillProfile(rui, 'Rui');
   await expect(rui.locator('article').filter({ hasText: 'Tasca do Zé' })).toBeVisible();
@@ -794,4 +806,15 @@ test('books, restaurants and places have their own spaces, with photos', async (
   await rui.getByPlaceholder(/Praia da Tocha/).fill('leiria');
   await expect(rui.locator('[data-anime="pl:r555"]')).toContainText('Castelo');
   await expect(rui.locator('[data-anime="pl:n666"]')).toHaveCount(0);
+
+  // --- Moving between spaces is instant: the others were fetched in the background -------------
+  // Even with no live connection at all, Livros opens at once with Ana's book.
+  await expect.poll(() => prefetched.some((u) => u.endsWith('/api/rooms/livros/state'))).toBe(true);
+  await rui.route('**/socket.io/**', (route) => route.abort());
+  await rui.getByRole('navigation', { name: 'Secções da comunidade' }).getByRole('button', { name: /Livros/ }).click();
+  await expect(rui.locator('article').filter({ hasText: 'Ensaio sobre a Cegueira' })).toBeVisible();
+  await expect(rui.getByText('a atualizar…')).toBeVisible();
+  // Then the live connection gets in.
+  await rui.unroute('**/socket.io/**');
+  await expect(rui.getByText(/\d+ online/)).toBeVisible({ timeout: 15_000 });
 });
