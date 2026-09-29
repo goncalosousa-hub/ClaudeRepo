@@ -112,7 +112,7 @@ export function TierEditorDialog({ open, onClose }: { open: boolean; onClose: ()
                     <button
                       key={c}
                       onClick={() => update(t.id, { color: c })}
-                      className={cn('h-7 w-7 rounded-md', t.color === c && 'ring-2 ring-white')}
+                      className={cn('h-7 w-7 rounded-md', t.color === c && 'ring-2 ring-fg ring-offset-1 ring-offset-surface')}
                       style={{ background: c }}
                       aria-label={`Cor ${c}`}
                     />

@@ -177,8 +177,8 @@ Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a 
 ## 🎨 Marca
 
 - **Nome**: `APP_NAME` e `COMMUNITY` em `src/shared/brand.ts`.
-- **Cores**: as variáveis `--color-accent` e `--color-accent-2` em `src/client/index.css`.
-- **Logótipo**: `LogoMark` em `src/client/components/Logo.tsx` e o ícone `public/favicon.svg`.
+- **Cores**: tema claro e quente com o vermelho da Lusiaves. O vermelho do logótipo (`#c31315`) fica para a marca; nos botões e destaques usa-se uma versão um pouco mais escura e suave (`--color-accent`, `#b52a2f`) com um coral (`--color-accent-2`) nos degradês. Os fundos são brancos quentes e o texto grafite. Está tudo nas variáveis de `src/client/index.css`.
+- **Logótipo**: o da Lusiaves, em `public/logo.png` (usado por `LogoMark` em `src/client/components/Logo.tsx`), `public/favicon.png` e `public/apple-touch-icon.png`.
 
 ---
 

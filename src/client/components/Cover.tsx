@@ -44,11 +44,11 @@ export function Cover({
   return (
     <div
       className={cn('flex flex-col items-center justify-center gap-1 overflow-hidden p-1 text-center', className)}
-      style={{ background: `linear-gradient(160deg, hsl(${h} 45% 32%), hsl(${(h + 40) % 360} 50% 18%))` }}
+      style={{ background: `linear-gradient(160deg, hsl(${h} 45% 91%), hsl(${(h + 35) % 360} 40% 81%))` }}
       aria-hidden
     >
       <span className="text-2xl leading-none">{MEDIA_TABS[mediaTypeOf(meta.key)].emoji}</span>
-      {label && <span className="line-clamp-3 text-[10px] leading-tight font-semibold text-white/90">{meta.title}</span>}
+      {label && <span className="line-clamp-3 text-[10px] leading-tight font-semibold text-fg/80">{meta.title}</span>}
     </div>
   );
 }

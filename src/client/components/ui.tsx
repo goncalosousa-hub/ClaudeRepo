@@ -12,11 +12,11 @@ type Size = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm';
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-gradient-to-r from-accent to-accent-2 text-white shadow-lg shadow-accent/20 hover:brightness-110 active:brightness-95',
-  secondary: 'bg-surface-3 text-fg border border-line-2 hover:bg-line-2/70',
-  subtle: 'bg-white/5 text-fg hover:bg-white/10',
-  ghost: 'text-muted hover:text-fg hover:bg-white/5',
-  danger: 'bg-bad/10 text-red-300 border border-bad/30 hover:bg-bad/20',
+    'bg-gradient-to-r from-accent to-accent-2 text-white shadow-md shadow-accent/20 hover:brightness-105 active:brightness-95',
+  secondary: 'bg-surface text-fg border border-line-2 hover:bg-surface-3',
+  subtle: 'bg-fg/5 text-fg hover:bg-fg/10',
+  ghost: 'text-muted hover:text-fg hover:bg-fg/5',
+  danger: 'bg-bad/5 text-bad border border-bad/25 hover:bg-bad/10',
 };
 
 const SIZES: Record<Size, string> = {
@@ -70,7 +70,7 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: emoji ? size * 0.55 : size * 0.38,
-        background: `color-mix(in srgb, ${member.color} 22%, #11111b)`,
+        background: `color-mix(in srgb, ${member.color} 16%, var(--color-surface))`,
         boxShadow: `inset 0 0 0 2px ${member.color}`,
         color: member.color,
       }}
@@ -187,7 +187,7 @@ export function Segmented<T extends string>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div className={cn('inline-flex rounded-lg border border-line bg-surface-2 p-0.5', className)} role="radiogroup">
+    <div className={cn('inline-flex rounded-lg border border-line bg-surface-3 p-0.5', className)} role="radiogroup">
       {options.map((o) => (
         <button
           key={o.value}
@@ -199,7 +199,7 @@ export function Segmented<T extends string>({
           className={cn(
             'rounded-md font-medium transition',
             size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm',
-            value === o.value ? 'bg-surface-3 text-fg shadow' : 'text-muted hover:text-fg',
+            value === o.value ? 'bg-surface text-fg shadow-sm shadow-black/10' : 'text-muted hover:text-fg',
           )}
         >
           {o.label}

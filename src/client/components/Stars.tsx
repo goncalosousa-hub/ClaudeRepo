@@ -25,7 +25,7 @@ export function Stars({
           const fill = Math.max(0, Math.min(1, value - (i - 1)));
           return (
             <span key={i} className="relative inline-block" style={{ width: size, height: size }}>
-              <Star size={size} className="absolute inset-0 text-white/20" fill="currentColor" strokeWidth={0} />
+              <Star size={size} className="absolute inset-0 text-fg/15" fill="currentColor" strokeWidth={0} />
               {fill > 0 && (
                 <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${Math.round(fill * 100)}%` }}>
                   <Star size={size} style={{ color: GOLD }} fill="currentColor" strokeWidth={0} />
@@ -56,7 +56,7 @@ export function StarInput({ rating, onChange }: { rating: number | null; onChang
           onClick={() => onChange(chosen === n ? null : n * 2)}
           className="rounded-lg p-1 transition hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
         >
-          <Star size={36} style={{ color: n <= chosen ? GOLD : undefined }} className={n <= chosen ? undefined : 'text-white/20'} fill="currentColor" strokeWidth={0} />
+          <Star size={36} style={{ color: n <= chosen ? GOLD : undefined }} className={n <= chosen ? undefined : 'text-fg/15'} fill="currentColor" strokeWidth={0} />
         </button>
       ))}
     </div>

@@ -71,7 +71,7 @@ export function RoomKindDialog({ open, onClose }: { open: boolean; onClose: () =
           );
         })}
         {!owner && <p className="pt-1 text-xs text-faint">Só o dono da sala pode mudar o tipo.</p>}
-        {tmdb === false && kind !== 'anime' && <p className="pt-1 text-xs text-amber-200">{TMDB_OFF}</p>}
+        {tmdb === false && kind !== 'anime' && <p className="pt-1 text-xs text-warn">{TMDB_OFF}</p>}
       </div>
     </Modal>
   );

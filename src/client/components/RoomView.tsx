@@ -182,7 +182,7 @@ export function RoomView({
         <div className="flex min-h-dvh flex-col">
           <RoomHeader onShare={() => setShareOpen(true)} onProfile={() => setProfileOpen(true)} />
           {snap.status !== 'joined' && (
-            <div className="flex items-center justify-center gap-2 bg-warn/15 px-4 py-1.5 text-xs font-medium text-amber-200">
+            <div className="flex items-center justify-center gap-2 bg-warn/10 px-4 py-1.5 text-xs font-medium text-warn">
               <WifiOff size={14} /> Sem ligação ao servidor — a tentar religar… As tuas alterações serão enviadas quando voltar.
             </div>
           )}

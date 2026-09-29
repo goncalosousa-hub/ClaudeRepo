@@ -38,8 +38,8 @@ function draw(source: CanvasImageSource, w: number, h: number, max: number, maxB
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
-  // Transparent PNGs get a dark background instead of black JPEG corners… or white ones.
-  ctx.fillStyle = '#16161f';
+  // Transparent PNGs get a white background instead of black JPEG corners.
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(source, 0, 0, width, height);
   for (const quality of [0.82, 0.72, 0.6, 0.45]) {

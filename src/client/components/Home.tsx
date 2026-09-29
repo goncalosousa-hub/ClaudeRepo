@@ -196,7 +196,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             Uma sala é um espaço só com quem convidares (a tua equipa, o teu turno, os teus amigos), com
             recomendações, opiniões e, se quiserem, uma tierlist. Para partilhares a tua opinião com toda a gente, usa
             a{' '}
-            <button className="font-medium text-fg underline underline-offset-2 hover:text-violet-200" onClick={() => navigate('/')}>
+            <button className="font-medium text-fg underline underline-offset-2 hover:text-accent" onClick={() => navigate('/')}>
               Comunidade {COMPANY}
             </button>
             .
@@ -243,10 +243,10 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
                 Criar
               </Button>
             </div>
-            {needsTmdb && <p className="mt-2 text-xs text-amber-200">{TMDB_OFF}</p>}
+            {needsTmdb && <p className="mt-2 text-xs text-warn">{TMDB_OFF}</p>}
             {kind === 'all' &&
               (tmdb === false ? (
-                <p className="mt-2 text-xs text-amber-200">
+                <p className="mt-2 text-xs text-warn">
                   Para já só dá para adicionar anime: os filmes e as séries precisam da chave do TMDB (TMDB_API_KEY) no
                   servidor.
                 </p>
@@ -295,7 +295,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
             </h2>
             {user && !user.account && (
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm backdrop-blur">
-                <KeyRound size={17} className="shrink-0 text-violet-300" />
+                <KeyRound size={17} className="shrink-0 text-accent" />
                 <p className="min-w-48 flex-1">
                   <span className="font-medium">Guarda o teu perfil numa conta</span>
                   <span className="text-muted">

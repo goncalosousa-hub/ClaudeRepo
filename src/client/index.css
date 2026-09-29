@@ -4,20 +4,22 @@
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --color-bg: #0a0a12;
-  --color-surface: #11111b;
-  --color-surface-2: #171724;
-  --color-surface-3: #1f1f2f;
-  --color-line: #262639;
-  --color-line-2: #34344c;
-  --color-fg: #ededf5;
-  --color-muted: #a3a3bb;
-  --color-faint: #6e6e89;
-  --color-accent: #8b5cf6;
-  --color-accent-2: #ec4899;
-  --color-ok: #22c55e;
-  --color-warn: #f59e0b;
-  --color-bad: #ef4444;
+  /* Lusiaves: warm whites and charcoal, with the logo's red (#c31315) a little deeper and softer. */
+  --color-bg: #f6f3f1;
+  --color-surface: #ffffff;
+  --color-surface-2: #faf7f5;
+  --color-surface-3: #f1ebe8;
+  --color-line: #e8e0dc;
+  --color-line-2: #d9cfca;
+  --color-fg: #262022;
+  --color-muted: #6b6264;
+  --color-faint: #978d8f;
+  --color-accent: #b52a2f;
+  --color-accent-2: #d8604a;
+  --color-brand: #c31315;
+  --color-ok: #15803d;
+  --color-warn: #b45309;
+  --color-bad: #c62828;
 
   --animate-pop: pop 0.16s ease-out;
   --animate-flash: flash 1.8s ease-out;
@@ -56,7 +58,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -95,7 +97,7 @@ dialog[open] {
   animation: pop 0.16s ease-out;
 }
 dialog::backdrop {
-  background: rgb(5 5 10 / 0.72);
+  background: rgb(38 32 34 / 0.45);
   backdrop-filter: blur(3px);
 }
 
@@ -112,8 +114,8 @@ dialog::backdrop {
 
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    linear-gradient(to right, rgb(38 32 34 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(38 32 34 / 0.04) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 

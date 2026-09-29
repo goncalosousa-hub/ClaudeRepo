@@ -142,7 +142,13 @@ function Lightbox({
               <Trash2 size={14} /> Apagar
             </Button>
           )}
-          <Button variant="ghost" size="icon-sm" className={cn(!onRemove && 'ml-auto')} onClick={onClose} aria-label="Fechar">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={cn('text-white/80 hover:bg-white/10 hover:text-white', !onRemove && 'ml-auto')}
+            onClick={onClose}
+            aria-label="Fechar"
+          >
             <X size={20} />
           </Button>
         </div>

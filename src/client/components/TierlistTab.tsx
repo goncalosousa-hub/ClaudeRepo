@@ -219,7 +219,7 @@ export function TierlistTab({ onShare }: { onShare: () => void }) {
                 <p className="text-sm font-semibold">{s.title}</p>
                 <p className="text-xs text-muted">{s.text}</p>
                 {s.action && (
-                  <button className="mt-1 text-xs font-semibold text-violet-300 hover:underline" onClick={s.action}>
+                  <button className="mt-1 text-xs font-semibold text-accent hover:underline" onClick={s.action}>
                     {s.cta} →
                   </button>
                 )}
