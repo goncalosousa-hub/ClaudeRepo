@@ -1,8 +1,8 @@
 {
-  "name": "anime-tierlist-live",
+  "name": "lusihub",
   "version": "1.0.0",
   "private": true,
-  "description": "Tierlist de anime colaborativa em tempo real: pesquisa todos os animes (AniList), classifica-os em grupo, avalia, dá a tua opinião e recomenda.",
+  "description": "LusiHub: os colaboradores do Grupo Lusiaves recomendam filmes, séries, anime, livros, restaurantes e sítios, com estrelas, opiniões e fotos, em tempo real.",
   "type": "module",
   "engines": {
     "node": ">=20.19"

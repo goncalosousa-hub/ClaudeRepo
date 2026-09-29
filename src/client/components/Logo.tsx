@@ -2,7 +2,7 @@ import { APP_NAME } from '../../shared/brand';
 import { navigate } from '../lib/router';
 import { cn } from './ui';
 
-/** The name in two parts, the second one highlighted: "LusiMovies" → Lusi|Movies, "Tierlist Live" → "Tierlist "|Live. */
+/** The name in two parts, the second one highlighted: "LusiHub" → Lusi|Hub, "Tierlist Live" → "Tierlist "|Live. */
 function brandParts(name: string): [string, string] {
   const space = name.lastIndexOf(' ');
   if (space > 0) return [name.slice(0, space + 1), name.slice(space + 1)];

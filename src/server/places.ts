@@ -6,7 +6,7 @@ import type { AnimeMeta } from '../shared/types';
 
 const TTL = 60 * 60_000;
 const MAX_CACHE = 500;
-const USER_AGENT = 'LusiMovies (https://github.com/goncalosousa-hub/ClaudeRepo)';
+const USER_AGENT = 'LusiHub (https://github.com/goncalosousa-hub/ClaudeRepo)';
 // Results near Portugal first (not only: a place abroad can still be found).
 const BIAS = { lat: '39.9', lon: '-8.5', zoom: '7' };
 

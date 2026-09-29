@@ -1,4 +1,4 @@
-# 🎬 LusiMovies
+# LusiHub
 
 Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria. Cada secção é uma lista de **recomendações**: carregas em "Recomendar", escolhes o filme, livro, restaurante ou sítio e dás as tuas **estrelas** (de 1 a 5), a tua **opinião** e **fotos**; todos veem as dos outros, ao vivo. Não há nada para arrastar. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**, que também podem ter uma tierlist.
 
@@ -112,7 +112,7 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 2. **Redes diferentes.** Os colegas têm de estar na mesma rede Wi-Fi que o teu PC. Testa primeiro com o teu telemóvel.
 3. **Firewall do Windows.** Abre o PowerShell **como administrador** e corre:
    ```powershell
-   New-NetFirewallRule -DisplayName "Anime Tierlist" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+   New-NetFirewallRule -DisplayName "LusiHub" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
    ```
    Em casa, também podes pôr a rede Wi-Fi como **Privada**: *Definições → Rede e Internet → Wi-Fi → (a tua rede) → Tipo de perfil de rede*.
 4. **Rede da escola ou universidade** (por exemplo, eduroam). Estas redes costumam bloquear ligações entre computadores. Usa o túnel da opção 2.
@@ -122,8 +122,8 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 | Onde | Como | Custo |
 |---|---|---|
 | **Railway** | *New Project → Deploy from GitHub repo*. Adiciona um **Volume** montado em `/data` e a variável `DATA_DIR=/data`. | Período de teste; depois ~5 USD/mês |
-| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`, que cria o serviço `lusimovies`, com o link `https://lusimovies.onrender.com` se estiver livre) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
-| **Docker / VPS** | `docker build -t anime-tierlist .` e `docker run -d -p 3000:3000 -v tierlist-data:/data anime-tierlist` | Depende do servidor |
+| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`, que cria o serviço `lusihub`, com o link `https://lusihub.onrender.com` se estiver livre) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
+| **Docker / VPS** | `docker build -t lusihub .` e `docker run -d -p 3000:3000 -v lusihub-data:/data lusihub` | Depende do servidor |
 
 > Os planos grátis sem disco persistente (como o do Render) apagam os ficheiros quando reiniciam. Nesses casos usa sempre `DATABASE_URL` (PostgreSQL). Como estudante, o [GitHub Student Developer Pack](https://education.github.com/pack) também te dá créditos em vários serviços de alojamento.
 
@@ -151,7 +151,7 @@ Algumas notas:
 As séries e os filmes vêm do [TMDB](https://www.themoviedb.org) (The Movie Database), que é grátis mas pede uma chave. Sem ela, a app funciona na mesma, só com salas de anime.
 
 1. Cria uma conta em [themoviedb.org](https://www.themoviedb.org/signup) e confirma o email.
-2. Abre [Definições → API](https://www.themoviedb.org/settings/api) e pede uma chave de *Developer*. No formulário escolhe um uso pessoal ou educativo; no nome da aplicação põe "Tierlist Live" e no URL o teu link do Render (ou `http://localhost:3000`). A chave aparece logo.
+2. Abre [Definições → API](https://www.themoviedb.org/settings/api) e pede uma chave de *Developer*. No formulário escolhe um uso pessoal ou educativo; no nome da aplicação põe "LusiHub" e no URL o teu link do Render (ou `http://localhost:3000`). A chave aparece logo.
 3. Copia a **API Key** (também serve o **API Read Access Token**, o texto comprido).
 4. **No teu PC**: no ficheiro `.env`, acrescenta `TMDB_API_KEY=a-tua-chave` e reinicia o servidor. O terminal deve mostrar `Séries e filmes: ativados (TMDB)`.
 5. **No Render**: no serviço, abre *Environment → Add Environment Variable*, põe `TMDB_API_KEY` com a chave e guarda. O Render publica outra vez sozinho.
