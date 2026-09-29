@@ -17,7 +17,18 @@ const PLACEHOLDERS: Partial<Record<MediaType, string>> = {
   place: 'Como foi? Dicas para quem lá for…',
 };
 
-export function ReviewEditor({ animeKey }: { animeKey: string }) {
+/**
+ * `done`: a button that saves right away and closes, so nobody is left wondering whether it was
+ * saved. With `always`, it shows even before anything was written (e.g. "Publicar" a new title).
+ * `onDone` is told whether the person gave any opinion.
+ */
+export function ReviewEditor({
+  animeKey,
+  done,
+}: {
+  animeKey: string;
+  done?: { label: string; always?: boolean; onDone: (withOpinion: boolean) => void };
+}) {
   const { room, me, dispatch, client } = useRoom();
   const review: Review | undefined = room.reviews[animeKey]?.[me];
   const [opinion, setOpinion] = useState(review?.opinion ?? '');
@@ -176,6 +187,22 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
           )}
         </div>
       </div>
+
+      {done && (done.always || review || opinion.trim()) && (
+        // Stays at the bottom of the details while the opinion is on screen (edge to edge of its box).
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex justify-end rounded-b-xl border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
+          <Button
+            variant="primary"
+            onClick={() => {
+              flush();
+              stopTyping();
+              done.onDone(!!review || !!latest.current.trim());
+            }}
+          >
+            <Check size={16} /> {done.label}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

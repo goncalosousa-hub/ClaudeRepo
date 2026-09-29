@@ -21,7 +21,7 @@ import {
 } from '../src/shared/types';
 import { FAKE_GOOGLE_CLIENT_ID, googleToken } from './fake-google';
 import { FAKE_TMDB_KEY, startFakeTmdb } from './fake-tmdb';
-import { anime, spot, title } from './fixtures';
+import { anime, book, spot, title } from './fixtures';
 
 type App = Awaited<ReturnType<typeof createApp>> & { url: string };
 const cleanups: (() => Promise<void>)[] = [];
@@ -614,6 +614,33 @@ describe('community space', () => {
     const app2 = await start(dir);
     const d = await join(app2, 'comunidade', user('rui'));
     expect(d.ack.state.chat.map((m) => m.text)).toEqual(['Olá a todos']);
+  });
+});
+
+describe('community state for the browser cache', () => {
+  it('serves the state of the community spaces only', async () => {
+    const app = await start(await tmpDir());
+    const ana = user('ana');
+    const a = await join(app, 'livros', ana);
+    await op(a.s, { type: 'anime.add', anime: book(7, 'Os Maias') });
+    const res = await fetch(`${app.url}/api/rooms/livros/state`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { state: RoomState; seq: number; lastSeen: Record<string, number> };
+    expect(body.state.anime['bk:7'].title).toBe('Os Maias');
+    expect(body.state.members).toHaveProperty(ana.id);
+    expect(body.seq).toBeGreaterThanOrEqual(2);
+    // Never the secrets that prove who is who.
+    expect(JSON.stringify(body)).not.toContain(ana.secret);
+
+    // A room is read by joining it (and showing up in its members), never from here.
+    const roomId = await createRoom(app, 'Turma');
+    expect((await fetch(`${app.url}/api/rooms/${roomId}/state`)).status).toBe(404);
+    expect((await fetch(`${app.url}/api/rooms/nope1234/state`)).status).toBe(404);
+  });
+
+  it('stays behind the community code', async () => {
+    const app = await start(await tmpDir(), undefined, { communityCode: 'frango-2026' });
+    expect((await fetch(`${app.url}/api/rooms/comunidade/state`)).status).toBe(401);
   });
 });
 

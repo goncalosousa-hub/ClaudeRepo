@@ -65,7 +65,7 @@ export function RoomView({
   const [tab, setTabState] = useState<RoomTab>(() => readTab(room.id, !!room.global));
   // The community space has no shared board: its tier list is everyone's average.
   const [board, setBoard] = useState<string>(room.global ? CONSENSUS_BOARD : GROUP_BOARD);
-  const [dialog, setDialog] = useState<{ key: string; meta: AnimeMeta } | null>(null);
+  const [dialog, setDialog] = useState<{ key: string; meta: AnimeMeta; added?: boolean } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [kindOpen, setKindOpen] = useState(false);
@@ -86,6 +86,17 @@ export function RoomView({
 
   // On desktop the chat lives in the sidebar.
   const visibleTab: RoomTab = isDesktop && tab === 'chat' ? 'home' : tab;
+
+  // Showing the room as it was last seen while connecting is normal: only say the connection is
+  // missing when it was lost, or when connecting takes long.
+  const connecting = snap.status === 'connecting';
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!connecting) return setSlow(false);
+    const timer = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(timer);
+  }, [connecting]);
+  const offline = snap.status === 'reconnecting' || (connecting && slow);
 
   useEffect(() => {
     client.setPresence({ tab: visibleTab, board: visibleTab === 'tierlist' ? board : null });
@@ -142,9 +153,9 @@ export function RoomView({
 
   const roomAnime = useRef(room.anime);
   roomAnime.current = room.anime;
-  const openAnime = useCallback((target: string | AnimeMeta) => {
+  const openAnime = useCallback((target: string | AnimeMeta, opts: { added?: boolean } = {}) => {
     const meta = typeof target === 'string' ? roomAnime.current[target] : target;
-    if (meta) setDialog({ key: meta.key, meta });
+    if (meta) setDialog({ key: meta.key, meta, added: opts.added });
   }, []);
 
   const ctx = useMemo<RoomContextValue>(
@@ -181,13 +192,13 @@ export function RoomView({
       <PhotosContext.Provider value={room.photos}>
         <div className="flex min-h-dvh flex-col">
           <RoomHeader onShare={() => setShareOpen(true)} onProfile={() => setProfileOpen(true)} />
-          {snap.status !== 'joined' && (
+          {offline && (
             <div className="flex items-center justify-center gap-2 bg-warn/10 px-4 py-1.5 text-xs font-medium text-warn">
               <WifiOff size={14} /> Sem ligação ao servidor — a tentar religar… As tuas alterações serão enviadas quando voltar.
             </div>
           )}
           <div className="mx-auto flex w-full max-w-[1680px] flex-1 gap-5 px-3 sm:px-5">
-            <main className="min-w-0 flex-1 pt-3 pb-28 lg:pb-10">
+            <main className="min-w-0 flex-1 animate-fade-in pt-3 pb-28 lg:pb-10">
               <TabBar />
               <div className="mt-3">
                 {visibleTab === 'home' && <RecommendationsTab />}

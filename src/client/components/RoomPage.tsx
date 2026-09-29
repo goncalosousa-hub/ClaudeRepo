@@ -1,16 +1,18 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { COMPANY } from '../../shared/brand';
 import { communitySection } from '../../shared/constants';
 import { newUser, type LocalUser } from '../lib/identity';
 import { errorMessage } from '../lib/format';
 import { forgetRoom } from '../lib/recent-rooms';
+import { cacheRoom, cachedRoom, prefetchCommunity } from '../lib/room-cache';
 import { RoomClient, type RoomSnapshot } from '../lib/room-client';
 import { navigate } from '../lib/router';
 import { Logo } from './Logo';
 import { ProfileDialog } from './ProfileDialog';
+import { CommunitySections, SyncBar } from './RoomHeader';
 import { RoomView } from './RoomView';
-import { Button, Spinner } from './ui';
+import { Avatar, Button, Spinner } from './ui';
 
 const idle: RoomSnapshot = {
   status: 'connecting',
@@ -58,10 +60,16 @@ export function RoomPage({
 function ConnectedRoom({ roomId, user, setUser }: { roomId: string; user: LocalUser; setUser: (u: LocalUser) => void }) {
   const [client, setClient] = useState<RoomClient | null>(null);
 
-  useEffect(() => {
-    const c = new RoomClient(roomId, user);
+  // Before the first paint, so a room seen before shows at once: no loading screen in between. On
+  // the way out, its last state is kept for next time.
+  useLayoutEffect(() => {
+    const c = new RoomClient(roomId, user, { initial: cachedRoom(roomId) });
     setClient(c);
-    return () => c.destroy();
+    return () => {
+      const last = c.cacheable();
+      if (last) cacheRoom(roomId, last);
+      c.destroy();
+    };
     // A new connection only when the room or the identity changes (not on name/colour edits).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, user.id]);
@@ -71,6 +79,14 @@ function ConnectedRoom({ roomId, user, setUser }: { roomId: string; user: LocalU
   }, [client, user]);
 
   const snap = useSyncExternalStore(client?.subscribe ?? noopSubscribe, client?.getSnapshot ?? (() => idle));
+
+  // Once in a community space, the other ones are fetched in the background (after this one's pictures).
+  const joined = snap.status === 'joined';
+  useEffect(() => {
+    if (!joined || !communitySection(roomId)) return;
+    const timer = setTimeout(() => prefetchCommunity(roomId), 1200);
+    return () => clearTimeout(timer);
+  }, [joined, roomId]);
 
   if (snap.status === 'error') {
     return (
@@ -86,10 +102,43 @@ function ConnectedRoom({ roomId, user, setUser }: { roomId: string; user: LocalU
     );
   }
   if (!client || !snap.room) {
-    const entering = communitySection(roomId) ? 'A entrar na comunidade…' : 'A entrar na sala…';
-    return <Loading text={snap.status === 'reconnecting' ? 'A religar…' : entering} />;
+    if (communitySection(roomId)) return <CommunitySkeleton roomId={roomId} user={user} />;
+    return <Loading text={snap.status === 'reconnecting' ? 'A religar…' : 'A entrar na sala…'} />;
   }
   return <RoomView client={client} snap={snap} user={user} setUser={setUser} />;
+}
+
+/**
+ * A community space not seen yet: the page as it will look (header, sections, cards), so moving
+ * between spaces never goes through a blank loading screen.
+ */
+function CommunitySkeleton({ roomId, user }: { roomId: string; user: LocalUser }) {
+  return (
+    <div className="flex min-h-dvh flex-col" aria-busy="true">
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
+        <div className="mx-auto flex h-[60px] max-w-[1680px] items-center gap-3 px-3 sm:px-5">
+          <Logo compact />
+          <div className="min-w-0 flex-1">
+            <p className="truncate px-1 py-0.5 text-base font-semibold">Comunidade {COMPANY}</p>
+            <p className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warn" /> a entrar…
+            </p>
+          </div>
+          <Avatar member={user} size={34} />
+        </div>
+        <CommunitySections current={roomId} />
+        <SyncBar />
+      </header>
+      <main className="mx-auto w-full max-w-[1680px] px-3 pt-6 sm:px-5">
+        <div className="mb-5 h-7 w-56 animate-pulse rounded-lg bg-fg/5" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-fg/5" />
+          ))}
+        </div>
+      </main>
+    </div>
+  );
 }
 
 function Loading({ text }: { text: string }) {

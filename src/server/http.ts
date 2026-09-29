@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from 'express';
-import { isAllowedImageUrl } from '../shared/constants';
+import { communitySection, isAllowedImageUrl } from '../shared/constants';
 import { createRoomSchema, ROOM_ID_RE } from '../shared/schema';
 import { roomKind } from '../shared/media';
 import { lanAddresses } from './network';
@@ -89,6 +89,19 @@ export function apiRouter(rooms: RoomManager) {
 
   router.get('/community/rooms', rateLimit(120, 60_000), async (_req, res) => {
     res.json({ rooms: await rooms.communityRooms() });
+  });
+
+  // A community space as it is now, for the browser to keep: moving to it is then instant (the live
+  // connection catches up after). Only the community spaces: they are open to every colleague anyway,
+  // while reading a room means joining it (and showing up in its members).
+  router.get('/rooms/:id/state', rateLimit(120, 60_000), async (req, res) => {
+    const id = String(req.params.id).toLowerCase();
+    const room = communitySection(id) ? await rooms.get(id) : null;
+    if (!room?.doc.state.global) {
+      res.status(404).json({ error: 'room_not_found' });
+      return;
+    }
+    res.json({ state: room.doc.state, seq: room.doc.seq, lastSeen: room.doc.lastSeen });
   });
 
   router.get('/rooms/:id', async (req, res) => {

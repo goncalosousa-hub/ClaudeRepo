@@ -179,7 +179,7 @@ function QuickRow({ anime, onChosen }: { anime: AnimeMeta; onChosen?: () => void
           onClick={() => {
             if (!dispatch({ type: 'anime.add', anime })) return;
             onChosen();
-            openAnime(anime);
+            openAnime(anime, { added: true });
           }}
         >
           Escolher
