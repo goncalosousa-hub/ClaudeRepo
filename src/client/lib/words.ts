@@ -32,11 +32,12 @@ export const thisOne = (n: Noun) => (n.f ? 'Esta' : 'Este');
 /** Agreement of a participle: added("adicionad", série) → "adicionada" */
 export const agree = (stem: string, n: Noun) => `${stem}${n.f ? 'a' : 'o'}`;
 
+/** Room types, in the order they are offered: everything first, then films, series and anime. */
 export const KINDS: { id: RoomKind; label: string; emoji: string }[] = [
-  { id: 'anime', label: 'Anime', emoji: '🎌' },
-  { id: 'series', label: 'Séries', emoji: '📺' },
-  { id: 'movies', label: 'Filmes', emoji: '🎬' },
   { id: 'all', label: 'Tudo', emoji: '✨' },
+  { id: 'movies', label: 'Filmes', emoji: '🎬' },
+  { id: 'series', label: 'Séries', emoji: '📺' },
+  { id: 'anime', label: 'Anime', emoji: '🎌' },
 ];
 
 export const MEDIA_TABS: Record<MediaType, { label: string; emoji: string }> = {
@@ -45,7 +46,7 @@ export const MEDIA_TABS: Record<MediaType, { label: string; emoji: string }> = {
   movie: { label: 'Filmes', emoji: '🎬' },
 };
 
-export const kindInfo = (kind: RoomKind) => KINDS.find((k) => k.id === kind) ?? KINDS[0];
+export const kindInfo = (kind: RoomKind) => KINDS.find((k) => k.id === kind) ?? KINDS.find((k) => k.id === 'anime')!;
 
 /** Words for where things happen: a room ("sala") or the community space ("comunidade"). */
 export interface Place {

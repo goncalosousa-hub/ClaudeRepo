@@ -1,32 +1,31 @@
 import { useState } from 'react';
 import { Check, Plus, Search } from 'lucide-react';
-import { mediaOfKind, mediaTypeOf } from '../../shared/media';
-import type { AnimeMeta, MediaType } from '../../shared/types';
+import { mediaTypeOf } from '../../shared/media';
+import type { AnimeMeta } from '../../shared/types';
 import { SEARCH_EXAMPLES, catalogName } from '../lib/catalog';
 import { MEDIA_TABS, agree, mediaNoun, none } from '../lib/words';
 import { useBrowse, useDebounced, useInView } from '../hooks/useBrowse';
-import { useTmdbAvailable } from '../hooks/useTmdb';
-import { metaLine } from './ExploreTab';
+import { useCatalogTabs } from '../hooks/useTmdb';
+import { CatalogOff, metaLine } from './ExploreTab';
 import { useRoom } from './RoomContext';
+import { RoomKindHint } from './RoomKindDialog';
 import { useToast } from './Toasts';
 import { Button, Modal, ModalHeader, Segmented, Spinner, inputClass } from './ui';
 
 /** Search the whole catalogue and add titles to the room without leaving the tier list. */
 export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { kind, noun } = useRoom();
-  const tmdb = useTmdbAvailable();
-  const catalogs = mediaOfKind(kind).filter((m) => kind !== 'all' || m === 'anime' || tmdb !== false);
-  const [chosen, setMedia] = useState<MediaType>(catalogs[0]);
-  const media = catalogs.includes(chosen) ? chosen : catalogs[0];
+  const { catalogs, media, setMedia, waiting, off } = useCatalogTabs(kind);
   const [text, setText] = useState('');
   const search = useDebounced(text.trim(), 380);
-  const { items, loading, error, hasMore, loadMore, retry } = useBrowse(media, search ? { search } : { sort: 'trending' }, open);
-  const sentinel = useInView(loadMore, open && hasMore && !loading);
+  const ready = open && !waiting && !off;
+  const { items, loading, error, hasMore, loadMore, retry } = useBrowse(media, search ? { search } : { sort: 'trending' }, ready);
+  const sentinel = useInView(loadMore, ready && hasMore && !loading);
   const itemNoun = mediaNoun(media);
   const label = `Adicionar ${noun.one}`;
 
   const subtitle =
-    catalogs.length > 1 ? 'Anime do AniList, séries e filmes do TMDB.' : `Pesquisa em todo o catálogo do ${catalogName(media)}.`;
+    catalogs.length > 1 ? 'Filmes e séries do TMDB, anime do AniList.' : `Pesquisa em todo o catálogo do ${catalogName(media)}.`;
 
   return (
     <Modal open={open} onClose={onClose} label={label} className="max-w-xl">
@@ -40,40 +39,57 @@ export function QuickAddDialog({ open, onClose }: { open: boolean; onClose: () =
             options={catalogs.map((m) => ({ value: m, label: `${MEDIA_TABS[m].emoji} ${MEDIA_TABS[m].label}` }))}
           />
         )}
-        <label className="relative block">
-          <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-faint" />
-          <input
-            autoFocus
-            className={`${inputClass} pl-9`}
-            placeholder={SEARCH_EXAMPLES[media]}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            aria-label={`Pesquisar ${itemNoun.many}`}
-          />
-        </label>
-        <p className="text-xs text-faint">{search ? 'Resultados' : 'Em alta agora'}</p>
+        <RoomKindHint before={onClose} />
+        {!off && (
+          <>
+            <label className="relative block">
+              <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-faint" />
+              <input
+                autoFocus
+                className={`${inputClass} pl-9`}
+                placeholder={SEARCH_EXAMPLES[media]}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                aria-label={`Pesquisar ${itemNoun.many}`}
+              />
+            </label>
+            <p className="text-xs text-faint">{search ? 'Resultados' : 'Em alta agora'}</p>
+          </>
+        )}
       </div>
       <div className="max-h-[55dvh] overflow-y-auto px-3 pt-1 pb-4">
-        {items.map((a) => (
-          <QuickRow key={a.key} anime={a} />
-        ))}
-        {error && (
-          <div className="px-2 py-6 text-center text-sm text-muted">
-            <p>{error}</p>
-            <Button size="sm" className="mt-3" onClick={retry}>
-              Tentar outra vez
-            </Button>
+        {off ? (
+          <div className="pt-3">
+            <CatalogOff onAnime={catalogs.includes('anime') ? () => setMedia('anime') : undefined} />
           </div>
-        )}
-        {!loading && !error && items.length === 0 && (
-          <p className="px-2 py-6 text-center text-sm text-muted">
-            {none(itemNoun)} {itemNoun.one} {agree('encontrad', itemNoun)}.
-          </p>
-        )}
-        {loading && (
+        ) : waiting ? (
           <div className="flex justify-center py-5 text-muted">
             <Spinner />
           </div>
+        ) : (
+          <>
+            {items.map((a) => (
+              <QuickRow key={a.key} anime={a} />
+            ))}
+            {error && (
+              <div className="px-2 py-6 text-center text-sm text-muted">
+                <p>{error}</p>
+                <Button size="sm" className="mt-3" onClick={retry}>
+                  Tentar outra vez
+                </Button>
+              </div>
+            )}
+            {!loading && !error && items.length === 0 && (
+              <p className="px-2 py-6 text-center text-sm text-muted">
+                {none(itemNoun)} {itemNoun.one} {agree('encontrad', itemNoun)}.
+              </p>
+            )}
+            {loading && (
+              <div className="flex justify-center py-5 text-muted">
+                <Spinner />
+              </div>
+            )}
+          </>
         )}
         <div ref={sentinel} />
       </div>

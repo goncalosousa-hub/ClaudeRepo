@@ -1,6 +1,6 @@
 # 🎬 LusiMovies
 
-Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver: **anime, séries e filmes**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião** e **recomendação**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
+Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver: **filmes, séries e anime**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião** e **recomendação**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
 
 Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
@@ -8,10 +8,10 @@ Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code
 
 ## ✨ Funcionalidades
 
-**Anime, séries e filmes**
-- Ao criar uma sala escolhes o que vão classificar: **Anime**, **Séries**, **Filmes** ou **Tudo** (os três na mesma tierlist).
+**Filmes, séries e anime**
+- Ao criar uma sala escolhes o que vão classificar: **Tudo** (filmes, séries e anime na mesma tierlist, a opção por omissão), **Filmes**, **Séries** ou **Anime**. O dono da sala pode mudar o tipo depois, no cabeçalho da sala ou em "Explorar".
+- **Filmes e séries**: catálogo completo do [TMDB](https://www.themoviedb.org), com títulos e sinopses em português (quando existem), filtros por género e ano, e atalhos como "Em alta", "Em exibição", "Nos cinemas", "Brevemente" e "Melhores de sempre". Precisa de uma chave grátis do TMDB ([vê como](#-séries-e-filmes-chave-do-tmdb)); sem ela, só aparece o anime.
 - **Anime**: pesquisa em **todo** o catálogo do [AniList](https://anilist.co), com filtros por género, ano, temporada e formato. Se o AniList estiver em baixo ou a limitar pedidos, a app passa sozinha para o **MyAnimeList** (através da API [Jikan](https://jikan.moe)).
-- **Séries e filmes**: catálogo completo do [TMDB](https://www.themoviedb.org), com títulos e sinopses em português (quando existem), filtros por género e ano, e atalhos como "Em alta", "Em exibição", "Nos cinemas", "Brevemente" e "Melhores de sempre". Precisa de uma chave grátis do TMDB ([vê como](#-séries-e-filmes-chave-do-tmdb)).
 - Scroll infinito, e detalhes de cada título: sinopse, episódios ou temporadas, duração, estúdio, canal ou realização, elenco, trailer e títulos semelhantes.
 
 **Tierlists**
@@ -240,7 +240,7 @@ flowchart LR
 - **Contas.** Uma conta guarda essa identidade (id e segredo), o perfil e a lista de salas, protegidos por uma palavra-passe (guardada como *hash* scrypt). Entrar na conta devolve a identidade ao browser, por isso és o mesmo membro em qualquer link ou dispositivo. Os erros de palavra-passe têm um limite por utilizador para dificultar adivinhas.
 - **Catálogos.** As pesquisas de anime vão diretamente do browser ao AniList, por isso cada pessoa tem o seu próprio limite de pedidos. As de séries e filmes passam pelo servidor, que tem a chave do TMDB e guarda as respostas em cache. Quando se adiciona um título à sala, os dados principais (título, capa, géneros…) ficam guardados na sala.
 - **Comunidade.** É uma sala especial (`comunidade`), criada quando o servidor arranca pela primeira vez, com regras próprias: não tem dono nem tierlist partilhada, os tiers são fixos e cada pessoa só mexe na sua tierlist e nos títulos que adicionou. Abre em `/`; as salas estão em `/salas` e em `/r/<código>`.
-- **Tipos de sala.** Cada sala tem um tipo (anime, séries, filmes ou tudo) e só aceita títulos desse tipo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries e `mv:` são filmes. As salas antigas, sem tipo, são salas de anime.
+- **Tipos de sala.** Cada sala tem um tipo (tudo, filmes, séries ou anime) e só aceita títulos desse tipo. O dono pode mudar o tipo (`room.kind`) desde que os títulos que já lá estão caibam no novo. O tipo de cada título está na sua chave: `al:` e `mal:` são anime, `tv:` são séries e `mv:` são filmes. As salas antigas, sem tipo, são salas de anime.
 
 ### Estrutura do projeto
 

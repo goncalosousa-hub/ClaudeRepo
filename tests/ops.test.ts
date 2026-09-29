@@ -91,6 +91,27 @@ describe('room kinds', () => {
     expect(add(all, title('movie', 1396))).not.toThrow();
     expect(Object.keys(all.anime)).toContain('mv:1396');
   });
+
+  it('can change what the room holds while the titles in it still fit', () => {
+    const s = kinds(); // an old anime room
+    apply(s, { type: 'anime.add', anime: anime(1) });
+    apply(s, { type: 'room.kind', kind: 'all' });
+    expect(s.kind).toBe('all');
+    expect(s.activity.at(-1)).toMatchObject({ kind: 'kind', text: 'all' });
+    apply(s, { type: 'anime.add', anime: title('movie', 238, 'O Padrinho') });
+
+    // Films only would leave the anime out: it has to go first.
+    const films = () => apply(s, { type: 'room.kind', kind: 'movies' });
+    expect(films).toThrow(new OpError('kind_conflict'));
+    expect(s.kind).toBe('all');
+    apply(s, { type: 'anime.remove', key: 'al:1' });
+    films();
+    expect(s.kind).toBe('movies');
+    const before = s.activity.length;
+    films(); // no change, no activity
+    expect(s.activity).toHaveLength(before);
+    expect(add(s, title('tv', 1396))).toThrow(new OpError('media_not_allowed'));
+  });
 });
 
 describe('board.move', () => {

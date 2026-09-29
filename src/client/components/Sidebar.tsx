@@ -3,9 +3,9 @@ import { Activity as ActivityIcon, MessagesSquare, SendHorizontal } from 'lucide
 import { nanoid } from 'nanoid';
 import { LIMITS } from '../../shared/constants';
 import { mediaTypeOf } from '../../shared/media';
-import { GROUP_BOARD, POOL, type Activity } from '../../shared/types';
+import { GROUP_BOARD, POOL, type Activity, type RoomKind } from '../../shared/types';
 import { RECOMMEND, WATCH_STATUS, clockTime, timeAgo } from '../lib/format';
-import { an, mediaNoun } from '../lib/words';
+import { an, kindInfo, mediaNoun } from '../lib/words';
 import { useRoom } from './RoomContext';
 import { Avatar, cn } from './ui';
 
@@ -290,6 +290,18 @@ function ActivityItem({ a }: { a: Activity }) {
     case 'clear':
       body = <>limpou a sua tierlist</>;
       break;
+    case 'kind': {
+      const k = kindInfo(a.text as RoomKind);
+      body = (
+        <>
+          mudou o tipo da sala para{' '}
+          <b className="text-fg">
+            {k.emoji} {k.label}
+          </b>
+        </>
+      );
+      break;
+    }
     case 'listed':
       body = a.listed ? <>abriu a sala a todos os colegas 🔓</> : <>fechou a sala: agora só entra quem tiver o link 🔒</>;
       break;

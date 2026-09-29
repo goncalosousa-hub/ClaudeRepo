@@ -3,9 +3,12 @@ import type { CatalogPage, TmdbDetails, TmdbType } from '../../shared/catalog';
 import type { AnimeMeta } from '../../shared/types';
 import { AnimeApiError, type AnimeDetails, type BrowseParams, type BrowseResult } from './anime-api';
 
+/** Shown where series and movies would be when the server has no TMDB key. */
+export const TMDB_OFF =
+  'Os filmes e as séries ainda não estão ativos neste servidor: falta a chave do TMDB (TMDB_API_KEY), que quem gere a app tem de configurar.';
+
 const MESSAGES: Record<string, string> = {
-  tmdb_not_configured:
-    'As séries e os filmes ainda não estão ativos neste servidor: falta a chave do TMDB (TMDB_API_KEY). Vê o README.',
+  tmdb_not_configured: TMDB_OFF,
   tmdb_key_invalid: 'O TMDB recusou a chave deste servidor (TMDB_API_KEY). Quem gere o servidor tem de a confirmar.',
   tmdb_unreachable: 'O servidor não conseguiu contactar o TMDB. Tenta daqui a pouco.',
   not_found: 'Não encontrado no TMDB.',

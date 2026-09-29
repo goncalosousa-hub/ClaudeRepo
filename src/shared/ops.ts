@@ -279,6 +279,15 @@ export function applyOp(s: RoomState, op: Op, m: OpMeta): void {
       return;
     }
 
+    case 'room.kind': {
+      if (roomKind(s) === op.kind) return;
+      // An anime room can become "Tudo", but a room with anime cannot become a films room.
+      if (Object.keys(s.anime).some((k) => !acceptsMedia(op.kind, mediaTypeOf(k)))) throw new OpError('kind_conflict');
+      s.kind = op.kind;
+      pushActivity(s, m, { kind: 'kind', text: op.kind });
+      return;
+    }
+
     case 'room.listed': {
       if (!!s.listed === op.listed) return;
       s.listed = op.listed;

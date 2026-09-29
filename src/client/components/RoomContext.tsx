@@ -31,6 +31,8 @@ export interface RoomContextValue {
   setTab: (tab: RoomTab) => void;
   board: string;
   setBoard: (board: string) => void;
+  /** Opens "Tipo da sala" (the owner changes what the room holds). */
+  openKindDialog: () => void;
   /** Keys of MAL ids already in the room (to spot the same anime coming from another source). */
   inRoom: (a: Pick<AnimeMeta, 'key' | 'idMal'>) => string | null;
 }

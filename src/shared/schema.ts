@@ -89,6 +89,7 @@ export const clientOpSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('room.rename'), name: z.string().trim().min(1).max(LIMITS.roomName) }),
   z.object({ type: z.literal('room.owner'), to: idStr }),
   z.object({ type: z.literal('room.listed'), listed: z.boolean() }),
+  z.object({ type: z.literal('room.kind'), kind: z.enum(ROOM_KINDS) }),
   z.object({ type: z.literal('member.update'), ...memberFields }),
   z.object({ type: z.literal('chat.send'), id: idStr, text: z.string().trim().min(1).max(LIMITS.chatText) }),
 ]);

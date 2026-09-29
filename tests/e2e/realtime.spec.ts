@@ -28,6 +28,16 @@ async function drag(page: Page, source: Locator, target: Locator, opts: { releas
 
 const card = (scope: Locator, name: string) => scope.locator(`[data-card][aria-label="${name}"]`);
 
+/** Opens a card's details. The board ignores a click that comes right after a drop (it is the drop's own), so retry. */
+async function openCard(page: Page, target: Locator, name: string, how: 'click' | 'tap' = 'click') {
+  const dialog = page.getByRole('dialog', { name });
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await target[how]();
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+  }).toPass();
+  return dialog;
+}
+
 async function shot(page: Page, name: string) {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 }
@@ -39,6 +49,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
   // --- Ana creates a room ------------------------------------------------------------
   await ana.goto('/salas');
   await shot(ana, '01-home');
+  await ana.getByRole('radio', { name: /Anime/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Turma ESTG');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(ana, 'Ana');
@@ -198,6 +209,7 @@ test('two colleagues build a tier list together in real time', async ({ browser 
 test('mobile layout works', async ({ browser }) => {
   const page = await newPerson(browser, { width: 390, height: 844 });
   await page.goto('/salas');
+  await page.getByRole('radio', { name: /Anime/ }).click();
   await page.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Telemóvel');
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(page, 'Eva');
@@ -217,6 +229,7 @@ test('drag with a finger on a phone (long press) and tap to open', async ({ brow
   const page = await context.newPage();
   await mockAniList(page);
   await page.goto('/salas');
+  await page.getByRole('radio', { name: /Anime/ }).click();
   await page.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Toque');
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(page, 'Eva');
@@ -239,8 +252,7 @@ test('drag with a finger on a phone (long press) and tap to open', async ({ brow
   const placed = card(page.locator('[data-drop="b"]'), 'Sousou no Frieren');
   await expect(placed).toBeVisible();
 
-  await placed.tap();
-  await expect(page.getByRole('dialog', { name: 'Sousou no Frieren' })).toBeVisible();
+  await openCard(page, placed, 'Sousou no Frieren', 'tap');
 });
 
 test('an account keeps the same profile and rooms on any link or device', async ({ browser }) => {
@@ -251,6 +263,7 @@ test('an account keeps the same profile and rooms on any link or device', async 
   // --- On her laptop Ana starts without an account: creates a room and rates an anime ---
   const laptop = await newPerson(browser);
   await laptop.goto('/salas');
+  await laptop.getByRole('radio', { name: /Anime/ }).click();
   await laptop.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Clube de anime');
   await laptop.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(laptop, 'Ana');
@@ -336,6 +349,9 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
 
   // --- A series room -------------------------------------------------------------------
   await ana.goto('/salas');
+  const kinds = ana.locator('form').filter({ hasText: 'Criar uma sala' }).getByRole('radio');
+  await expect(kinds).toHaveText([/Tudo/, /Filmes/, /Séries/, /Anime/]);
+  await expect(kinds.first()).toHaveAttribute('aria-checked', 'true');
   await ana.getByRole('radio', { name: /Séries/ }).click();
   await ana.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Séries da turma');
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
@@ -384,6 +400,24 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await expect(ana.locator('[data-anime="tv:2316"]')).toHaveCount(0);
   await shot(ana, '15-series-explore');
 
+  // Ana owns the room: she makes it a room for everything, and Rui gets films and anime too, live.
+  await rui.getByRole('button', { name: 'Explorar' }).click();
+  await expect(rui.getByText('📺 Esta sala é só de séries.')).toBeVisible();
+  await expect(rui.getByRole('button', { name: 'Mudar o tipo da sala' })).toHaveCount(0);
+  await ana.getByRole('button', { name: 'Mudar o tipo da sala' }).click();
+  const kindDialog = ana.getByRole('dialog', { name: 'Tipo da sala' });
+  // Films only would leave Breaking Bad out.
+  await expect(kindDialog.getByRole('radio', { name: 'Filmes', exact: true })).toBeDisabled();
+  await expect(kindDialog.getByText('Não dá enquanto a sala tiver 1 série.')).toHaveCount(2);
+  await shot(ana, '15b-room-kind');
+  await kindDialog.getByRole('radio', { name: 'Tudo', exact: true }).click();
+  await expect(kindDialog).toBeHidden();
+  await expect(rui.getByRole('banner').getByText('✨ Tudo')).toBeVisible();
+  await expect(rui.getByText('📺 Esta sala é só de séries.')).toHaveCount(0);
+  await expect(rui.getByRole('main').getByRole('radio')).toHaveText([/Filmes/, /Séries/, /Anime/]);
+  await rui.getByRole('main').getByRole('radio', { name: /Anime/ }).click();
+  await expect(rui.getByText('Cowboy Bebop').first()).toBeVisible();
+
   // --- A room with everything: anime and movies side by side ------------------------------
   await ana.goto('/salas');
   await ana.getByRole('radio', { name: /Tudo/ }).click();
@@ -391,7 +425,8 @@ test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {
   await ana.getByRole('button', { name: 'Criar', exact: true }).click();
   await expect(ana.getByRole('heading', { name: 'Tierlist do Grupo', exact: true })).toBeVisible();
   await ana.getByRole('button', { name: 'Explorar' }).click();
-  await ana.getByRole('radio', { name: /Filmes/ }).click();
+  // Films, series and anime, in that order: films first.
+  await expect(ana.getByRole('radio', { name: /Filmes/ })).toHaveAttribute('aria-checked', 'true');
   await ana.getByRole('button', { name: '🍿 Nos cinemas' }).click();
   await ana.locator('[data-anime="mv:872585"]').getByRole('button', { name: 'Adicionar à sala' }).click();
   await ana.getByRole('radio', { name: /Anime/ }).click();
@@ -468,12 +503,14 @@ test('everyone shares opinions in the community space, without rooms', async ({ 
   await ana.getByRole('button', { name: 'A minha', exact: true }).click();
   await ana.getByRole('button', { name: 'Adicionar título' }).click();
   const quick = ana.getByRole('dialog', { name: 'Adicionar título' });
+  await expect(quick.getByRole('radio')).toHaveText([/Filmes/, /Séries/, /Anime/]);
+  await expect(quick.locator('[data-anime="mv:872585"]')).toBeVisible();
+  await quick.getByRole('radio', { name: /Anime/ }).click();
   await quick.locator('[data-anime="al:154587"]').getByRole('button', { name: 'Adicionar', exact: true }).click();
   await expect(quick.locator('[data-anime="al:154587"]').getByText('Na comunidade')).toBeVisible();
   await ana.keyboard.press('Escape');
   await drag(ana, card(ana.getByTestId('pool'), 'Sousou no Frieren'), ana.locator('[data-drop="s"]'));
-  await card(ana.locator('[data-drop="s"]'), 'Sousou no Frieren').click();
-  const review = ana.getByRole('dialog', { name: 'Sousou no Frieren' });
+  const review = await openCard(ana, card(ana.locator('[data-drop="s"]'), 'Sousou no Frieren'), 'Sousou no Frieren');
   await review.getByRole('radio', { name: '9', exact: true }).click();
   await review.getByRole('button', { name: /Recomendo/ }).first().click();
   await review.getByPlaceholder(/O que achaste/).fill('Obrigatório para toda a gente!');
