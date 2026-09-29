@@ -144,7 +144,7 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
               <Button
                 size="sm"
                 variant="subtle"
-                onClick={() => navigator.share({ title: room.name, text: `Junta-te à tierlist "${room.name}"`, url }).catch(() => {})}
+                onClick={() => navigator.share({ title: room.name, text: room.global ? `Junta-te à ${room.name}` : `Junta-te à sala "${room.name}"`, url }).catch(() => {})}
               >
                 <Share2 size={14} /> Partilhar…
               </Button>

@@ -26,6 +26,15 @@ export function formatRating(n: number | null | undefined): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',');
 }
 
+/**
+ * Ratings are kept from 1 to 10 and shown as 1 to 5 stars (a star is 2 points), so the notes given
+ * before the stars still count: 7/10 is 3,5 stars.
+ */
+export const toStars = (rating: number) => rating / 2;
+
+/** "4,5": an average (1-10) in stars, with one decimal. */
+export const formatStars = (rating: number | null | undefined) => (rating == null ? '—' : formatRating(Math.round(toStars(rating) * 10) / 10));
+
 export function plural(n: number, one: string, many: string) {
   return `${formatNumber(n)} ${n === 1 ? one : many}`;
 }

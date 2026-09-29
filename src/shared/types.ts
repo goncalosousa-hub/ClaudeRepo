@@ -251,7 +251,8 @@ export interface OpEnvelope {
 // ---------------------------------------------------------------------------
 // Presence (ephemeral, never persisted)
 
-export type RoomTab = 'tierlist' | 'explore' | 'ranking' | 'members' | 'chat';
+/** "home" is the recommendations list; "ranking" is kept for browsers that still send it. */
+export type RoomTab = 'home' | 'tierlist' | 'explore' | 'ranking' | 'members' | 'chat';
 
 export interface DragPresence {
   key: string;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutGrid, MessagesSquare, Search, Trophy, Users, WifiOff } from 'lucide-react';
+import { LayoutGrid, MessagesSquare, Search, ThumbsUp, Users, WifiOff } from 'lucide-react';
 import { summarizeAll } from '../../shared/stats';
 import { CONSENSUS_BOARD, GROUP_BOARD, type AnimeMeta, type Op, type RoomTab } from '../../shared/types';
 import { APP_NAME } from '../../shared/brand';
@@ -18,30 +18,32 @@ import { MembersTab } from './MembersTab';
 import { ProfileDialog } from './ProfileDialog';
 import { RoomKindDialog } from './RoomKindDialog';
 import { PhotosContext } from './Cover';
-import { RankingTab } from './RankingTab';
 import { RoomContext, useRoom, type RoomContextValue } from './RoomContext';
 import { RoomHeader } from './RoomHeader';
 import { ShareDialog } from './ShareDialog';
 import { Sidebar, type SidebarPanel } from './Sidebar';
 import { TierlistTab } from './TierlistTab';
+import { RecommendationsTab } from './RecommendationsTab';
 import { useToast } from './Toasts';
 import { Avatar, cn } from './ui';
 
-const TABS: { id: RoomTab; label: string; icon: typeof LayoutGrid }[] = [
-  { id: 'tierlist', label: 'Tierlist', icon: LayoutGrid },
-  { id: 'explore', label: 'Explorar', icon: Search },
-  { id: 'ranking', label: 'Ranking', icon: Trophy },
-  { id: 'members', label: 'Membros', icon: Users },
-];
+type TabInfo = { id: RoomTab; label: string; icon: typeof LayoutGrid };
+const HOME: TabInfo = { id: 'home', label: 'Recomendações', icon: ThumbsUp };
+const TIERLIST: TabInfo = { id: 'tierlist', label: 'Tierlist', icon: LayoutGrid };
+const EXPLORE: TabInfo = { id: 'explore', label: 'Procurar', icon: Search };
+const PEOPLE: TabInfo = { id: 'members', label: 'Pessoas', icon: Users };
 
-function readTab(roomId: string): RoomTab {
+/** The community is recommendations only; rooms can also use a tier list. */
+const tabsOf = (global: boolean): TabInfo[] => (global ? [HOME, EXPLORE, PEOPLE] : [HOME, TIERLIST, EXPLORE, PEOPLE]);
+
+function readTab(roomId: string, global: boolean): RoomTab {
   try {
     const t = sessionStorage.getItem(`atl:tab:${roomId}`);
-    if (t === 'tierlist' || t === 'explore' || t === 'ranking' || t === 'members' || t === 'chat') return t;
+    if (t === 'chat' || tabsOf(global).some((x) => x.id === t)) return t as RoomTab;
   } catch {
     /* ignore */
   }
-  return 'tierlist';
+  return 'home';
 }
 
 export function RoomView({
@@ -60,7 +62,7 @@ export function RoomView({
   const [prefs, setPrefs] = usePrefs();
   const toast = useToast();
   const isDesktop = useIsDesktop();
-  const [tab, setTabState] = useState<RoomTab>(() => readTab(room.id));
+  const [tab, setTabState] = useState<RoomTab>(() => readTab(room.id, !!room.global));
   // The community space has no shared board: its tier list is everyone's average.
   const [board, setBoard] = useState<string>(room.global ? CONSENSUS_BOARD : GROUP_BOARD);
   const [dialog, setDialog] = useState<{ key: string; meta: AnimeMeta } | null>(null);
@@ -83,7 +85,7 @@ export function RoomView({
   );
 
   // On desktop the chat lives in the sidebar.
-  const visibleTab: RoomTab = isDesktop && tab === 'chat' ? 'tierlist' : tab;
+  const visibleTab: RoomTab = isDesktop && tab === 'chat' ? 'home' : tab;
 
   useEffect(() => {
     client.setPresence({ tab: visibleTab, board: visibleTab === 'tierlist' ? board : null });
@@ -188,9 +190,9 @@ export function RoomView({
             <main className="min-w-0 flex-1 pt-3 pb-28 lg:pb-10">
               <TabBar />
               <div className="mt-3">
-                {visibleTab === 'tierlist' && <TierlistTab onShare={() => setShareOpen(true)} />}
+                {visibleTab === 'home' && <RecommendationsTab />}
+                {visibleTab === 'tierlist' && !room.global && <TierlistTab onShare={() => setShareOpen(true)} />}
                 {visibleTab === 'explore' && <ExploreTab />}
-                {visibleTab === 'ranking' && <RankingTab />}
                 {visibleTab === 'members' && <MembersTab />}
                 {visibleTab === 'chat' && (
                   <div className="h-[calc(100dvh-190px)] min-h-[420px]">
@@ -235,7 +237,7 @@ function TabBar() {
   const { tab, setTab, snap, room } = useRoomTabs();
   return (
     <nav className="hidden items-center gap-1 border-b border-line lg:flex" aria-label="Secções">
-      {TABS.map((t) => {
+      {tabsOf(!!room.global).map((t) => {
         const viewers = Object.values(snap.presence).filter((p) => p.tab === t.id && room.members[p.userId]);
         const active = tab === t.id;
         return (
@@ -265,8 +267,8 @@ function TabBar() {
 }
 
 function BottomNav({ unreadChat }: { unreadChat: number }) {
-  const { tab, setTab } = useRoomTabs();
-  const items = [...TABS, { id: 'chat' as RoomTab, label: 'Chat', icon: MessagesSquare }];
+  const { tab, setTab, room } = useRoomTabs();
+  const items = [...tabsOf(!!room.global), { id: 'chat' as RoomTab, label: 'Chat', icon: MessagesSquare }];
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"

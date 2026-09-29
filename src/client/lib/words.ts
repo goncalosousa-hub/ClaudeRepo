@@ -49,7 +49,7 @@ export const agree = (stem: string, n: Noun) => `${stem}${n.f ? 'a' : 'o'}`;
  * them, then books, restaurants and places.
  */
 export const KINDS: { id: RoomKind; label: string; emoji: string; about: string }[] = [
-  { id: 'all', label: 'Filmes e séries', emoji: '🍿', about: 'Filmes, séries e anime na mesma tierlist.' },
+  { id: 'all', label: 'Filmes e séries', emoji: '🍿', about: 'Filmes, séries e anime na mesma sala.' },
   { id: 'movies', label: 'Filmes', emoji: '🎬', about: 'Só filmes.' },
   { id: 'series', label: 'Séries', emoji: '📺', about: 'Só séries.' },
   { id: 'anime', label: 'Anime', emoji: '🎌', about: 'Só anime.' },
@@ -68,6 +68,19 @@ export const MEDIA_TABS: Record<MediaType, { label: string; emoji: string }> = {
 };
 
 export const kindInfo = (kind: RoomKind) => KINDS.find((k) => k.id === kind) ?? KINDS.find((k) => k.id === 'anime')!;
+
+const RECOMMEND_WHAT: Record<RoomKind, string> = {
+  all: 'um filme, série ou anime',
+  movies: 'um filme',
+  series: 'uma série',
+  anime: 'um anime',
+  books: 'um livro',
+  restaurants: 'um restaurante',
+  places: 'um sítio',
+};
+
+/** "Recomendar um restaurante" */
+export const recommendLabel = (kind: RoomKind) => `Recomendar ${RECOMMEND_WHAT[kind]}`;
 
 /** Words for where things happen: a room ("sala") or the community space ("comunidade"). */
 export interface Place {

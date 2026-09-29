@@ -130,7 +130,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
         </div>
 
         {room.global ? (
-          <Button variant="ghost" size="sm" onClick={() => navigate(ROOMS_PATH)} title="Salas: tierlists só com quem convidares">
+          <Button variant="ghost" size="sm" onClick={() => navigate(ROOMS_PATH)} title="Salas: espaços só com quem convidares">
             <DoorOpen size={16} /> <span className="hidden sm:inline">Salas</span>
           </Button>
         ) : (

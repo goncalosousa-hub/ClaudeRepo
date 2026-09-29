@@ -181,7 +181,7 @@ const nullableKeyOrChat = z.union([animeKey, z.literal('chat')]).nullable();
 
 export const presencePatchSchema = z
   .object({
-    tab: z.enum(['tierlist', 'explore', 'ranking', 'members', 'chat']).nullable(),
+    tab: z.enum(['home', 'tierlist', 'explore', 'ranking', 'members', 'chat']).nullable(),
     board: idStr.nullable(),
     viewing: animeKey.nullable(),
     typing: nullableKeyOrChat,

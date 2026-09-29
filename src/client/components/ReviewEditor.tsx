@@ -3,11 +3,15 @@ import { Check, Trash2 } from 'lucide-react';
 import { LIMITS } from '../../shared/constants';
 import type { MediaType, Recommend, Review } from '../../shared/types';
 import { mediaTypeOf } from '../../shared/media';
-import { RECOMMEND, ratingColor, statusOptions } from '../lib/format';
+import { RECOMMEND, statusOptions } from '../lib/format';
+import { StarInput } from './Stars';
 import { useRoom } from './RoomContext';
 import { Button, cn } from './ui';
 
-/** "A tua avaliação": rating 1-10, recommendation, watch status and opinion (auto-saved). */
+/** Big, plain labels: the app is for everyone, not only for people used to apps. */
+const LABEL = 'mb-2 text-sm font-semibold text-fg';
+
+/** "A tua opinião": stars, recommendation, watch status and a written opinion (saved as you type). */
 const PLACEHOLDERS: Partial<Record<MediaType, string>> = {
   restaurant: 'Como foi? O prato que recomendas, o preço, o serviço…',
   place: 'Como foi? Dicas para quem lá for…',
@@ -66,34 +70,13 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Nota</p>
-        <div className="grid grid-cols-10 gap-1" role="radiogroup" aria-label="Nota de 1 a 10">
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-            const active = rating === n;
-            const within = rating != null && n <= rating;
-            return (
-              <button
-                key={n}
-                role="radio"
-                aria-checked={active}
-                onClick={() => set({ rating: active ? null : n })}
-                className={cn(
-                  'h-9 rounded-md text-sm font-bold transition',
-                  within ? 'text-black' : 'bg-surface-3 text-muted hover:bg-line-2 hover:text-fg',
-                  active && 'ring-2 ring-white/70',
-                )}
-                style={within ? { background: ratingColor(rating) } : undefined}
-              >
-                {n}
-              </button>
-            );
-          })}
-        </div>
+        <p className={LABEL}>Quantas estrelas dás?</p>
+        <StarInput rating={rating} onChange={(r) => set({ rating: r })} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Recomendas?</p>
+          <p className={LABEL}>Recomendas aos colegas?</p>
           <div className="flex flex-wrap gap-1.5">
             {(Object.keys(RECOMMEND) as Recommend[]).map((r) => {
               const active = review?.recommend === r;
@@ -116,7 +99,7 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
           </div>
         </div>
         <div>
-          <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Estado</p>
+          <p className={LABEL}>Estado</p>
           <div className="flex flex-wrap gap-1.5">
             {statusOptions(mediaTypeOf(animeKey)).map(({ id: s, label, emoji }) => {
               const active = review?.status === s;
@@ -141,7 +124,7 @@ export function ReviewEditor({ animeKey }: { animeKey: string }) {
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium tracking-wide text-muted uppercase">A tua opinião</p>
+          <p className="text-sm font-semibold text-fg">Escreve o que achaste</p>
           <span className="flex items-center gap-1 text-xs text-faint">
             {saving === 'pending' && 'A escrever…'}
             {saving === 'saved' && (

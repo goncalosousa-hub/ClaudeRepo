@@ -5,9 +5,10 @@ import { placementsOf } from '../../shared/stats';
 import { GROUP_BOARD, POOL, type AnimeMeta, type Review } from '../../shared/types';
 import { formatLabel, genreLabel, seasonLabel, sourceLabel, statusLabel, type AnimeDetails } from '../lib/anime-api';
 import { titleDetails } from '../lib/catalog';
-import { RECOMMEND, formatRating, plural, ratingColor, readableOn, statusInfo, timeAgo } from '../lib/format';
+import { RECOMMEND, plural, readableOn, statusInfo, timeAgo } from '../lib/format';
 import { agree, mediaNoun, thisOne } from '../lib/words';
 import { ReviewEditor } from './ReviewEditor';
+import { Stars } from './Stars';
 import { Cover, useCoverUrl } from './Cover';
 import { PhotosSection } from './PhotosSection';
 import { spotKind } from './ExploreTab';
@@ -182,9 +183,9 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                 </Chip>
               )}
               {summary?.avg != null && (
-                <Chip color={ratingColor(summary.avg)}>
-                  {formatRating(Math.round(summary.avg * 10) / 10)}/10 {place.in} ({summary.count})
-                </Chip>
+                <span className="flex items-center gap-1.5 rounded-full bg-black/40 px-2 py-0.5 text-xs">
+                  <Stars rating={summary.avg} size={14} number /> {place.in} ({summary.count})
+                </span>
               )}
             </div>
           </div>
@@ -208,10 +209,10 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
         {!roomKey && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3">
             <p className="flex-1 text-sm">
-              {thisOne(noun)} {noun.one} ainda não está {place.in}.
+              {thisOne(noun)} {noun.one} ainda não está {place.in}. Recomenda-{noun.f ? 'a' : 'o'} aos colegas!
             </p>
             <Button variant="primary" onClick={add}>
-              <Plus size={16} /> Adicionar {place.to}
+              <Plus size={16} /> Recomendar
             </Button>
           </div>
         )}
@@ -237,6 +238,41 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
         )}
 
         {roomKey && (
+          <section className="rounded-xl border border-accent/30 bg-surface-2/60 p-4">
+            <h3 className="mb-3 text-base font-semibold">A tua opinião</h3>
+            <ReviewEditor animeKey={roomKey} />
+          </section>
+        )}
+
+        {roomKey && <PhotosSection animeKey={roomKey} />}
+
+        {roomKey && (
+          <section>
+            <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h3 className="text-sm font-semibold">Opiniões {place.from}</h3>
+              {summary && summary.reviewers > 0 && (
+                <p className="text-xs text-muted">
+                  {summary.avg != null && <Stars rating={summary.avg} size={13} number />}
+                  {summary.avg != null && ' · '}
+                  {RECOMMEND.yes.emoji} {summary.yes} · {RECOMMEND.maybe.emoji} {summary.maybe} · {RECOMMEND.no.emoji} {summary.no}
+                </p>
+              )}
+            </div>
+            {reviews.length === 0 ? (
+              <p className="text-sm text-faint">
+                {room.reviews[roomKey]?.[me] ? 'Ainda nenhum colega deu a opinião.' : 'Ainda ninguém deu a sua opinião. Sê o primeiro!'}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {reviews.map(([uid, r]) => (
+                  <ReviewItem key={uid} userId={uid} review={r} animeKey={roomKey} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {roomKey && !room.global && (
           <section>
             <h3 className="mb-2 text-sm font-semibold">Onde está nas tierlists</h3>
             <div className="mb-3">
@@ -344,45 +380,6 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
           </section>
         )}
 
-        {roomKey && <PhotosSection animeKey={roomKey} />}
-
-        {roomKey && (
-          <section>
-            <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h3 className="text-sm font-semibold">Opiniões {place.from}</h3>
-              {summary && summary.reviewers > 0 && (
-                <p className="text-xs text-muted">
-                  {summary.avg != null && (
-                    <span className="font-semibold" style={{ color: ratingColor(summary.avg) }}>
-                      {formatRating(Math.round(summary.avg * 10) / 10)}/10
-                    </span>
-                  )}
-                  {summary.avg != null && ' · '}
-                  {RECOMMEND.yes.emoji} {summary.yes} · {RECOMMEND.maybe.emoji} {summary.maybe} · {RECOMMEND.no.emoji} {summary.no}
-                </p>
-              )}
-            </div>
-            {reviews.length === 0 ? (
-              <p className="text-sm text-faint">
-                {room.reviews[roomKey]?.[me] ? 'Ainda nenhum colega deu a opinião.' : 'Ainda ninguém deu a sua opinião. Sê o primeiro!'}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {reviews.map(([uid, r]) => (
-                  <ReviewItem key={uid} userId={uid} review={r} animeKey={roomKey} />
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-
-        {roomKey && (
-          <section className="rounded-xl border border-line bg-surface-2/60 p-4">
-            <h3 className="mb-3 text-sm font-semibold">A tua avaliação</h3>
-            <ReviewEditor animeKey={roomKey} />
-          </section>
-        )}
-
         {!!details?.recommendations.length && (
           <section>
             <h3 className="mb-2 text-sm font-semibold">Quem gostou disto também viu</h3>
@@ -474,14 +471,7 @@ function ReviewItem({ userId, review, animeKey }: { userId: string; review: Revi
       <div className="flex flex-wrap items-center gap-2">
         <Avatar member={m} size={26} online={isOnline(userId)} />
         <span className="text-sm font-semibold">{m.name}</span>
-        {review.rating != null && (
-          <span
-            className="rounded-md px-1.5 py-0.5 text-xs font-bold text-black"
-            style={{ background: ratingColor(review.rating) }}
-          >
-            {review.rating}/10
-          </span>
-        )}
+        {review.rating != null && <Stars rating={review.rating} size={15} />}
         {review.recommend && (
           <Chip color={RECOMMEND[review.recommend].color}>
             {RECOMMEND[review.recommend].emoji} {RECOMMEND[review.recommend].short}
