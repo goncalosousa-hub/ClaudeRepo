@@ -281,6 +281,9 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await laptop.getByPlaceholder('Nome da sala (ex.: Turma ESTG)').fill('Clube de anime');
   await laptop.getByRole('button', { name: 'Criar', exact: true }).click();
   await fillProfile(laptop, 'Ana');
+  // The room opens once the profile is saved: only then is its link in the address bar.
+  await expect(laptop).toHaveURL(/\/r\/[a-z0-9]{8}$/);
+  await expect(laptop.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
   const roomUrl = laptop.url();
   // Recommending: pick the anime, and the details open to give the stars straight away.
   await laptop.getByRole('button', { name: 'Recomendar um anime' }).first().click();

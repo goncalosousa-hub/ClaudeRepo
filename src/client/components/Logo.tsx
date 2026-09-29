@@ -14,23 +14,17 @@ function brandParts(name: string): [string, string] {
 
 const BRAND = brandParts(APP_NAME);
 
+/** The Lusiaves logo, as a small rounded tile. */
 export function LogoMark({ size = 30 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-      <defs>
-        <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#8b5cf6" />
-          <stop offset="1" stopColor="#ec4899" />
-        </linearGradient>
-      </defs>
-      <rect width="64" height="64" rx="14" fill="url(#logo-g)" />
-      <rect x="12" y="13" width="10" height="10" rx="2.5" fill="#fff" />
-      <rect x="26" y="13" width="26" height="10" rx="2.5" fill="#fff" opacity=".9" />
-      <rect x="12" y="27" width="10" height="10" rx="2.5" fill="#fff" opacity=".85" />
-      <rect x="26" y="27" width="18" height="10" rx="2.5" fill="#fff" opacity=".7" />
-      <rect x="12" y="41" width="10" height="10" rx="2.5" fill="#fff" opacity=".7" />
-      <rect x="26" y="41" width="10" height="10" rx="2.5" fill="#fff" opacity=".5" />
-    </svg>
+    <img
+      src="/logo.png"
+      alt=""
+      width={size}
+      height={size}
+      className="shrink-0 rounded-[22%] shadow-sm shadow-brand/30"
+      style={{ width: size, height: size }}
+    />
   );
 }
 
@@ -48,7 +42,7 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       {!compact && (
         <span className="text-[15px] leading-none">
           {BRAND[0]}
-          <span className="text-gradient">{BRAND[1]}</span>
+          <span className="text-accent">{BRAND[1]}</span>
         </span>
       )}
     </a>

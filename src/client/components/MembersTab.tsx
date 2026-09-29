@@ -35,7 +35,7 @@ export function MembersTab() {
     <div className="space-y-3">
       {canTakeOver && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm">
-          <Crown size={18} className="shrink-0 text-violet-300" />
+          <Crown size={18} className="shrink-0 text-accent" />
           <p className="min-w-48 flex-1">
             {room.createdBy && room.members[room.createdBy]
               ? `O dono da sala (${memberName(room.createdBy)}) não aparece há mais de uma semana.`

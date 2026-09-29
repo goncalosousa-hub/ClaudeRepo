@@ -62,7 +62,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
             />
           ) : room.createdBy === me ? (
             <button
-              className="group flex max-w-full items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-white/5"
+              className="group flex max-w-full items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-fg/5"
               onClick={() => setEditing(true)}
               title="Mudar o nome da sala"
             >
@@ -155,7 +155,7 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
               aria-current={s.id === room.id ? 'page' : undefined}
               className={cn(
                 'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition',
-                s.id === room.id ? 'bg-accent/20 text-fg ring-1 ring-accent/50' : 'text-muted hover:bg-white/5 hover:text-fg',
+                s.id === room.id ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : 'text-muted hover:bg-fg/5 hover:text-fg',
               )}
             >
               <span aria-hidden>{s.emoji}</span> {s.label}

@@ -328,7 +328,7 @@ function ActivityItem({ a }: { a: Activity }) {
   }
 
   return (
-    <li className={cn('flex gap-2.5 rounded-lg px-2 py-2 text-[13px] leading-snug text-muted', a.by === me && 'bg-white/[0.02]')}>
+    <li className={cn('flex gap-2.5 rounded-lg px-2 py-2 text-[13px] leading-snug text-muted', a.by === me && 'bg-fg/[0.03]')}>
       <Avatar member={m} size={24} />
       <div className="min-w-0 flex-1">
         <p>

@@ -36,10 +36,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              'flex max-w-md animate-fade-in items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm shadow-2xl shadow-black/40',
-              t.kind === 'error' && 'border-bad/40 bg-[#2a1216] text-red-100',
-              t.kind === 'success' && 'border-ok/40 bg-[#0f2418] text-green-100',
-              t.kind === 'info' && 'border-line-2 bg-surface-3 text-fg',
+              'flex max-w-md animate-fade-in items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm shadow-lg shadow-black/10',
+              t.kind === 'error' && 'border-bad/25 bg-[#fdf0f0] text-fg',
+              t.kind === 'success' && 'border-ok/25 bg-[#eef8f1] text-fg',
+              t.kind === 'info' && 'border-line-2 bg-surface text-fg',
             )}
           >
             {t.kind === 'error' ? (

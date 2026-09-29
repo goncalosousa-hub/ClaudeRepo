@@ -68,7 +68,7 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
       />
       <div className="space-y-4 px-5 py-5">
         {local && (
-          <div className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-amber-100">
+          <div className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-fg">
             <TriangleAlert size={18} className="mt-0.5 shrink-0 text-warn" />
             <div className="space-y-1">
               <p>

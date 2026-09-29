@@ -62,7 +62,7 @@ function drawCard(
   ctx.save();
   roundRect(ctx, x, y, w, h, 7);
   ctx.clip();
-  ctx.fillStyle = color ?? '#1f1f2f';
+  ctx.fillStyle = color ?? '#efe7e3';
   ctx.fillRect(x, y, w, h);
   if (img) {
     const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
@@ -124,18 +124,18 @@ export async function exportTierlistImage(opts: {
   if (!ctx) throw new Error('canvas not supported');
   ctx.scale(dpr, dpr);
 
-  ctx.fillStyle = '#0a0a12';
+  ctx.fillStyle = '#f6f3f1';
   ctx.fillRect(0, 0, W, H);
   const glow = ctx.createLinearGradient(0, 0, W, 0);
-  glow.addColorStop(0, '#8b5cf6');
-  glow.addColorStop(1, '#ec4899');
+  glow.addColorStop(0, '#b52a2f');
+  glow.addColorStop(1, '#d8604a');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, 5);
 
-  ctx.fillStyle = '#ededf5';
+  ctx.fillStyle = '#262022';
   ctx.font = `800 32px ${FONT}`;
   ctx.fillText(title, PAD, 52);
-  ctx.fillStyle = '#a3a3bb';
+  ctx.fillStyle = '#6b6264';
   ctx.font = `500 15px ${FONT}`;
   ctx.fillText(`${subtitle} · ${new Date().toLocaleDateString('pt-PT')}`, PAD, 78);
 
@@ -159,7 +159,7 @@ export async function exportTierlistImage(opts: {
     ctx.textBaseline = 'alphabetic';
 
     roundRect(ctx, PAD + LABEL_W + GAP, y, areaW, h, 10);
-    ctx.fillStyle = '#161623';
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
 
     r.keys.forEach((k, i) => {
@@ -172,7 +172,7 @@ export async function exportTierlistImage(opts: {
     y += h + GAP;
   }
 
-  ctx.fillStyle = '#6e6e89';
+  ctx.fillStyle = '#978d8f';
   ctx.font = `500 12px ${FONT}`;
   const fromTmdb = allKeys.some((k) => anime[k].source === 'tmdb');
   const fromAniList = allKeys.some((k) => anime[k].source !== 'tmdb');

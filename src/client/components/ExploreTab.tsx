@@ -349,11 +349,11 @@ function ExploreCard({ anime }: { anime: AnimeMeta }) {
 
   return (
     <div
-      className="group relative overflow-hidden rounded-xl border border-line bg-surface transition hover:-translate-y-0.5 hover:border-line-2 hover:shadow-xl hover:shadow-black/30"
+      className="group relative overflow-hidden rounded-xl border border-line bg-surface transition hover:-translate-y-0.5 hover:border-line-2 hover:shadow-lg hover:shadow-black/10"
       data-anime={anime.key}
     >
       <button className="block w-full text-left" onClick={() => openAnime(anime)} aria-label={`Ver ${title}`}>
-        <div className="relative aspect-[2/3] w-full overflow-hidden" style={{ background: anime.color ?? '#1f1f2f' }}>
+        <div className="relative aspect-[2/3] w-full overflow-hidden" style={{ background: anime.color ?? 'var(--color-surface-3)' }}>
           <Cover meta={anime} label className="h-full w-full" />
           {anime.score != null && (
             <span className="absolute top-2 left-2 rounded-md bg-black/80 px-1.5 py-0.5 text-[11px] font-bold text-white">

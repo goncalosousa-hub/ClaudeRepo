@@ -46,9 +46,9 @@ export const AnimeCardView = memo(function AnimeCardView({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-lg bg-surface-3 shadow-md shadow-black/40 ring-1 ring-white/10 transition-[opacity,transform]',
+        'relative overflow-hidden rounded-lg bg-surface-3 shadow-sm shadow-black/15 ring-1 ring-black/5 transition-[opacity,transform]',
         dimmed && 'opacity-30',
-        lifted && 'scale-105 rotate-2 shadow-2xl shadow-black/60 ring-2 ring-accent',
+        lifted && 'scale-105 rotate-2 shadow-xl shadow-black/25 ring-2 ring-accent',
         flash && 'animate-flash',
       )}
       style={style}

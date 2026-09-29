@@ -229,7 +229,7 @@ export function TierBoard({
     return v;
   }, [snap.presence, room.members]);
 
-  const myColor = room.members[me]?.color ?? '#8b5cf6';
+  const myColor = room.members[me]?.color ?? '#b52a2f';
   const indicators = useMemo(() => {
     const byZone: Record<string, Indicator[]> = {};
     if (activeKey && target && target.zone !== POOL) {
@@ -303,7 +303,7 @@ export function TierBoard({
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={finish} autoScroll={false}>
       <div ref={wrapRef} className="no-drag-img relative" onPointerMove={onPointerMove} onPointerLeave={() => client.sendCursor(null)}>
-        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xl shadow-black/20" data-testid="tiers">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm shadow-black/5" data-testid="tiers">
           {room.tiers.map((tier) => {
             const highlight = zoneHighlight(tier.id);
             return (
@@ -316,7 +316,7 @@ export function TierBoard({
                 </div>
                 <div
                   data-drop={tier.id}
-                  className={cn('flex flex-1 flex-wrap content-start items-start p-[5px] transition-colors', highlight && 'bg-white/[0.035]')}
+                  className={cn('flex flex-1 flex-wrap content-start items-start p-[5px] transition-colors', highlight && 'bg-fg/[0.035]')}
                   style={{ minHeight: cardH + 16, boxShadow: highlight ? `inset 0 0 0 2px ${highlight}` : undefined }}
                 >
                   {renderCards(tier.id, lists[tier.id] ?? [])}

@@ -33,7 +33,7 @@ export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
       <Logo />
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-6">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-violet-300">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
             <LockKeyhole size={20} />
           </span>
           <div>
@@ -58,7 +58,7 @@ export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
           <p className="mt-1.5 text-xs text-faint">Não o tens? Pede-o a um colega. Só é preciso uma vez em cada dispositivo.</p>
         </div>
         {error && (
-          <p role="alert" className="text-sm text-red-300">
+          <p role="alert" className="text-sm text-bad">
             {error}
           </p>
         )}

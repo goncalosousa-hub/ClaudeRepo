@@ -149,7 +149,7 @@ function QuickRow({ anime, onChosen }: { anime: AnimeMeta; onChosen?: () => void
   const already = inRoom(anime);
   const title = titleOf(anime);
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/[0.03]" data-anime={anime.key}>
+    <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-fg/[0.04]" data-anime={anime.key}>
       <button className="shrink-0" onClick={() => openAnime(anime)} aria-label={`Ver ${title}`}>
         <Cover meta={anime} className="h-16 w-11 rounded-md" />
       </button>

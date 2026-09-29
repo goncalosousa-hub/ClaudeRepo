@@ -150,7 +150,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
           className="h-36 w-full bg-cover bg-center sm:h-44"
           style={{
             backgroundImage: banner ? `url(${banner})` : undefined,
-            backgroundColor: meta.color ?? '#1f1f2f',
+            backgroundColor: meta.color ?? 'var(--color-surface-3)',
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-surface/60 to-surface" />
@@ -159,7 +159,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
           size="icon-sm"
           onClick={onClose}
           aria-label="Fechar"
-          className="absolute top-3 right-3 bg-black/50 backdrop-blur hover:bg-black/70"
+          className="absolute top-3 right-3 bg-black/45 text-white backdrop-blur hover:bg-black/60 hover:text-white"
         >
           <X size={18} />
         </Button>
@@ -168,22 +168,22 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             <img
               src={cover}
               alt=""
-              className="h-40 w-28 shrink-0 rounded-xl object-cover shadow-2xl ring-1 ring-white/10 sm:h-48 sm:w-32"
+              className="h-40 w-28 shrink-0 rounded-xl object-cover shadow-xl ring-1 ring-black/5 sm:h-48 sm:w-32"
             />
           ) : (
-            <Cover meta={meta} label className="h-40 w-28 shrink-0 rounded-xl shadow-2xl ring-1 ring-white/10 sm:h-48 sm:w-32" />
+            <Cover meta={meta} label className="h-40 w-28 shrink-0 rounded-xl shadow-xl ring-1 ring-black/5 sm:h-48 sm:w-32" />
           )}
           <div className="min-w-0 flex-1 self-end pb-1">
             <h2 className="text-xl leading-tight font-extrabold sm:text-2xl">{title}</h2>
             {altTitle && altTitle !== title && <p className="mt-0.5 truncate text-sm text-muted">{altTitle}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {meta.score != null && (
-                <Chip color="#8b5cf6">
+                <Chip color="#6b6264">
                   ★ {meta.score}% no {scoreSource}
                 </Chip>
               )}
               {summary?.avg != null && (
-                <span className="flex items-center gap-1.5 rounded-full bg-black/40 px-2 py-0.5 text-xs">
+                <span className="flex items-center gap-1.5 rounded-full bg-surface-3 px-2 py-0.5 text-xs">
                   <Stars rating={summary.avg} size={14} number /> {place.in} ({summary.count})
                 </span>
               )}
@@ -200,7 +200,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
             </span>
           ))}
           {details?.nextEpisode && (
-            <span className="rounded-md bg-accent/15 px-2 py-1 text-violet-200">
+            <span className="rounded-md bg-accent/10 px-2 py-1 text-accent">
               Ep. {details.nextEpisode.episode} {timeAgo(details.nextEpisode.airingAt * 1000)}
             </span>
           )}
@@ -295,7 +295,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
                       }
                       className={cn(
                         'h-9 min-w-10 rounded-lg px-2.5 text-sm font-black transition',
-                        currentTier === t.id ? 'ring-2 ring-white ring-offset-2 ring-offset-surface' : 'opacity-60 hover:opacity-100',
+                        currentTier === t.id ? 'ring-2 ring-fg ring-offset-2 ring-offset-surface' : 'opacity-60 hover:opacity-100',
                       )}
                       style={{ background: t.color, color: readableOn(t.color) }}
                       aria-pressed={currentTier === t.id}
@@ -410,7 +410,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               href={meta.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/5 px-3 text-sm font-medium hover:bg-white/10"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-fg/5 px-3 text-sm font-medium hover:bg-fg/10"
             >
               <ExternalLink size={14} /> {siteName}
             </a>
@@ -420,7 +420,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               href={mapUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/5 px-3 text-sm font-medium hover:bg-white/10"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-fg/5 px-3 text-sm font-medium hover:bg-fg/10"
             >
               <MapPin size={14} /> Ver no mapa
             </a>
@@ -430,7 +430,7 @@ function AnimeDialogBody({ target, onClose }: { target: { key: string; meta: Ani
               href={details.trailerUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/5 px-3 text-sm font-medium hover:bg-white/10"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-fg/5 px-3 text-sm font-medium hover:bg-fg/10"
             >
               <Play size={14} /> Trailer
             </a>

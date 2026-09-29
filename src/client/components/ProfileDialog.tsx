@@ -165,7 +165,7 @@ export function ProfileDialog({
       <ModalHeader title={title} subtitle={subtitle} onClose={required ? undefined : close} />
 
       {!user && welcome && (
-        <p className="mx-5 mt-4 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-sm text-violet-100">{welcome}</p>
+        <p className="mx-5 mt-4 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2.5 text-sm text-fg">{welcome}</p>
       )}
 
       {!user && (
@@ -184,7 +184,7 @@ export function ProfileDialog({
       {mode === 'login' ? (
         <form className="space-y-4 px-5 py-5" onSubmit={submitLogin}>
           {user && (
-            <p className="flex gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-amber-100">
+            <p className="flex gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-fg">
               <TriangleAlert size={16} className="shrink-0 text-warn" />
               <span>
                 Ao entrares, este dispositivo passa a usar o perfil da conta em vez de «{user.name}». Se já usaste
@@ -259,7 +259,7 @@ export function ProfileDialog({
                     onClick={() => setColor(c)}
                     className={cn(
                       'h-8 w-8 rounded-full transition',
-                      color === c ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-surface' : 'hover:scale-105',
+                      color === c ? 'scale-110 ring-2 ring-fg ring-offset-2 ring-offset-surface' : 'hover:scale-105',
                     )}
                     style={{ background: c }}
                   />
@@ -368,7 +368,7 @@ export function ProfileDialog({
 
 function ErrorText({ text }: { text: string }) {
   return (
-    <p role="alert" className="text-sm text-red-300">
+    <p role="alert" className="text-sm text-bad">
       {text}
     </p>
   );
