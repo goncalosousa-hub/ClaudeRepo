@@ -1,14 +1,54 @@
-import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { CONTACT_EMAIL } from '../../src/shared/brand';
 import { mockAniList } from './anilist-mock';
 
 const shots = process.env.E2E_SCREENSHOTS;
+/** The fake server (TMDB, Open Library, Photon and the Google keys): see playwright.config.ts. */
+const FAKE = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4477) + 2}`;
+/** The app behind the community code "frango-e2e". */
+const LOCKED = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4477) + 4}`;
+
+/**
+ * Google's button script, faked: its button signs in with the token in window.__googleCredential
+ * (set by signInWithGoogle below), as the real one does once the person picks an account.
+ */
+const FAKE_GIS = `(() => {
+  let config = null;
+  window.google = { accounts: { id: {
+    initialize(c) { config = c; },
+    renderButton(el) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = 'Google (falso)';
+      b.onclick = () => config && config.callback({ credential: window.__googleCredential || '', select_by: 'btn' });
+      el.replaceChildren(b);
+    },
+    disableAutoSelect() {},
+  } } };
+})();`;
+
+async function fakeGoogle(context: BrowserContext) {
+  await context.route('https://accounts.google.com/**', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: FAKE_GIS }),
+  );
+}
 
 async function newPerson(browser: Browser, viewport = { width: 1440, height: 900 }) {
   const context = await browser.newContext({ viewport });
+  await fakeGoogle(context);
   const page = await context.newPage();
   page.on('pageerror', (err) => console.log(`[pageerror] ${err.message}`));
   await mockAniList(page);
   return page;
+}
+
+/** Clicks "Continuar com Google" in `scope` and picks this Google account (a token signed by the fake keys). */
+async function signInWithGoogle(page: Page, scope: Locator, claims: Record<string, string>) {
+  const res = await fetch(`${FAKE}/google/token?${new URLSearchParams(claims)}`);
+  const { token } = (await res.json()) as { token: string };
+  // As a string: the test runner would add helpers to a function that do not exist in the page.
+  await page.evaluate(`window.__googleCredential = ${JSON.stringify(token)}`);
+  await scope.getByRole('button', { name: 'Google (falso)' }).click();
 }
 
 async function fillProfile(page: Page, name: string) {
@@ -239,6 +279,7 @@ test('mobile layout works', async ({ browser }) => {
 
 test('drag with a finger on a phone (long press) and tap to open', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await fakeGoogle(context);
   const page = await context.newPage();
   await mockAniList(page);
   await page.goto('/salas');
@@ -355,6 +396,98 @@ test('an account keeps the same profile and rooms on any link or device', async 
   await phone.getByRole('dialog', { name: 'Perfil' }).getByRole('button', { name: 'Terminar sessão' }).click();
   await expect(phone.getByRole('button', { name: 'Entrar na conta' })).toBeVisible();
   await expect(phone.getByRole('region', { name: 'As tuas salas' })).toHaveCount(0);
+});
+
+test('colleagues sign in with the Google account of their work email', async ({ browser }) => {
+  // A Google account of its own for each run.
+  const tag = Date.now().toString(36);
+  const work = { sub: `g${tag}`, email: `ana.${tag}@lusiaves.pt`, name: 'Ana Google' };
+
+  // --- First visit: "Continuar com Google" instead of making up a profile ----------------
+  const laptop = await newPerson(browser);
+  await laptop.goto('/');
+  const who = laptop.getByRole('dialog', { name: 'Perfil' });
+  await expect(who.getByText('Com o email da Lusiaves (@lusiaves.pt)', { exact: false })).toBeVisible();
+  await shot(laptop, '30-google-first-visit');
+  // A personal Gmail is not a colleague's account.
+  await signInWithGoogle(laptop, who, { sub: `p${tag}`, email: `ana.${tag}@gmail.com`, hd: 'gmail.com', name: 'Ana' });
+  await expect(who.getByRole('alert')).toHaveText('Essa conta Google não é da Lusiaves. Escolhe a conta do email do trabalho.');
+  await signInWithGoogle(laptop, who, work);
+  await expect(laptop.getByText('Olá, Ana Google! Ficaste com conta')).toBeVisible();
+  await expect(laptop.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
+
+  // Her account: made from the email, signs in with Google only.
+  await laptop.getByRole('button', { name: 'O teu perfil' }).click();
+  const profile = laptop.getByRole('dialog', { name: 'Perfil' });
+  await expect(profile.getByLabel('Nome', { exact: true })).toHaveValue('Ana Google');
+  await expect(profile.getByText(`@ana.${tag}`)).toBeVisible();
+  await expect(profile.getByText(`Entra com «Continuar com Google» (ana.${tag}@lusiaves.pt)`)).toBeVisible();
+  await expect(profile.getByRole('button', { name: 'Mudar palavra-passe' })).toHaveCount(0);
+  await shot(laptop, '31-google-account');
+  await laptop.keyboard.press('Escape');
+
+  // --- Another device: the same account, the same member ------------------------------------
+  const phone = await newPerson(browser, { width: 390, height: 844 });
+  await phone.goto('/salas');
+  await phone.getByRole('button', { name: 'Entrar na conta' }).click();
+  const signIn = phone.getByRole('dialog', { name: 'Perfil' });
+  await signInWithGoogle(phone, signIn, work);
+  await expect(phone.getByText('Olá, Ana Google! Entraste com a Google.')).toBeVisible();
+  await expect(phone.getByRole('button', { name: /O teu perfil/ })).toContainText(`@ana.${tag}`);
+
+  // --- An account with a password can sign in with Google too --------------------------------
+  const rui = await newPerson(browser);
+  await rui.goto('/salas');
+  await rui.getByRole('button', { name: 'Entrar na conta' }).click();
+  const ruiDialog = rui.getByRole('dialog', { name: 'Perfil' });
+  await ruiDialog.getByRole('radio', { name: 'Sou novo aqui' }).click();
+  await ruiDialog.getByLabel('Nome', { exact: true }).fill('Rui');
+  await ruiDialog.getByLabel('Utilizador').fill(`rui${tag}`);
+  await ruiDialog.getByLabel('Palavra-passe').fill('segredo-123');
+  await ruiDialog.getByRole('button', { name: 'Criar conta e continuar' }).click();
+  await rui.getByRole('button', { name: /O teu perfil/ }).click();
+  const ruiProfile = rui.getByRole('dialog', { name: 'Perfil' });
+  await ruiProfile.getByRole('button', { name: 'Ligar à conta Google' }).click();
+  await signInWithGoogle(rui, ruiProfile, { sub: `r${tag}`, email: `rui.${tag}@lusiaves.pt`, name: 'Rui Costa' });
+  await expect(rui.getByText('Conta Google ligada')).toBeVisible();
+  await expect(ruiProfile.getByText(`com a Google (rui.${tag}@lusiaves.pt)`)).toBeVisible();
+  await expect(ruiProfile.getByRole('button', { name: 'Mudar palavra-passe' })).toBeVisible();
+});
+
+test('behind the community code, a colleague gets in with the Google account of work', async ({ browser }) => {
+  const tag = Date.now().toString(36);
+  const marta = await newPerson(browser);
+  await marta.goto(LOCKED);
+  const gate = marta.locator('form');
+  await expect(gate.getByRole('heading', { name: 'Só para colaboradores' })).toBeVisible();
+  await expect(gate.getByText('Com o email da Lusiaves (@lusiaves.pt).')).toBeVisible();
+  await expect(marta.getByRole('link', { name: 'Política de privacidade' })).toHaveAttribute('href', '/privacidade');
+  await shot(marta, '32-gate-google');
+  await signInWithGoogle(marta, gate, { sub: `m${tag}`, email: `marta.${tag}@lusiaves.pt`, name: 'Marta Gomes' });
+  // In and signed in at once: no code, no profile to fill in.
+  await expect(marta.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
+  await expect(marta.getByRole('dialog', { name: 'Perfil' })).toHaveCount(0);
+  await marta.reload();
+  await expect(marta.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
+
+  // A personal Google account does not open it; the code still does.
+  const guest = await newPerson(browser);
+  await guest.goto(LOCKED);
+  const guestGate = guest.locator('form');
+  await signInWithGoogle(guest, guestGate, { sub: `x${tag}`, email: `joao.${tag}@gmail.com`, hd: 'gmail.com', name: 'João' });
+  await expect(guestGate.getByRole('alert')).toHaveText('Essa conta Google não é da Lusiaves. Escolhe a conta do email do trabalho.');
+  await guestGate.getByLabel('Código da comunidade').fill('frango-e2e');
+  await guestGate.getByRole('button', { name: 'Entrar' }).click();
+  await expect(guest.getByRole('dialog', { name: 'Perfil' })).toBeVisible();
+
+  // The privacy policy (linked from Google's sign-in screen) opens for anyone, without the code.
+  const visitor = await newPerson(browser, { width: 390, height: 844 });
+  await visitor.goto(`${LOCKED}/privacidade`);
+  await expect(visitor.getByRole('heading', { name: 'Política de privacidade' })).toBeVisible();
+  await expect(visitor.getByRole('link', { name: CONTACT_EMAIL }).first()).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`);
+  await expect(visitor.getByText('Só para colaboradores')).toHaveCount(0);
+  await expect(visitor).toHaveTitle('Política de privacidade · LusiHub');
+  await shot(visitor, '33-privacy');
 });
 
 test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {

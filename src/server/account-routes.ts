@@ -1,9 +1,21 @@
 import express, { type Request, type Response } from 'express';
 import { communitySection } from '../shared/constants';
-import { loginSchema, passwordChangeSchema, profileSchema, registerSchema, roomIdSchema, usernameSchema } from '../shared/schema';
+import {
+  googleLinkSchema,
+  googleLoginSchema,
+  loginSchema,
+  passwordChangeSchema,
+  profileSchema,
+  registerSchema,
+  roomIdSchema,
+  usernameSchema,
+} from '../shared/schema';
 import { loginResult, roomList, type AccountManager } from './accounts';
+import type { CommunityGate } from './community';
+import { GoogleError, type GoogleAuth, type GoogleIdentity } from './google';
 import { rateLimit } from './http';
 import type { RoomManager } from './rooms';
+import type { AccountDoc } from './storage';
 
 /** Browsers authenticate account requests with `Authorization: Account <username>:<secret>`. */
 function credentials(req: Request): { username: string; secret: string } | null {
@@ -41,10 +53,42 @@ class FailedLogins {
   }
 }
 
-export function accountRouter(accounts: AccountManager, rooms: RoomManager) {
+const GOOGLE_STATUS: Record<GoogleError['code'], number> = {
+  google_off: 404,
+  invalid_token: 401,
+  wrong_domain: 403,
+  google_unreachable: 502,
+};
+
+export function accountRouter(accounts: AccountManager, rooms: RoomManager, google: GoogleAuth, gate: CommunityGate) {
   const router = express.Router();
   const failed = new FailedLogins(10, 15 * 60_000);
   const unauthorized = (res: Response) => res.status(401).json({ error: 'unauthorized' });
+
+  /** Whose the Google token is; on failure the error is sent and the result is null. */
+  const googleIdentity = async (credential: string, res: Response): Promise<GoogleIdentity | null> => {
+    try {
+      return await google.verify(credential);
+    } catch (err) {
+      if (!(err instanceof GoogleError)) throw err;
+      res.status(GOOGLE_STATUS[err.code]).json({ error: err.code });
+      return null;
+    }
+  };
+
+  /**
+   * The rooms an identity was already in (from the browser's history) start "As tuas salas" of its new
+   * account; only rooms where it really is a member count.
+   */
+  const addVisitedRooms = async (doc: AccountDoc, identity: { id: string; secret: string }, visited: { id: string; visitedAt: number }[]) => {
+    const visits = [];
+    for (const r of visited.filter((room) => !communitySection(room.id))) {
+      const roomName = await rooms.memberRoomName(r.id, identity.id, identity.secret);
+      if (roomName !== null) visits.push({ id: r.id, name: roomName, visitedAt: r.visitedAt });
+    }
+    if (!visits.length) return doc;
+    return (await accounts.recordVisits(doc.username, identity.id, identity.secret, visits)) ?? doc;
+  };
 
   router.use('/account', rateLimit(300, 60_000));
 
@@ -68,17 +112,42 @@ export function accountRouter(accounts: AccountManager, rooms: RoomManager) {
       res.status(409).json({ error: 'username_taken' });
       return;
     }
-    // The rooms this identity was already in (from the browser's history) start "As tuas salas";
-    // only rooms where it really is a member count.
-    if (identity && parsed.data.rooms?.length) {
-      const visits = [];
-      for (const r of parsed.data.rooms.filter((room) => !communitySection(room.id))) {
-        const roomName = await rooms.memberRoomName(r.id, identity.id, identity.secret);
-        if (roomName !== null) visits.push({ id: r.id, name: roomName, visitedAt: r.visitedAt });
-      }
-      if (visits.length) doc = (await accounts.recordVisits(username, identity.id, identity.secret, visits)) ?? doc;
-    }
+    if (identity && parsed.data.rooms?.length) doc = await addVisitedRooms(doc, identity, parsed.data.rooms);
     res.status(201).json(loginResult(doc));
+  });
+
+  // Whether "Continuar com Google" is on, for which Google Workspace domains (open to everyone).
+  router.get('/auth/providers', (_req, res) => {
+    res.json({ google: google.publicConfig });
+  });
+
+  // Sign in with the ID token from the Google button: to the linked account, or a new one. Behind the
+  // community code, a Google account of the company (GOOGLE_DOMAIN) opens the app as the code does.
+  // A generous limit: a whole office signs in from one IP, and only real Google tokens get anywhere.
+  router.post('/auth/google', rateLimit(300, 10 * 60_000), async (req, res) => {
+    const locked = !gate.allows(req.headers.cookie);
+    if (locked && !google.domains.length) {
+      res.status(401).json({ error: 'community_locked' });
+      return;
+    }
+    const parsed = googleLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid_request' });
+      return;
+    }
+    const who = await googleIdentity(parsed.data.credential, res);
+    if (!who) return;
+    const { profile, id, secret } = parsed.data;
+    const identity = id && secret ? { id, secret } : undefined;
+    const result = await accounts.googleLogin(who, { profile, identity });
+    if (!result) {
+      res.status(500).json({ error: 'server_error' });
+      return;
+    }
+    let doc = result.doc;
+    if (result.created && identity && parsed.data.rooms?.length) doc = await addVisitedRooms(doc, identity, parsed.data.rooms);
+    if (locked) res.setHeader('Set-Cookie', gate.cookie(req.secure));
+    res.status(result.created ? 201 : 200).json({ ...loginResult(doc), created: result.created });
   });
 
   router.post('/auth/login', rateLimit(200, 10 * 60_000), async (req, res) => {
@@ -105,7 +174,33 @@ export function accountRouter(accounts: AccountManager, rooms: RoomManager) {
   router.get('/account', async (req, res) => {
     const a = await authed(req);
     if (!a?.doc) return void unauthorized(res);
-    res.json({ username: a.doc.username, profile: a.doc.profile, rooms: roomList(a.doc) });
+    res.json({
+      username: a.doc.username,
+      profile: a.doc.profile,
+      rooms: roomList(a.doc),
+      google: a.doc.google?.email ?? null,
+      password: !!a.doc.password,
+    });
+  });
+
+  // Links a Google account to the signed-in account: from then on either signs in.
+  router.post('/account/google', rateLimit(30, 10 * 60_000), async (req, res) => {
+    const c = credentials(req);
+    const parsed = googleLinkSchema.safeParse(req.body);
+    if (!c) return void unauthorized(res);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid_request' });
+      return;
+    }
+    const who = await googleIdentity(parsed.data.credential, res);
+    if (!who) return;
+    const result = await accounts.linkGoogle(c.username, c.secret, who);
+    if (result === null) return void unauthorized(res);
+    if (result === 'taken' || result === 'linked') {
+      res.status(409).json({ error: result === 'taken' ? 'google_taken' : 'google_linked' });
+      return;
+    }
+    res.json({ ok: true, google: who.email });
   });
 
   router.patch('/account', async (req, res) => {

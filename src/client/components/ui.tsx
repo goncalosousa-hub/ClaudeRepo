@@ -153,6 +153,17 @@ export function ModalHeader({ title, subtitle, onClose }: { title: ReactNode; su
   );
 }
 
+/** A line with a word in the middle ("ou"), between two ways of doing the same thing. */
+export function Divider({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 text-xs text-faint">
+      <span className="h-px flex-1 bg-line" />
+      {children}
+      <span className="h-px flex-1 bg-line" />
+    </div>
+  );
+}
+
 export function Spinner({ size = 18, className }: { size?: number; className?: string }) {
   return (
     <span

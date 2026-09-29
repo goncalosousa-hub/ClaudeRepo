@@ -1,9 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { LockKeyhole } from 'lucide-react';
-import { COMMUNITY } from '../../shared/brand';
+import { COMMUNITY, COMPANY } from '../../shared/brand';
+import { googleSignIn } from '../lib/account-api';
 import { unlockCommunity } from '../lib/community';
+import { domainsText, type GoogleConfig } from '../lib/google';
+import { loadUser, saveUser } from '../lib/identity';
+import { recentRooms } from '../lib/recent-rooms';
+import { GoogleButton } from './GoogleButton';
 import { Logo } from './Logo';
-import { Button, Spinner, inputClass } from './ui';
+import { PRIVACY_PATH } from './PrivacyPage';
+import { useToast } from './Toasts';
+import { Button, Divider, Spinner, inputClass } from './ui';
 
 const MESSAGES = {
   wrong: 'Código errado. Confirma-o com quem to deu.',
@@ -11,11 +18,43 @@ const MESSAGES = {
   network: 'Sem ligação ao servidor. Verifica a internet.',
 };
 
-/** Asks for the community code: the app is only for colleagues. */
-export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
+/**
+ * Asks for the community code (or a Google account of the company): the app is only for colleagues.
+ * `google`: the server's Google sign-in settings, if on.
+ */
+export function CommunityGate({ google, onUnlocked }: { google: GoogleConfig | null; onUnlocked: () => void }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const toast = useToast();
+  // Only a Google account of the company (GOOGLE_DOMAIN) opens the app.
+  const withGoogle = google?.domains.length ? google : null;
+
+  // Signing in with the work email's Google account opens the app and signs in at once. A profile this
+  // browser already used (without an account) stays the same in a new account.
+  const signInWithGoogle = async (credential: string) => {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    setGoogleError(null);
+    try {
+      const user = loadUser();
+      const guest = user && !user.account ? user : null;
+      const res = await googleSignIn(
+        credential,
+        guest ? { name: guest.name, color: guest.color, avatar: guest.avatar, unit: guest.unit ?? '' } : undefined,
+        guest ? { user: guest, rooms: recentRooms() } : undefined,
+      );
+      saveUser(res.user);
+      toast(`Olá, ${res.user.name}! Bem-vindo.`, 'success');
+      onUnlocked();
+    } catch (err) {
+      setGoogleError(err instanceof Error ? err.message : 'Algo correu mal. Tenta outra vez.');
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,6 +80,24 @@ export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
             <p className="text-sm text-muted">Um espaço dos colaboradores do {COMMUNITY}.</p>
           </div>
         </div>
+        {withGoogle && (
+          <>
+            <div className="space-y-2">
+              <GoogleButton config={withGoogle} onCredential={(c) => void signInWithGoogle(c)} />
+              {googleError ? (
+                <p role="alert" className="text-sm text-bad">
+                  {googleError}
+                </p>
+              ) : (
+                <p className="flex items-center justify-center gap-2 text-center text-xs text-muted">
+                  {googleBusy && <Spinner size={14} />}
+                  {googleBusy ? 'A entrar…' : `Com o email da ${COMPANY} (${domainsText(withGoogle.domains)}).`}
+                </p>
+              )}
+            </div>
+            <Divider>ou com o código</Divider>
+          </>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="community-code">
             Código da comunidade
@@ -48,7 +105,7 @@ export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
           <input
             id="community-code"
             className={inputClass}
-            autoFocus
+            autoFocus={!withGoogle}
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
@@ -66,6 +123,9 @@ export function CommunityGate({ onUnlocked }: { onUnlocked: () => void }) {
           {busy && <Spinner size={16} />} Entrar
         </Button>
       </form>
+      <a className="text-xs text-faint underline underline-offset-2 hover:text-muted" href={PRIVACY_PATH} target="_blank" rel="noreferrer">
+        Política de privacidade
+      </a>
     </div>
   );
 }

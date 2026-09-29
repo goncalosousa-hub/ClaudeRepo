@@ -6,7 +6,9 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { io as connect, type Socket } from 'socket.io-client';
 import { produce } from 'immer';
+import { generateKeyPairSync } from 'node:crypto';
 import { createApp } from '../src/server/app';
+import { googleUsernames } from '../src/server/accounts';
 import { applyOp } from '../src/shared/ops';
 import {
   GROUP_BOARD,
@@ -17,6 +19,7 @@ import {
   type RoomState,
   type SyncAck,
 } from '../src/shared/types';
+import { FAKE_GOOGLE_CLIENT_ID, googleToken } from './fake-google';
 import { FAKE_TMDB_KEY, startFakeTmdb } from './fake-tmdb';
 import { anime, spot, title } from './fixtures';
 
@@ -655,6 +658,223 @@ describe('community code', () => {
   it('is off when no code is set', async () => {
     const app = await start(await tmpDir());
     expect(await (await fetch(`${app.url}/api/community/status`)).json()).toEqual({ required: false, unlocked: true });
+  });
+});
+
+describe('sign in with Google', () => {
+  type GoogleLogin = LoginResult & { created: boolean };
+
+  /** An app with Google sign-in for lusiaves.pt (the fake Google keys come from the fake server). */
+  async function withGoogle(extra: Partial<Parameters<typeof createApp>[0]> = {}, domains = ['lusiaves.pt']) {
+    const fake = await startFakeTmdb();
+    cleanups.push(fake.close);
+    const app = await start(await tmpDir(), undefined, {
+      google: { clientId: FAKE_GOOGLE_CLIENT_ID, domains, certsUrl: fake.googleCertsUrl },
+      ...extra,
+    });
+    return { app, fake };
+  }
+  const google = (app: App, credential: string, extra: object = {}, headers: Record<string, string> = {}) =>
+    fetch(`${app.url}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ credential, ...extra }),
+    }).then(async (res) => ({ status: res.status, body: (await res.json()) as GoogleLogin & { error?: string }, res }));
+
+  it('makes usernames from the email', () => {
+    expect(googleUsernames('Ana.Sofia@lusiaves.pt').slice(0, 3)).toEqual(['ana.sofia', 'ana.sofia2', 'ana.sofia3']);
+    expect(googleUsernames('joão.nuñez@lusiaves.pt')[0]).toBe('joao.nunez');
+    expect(googleUsernames('.rui_costa.@lusiaves.pt')[0]).toBe('rui_costa');
+    expect(googleUsernames('maria.dos.santos.ferreira@lusiaves.pt')[0]).toBe('maria.dos.santos.fer');
+    expect(googleUsernames('jo@lusiaves.pt')[0]).toBe('colega');
+    expect(googleUsernames('com1@lusiaves.pt')[0]).toBe('colega');
+  });
+
+  it('is off without a client id', async () => {
+    const app = await start(await tmpDir());
+    expect((await api(app, 'GET', '/api/auth/providers')).body).toEqual({ google: null });
+    expect((await google(app, googleToken())).body).toEqual({ error: 'google_off' });
+    expect((await fetch(`${app.url}/`)).headers.get('content-security-policy')).not.toContain('accounts.google.com');
+  });
+
+  it('creates an account on the first sign-in and signs in to the same one after', async () => {
+    const { app, fake } = await withGoogle();
+    expect((await api(app, 'GET', '/api/auth/providers')).body).toEqual({
+      google: { clientId: FAKE_GOOGLE_CLIENT_ID, domains: ['lusiaves.pt'] },
+    });
+    // The page may load Google's button.
+    const csp = (await fetch(`${app.url}/`)).headers.get('content-security-policy')!;
+    expect(csp).toContain("script-src 'self' https://accounts.google.com/gsi/client");
+    expect(csp).toContain('frame-src https://accounts.google.com/gsi/');
+
+    const first = await google(app, googleToken());
+    expect(first.status).toBe(201);
+    expect(first.body).toMatchObject({
+      created: true,
+      username: 'ana.sofia',
+      rooms: [],
+      user: { name: 'Ana Sofia Pereira', avatar: '', account: 'ana.sofia' },
+    });
+    expect(first.res.headers.get('set-cookie')).toBeNull();
+    const again = await google(app, googleToken());
+    expect(again.status).toBe(200);
+    expect(again.body.created).toBe(false);
+    expect(again.body.user).toEqual(first.body.user);
+    expect((await api(app, 'GET', '/api/account', undefined, auth(first.body))).body).toMatchObject({
+      username: 'ana.sofia',
+      google: 'ana.sofia@lusiaves.pt',
+      password: false,
+    });
+    // No password: it only signs in with Google.
+    expect(await login(app, 'ana.sofia', 'anything')).toEqual({ status: 401, body: { error: 'invalid_credentials' } });
+    // The keys were fetched once.
+    expect(fake.hits.filter((h) => h.startsWith('/google/certs'))).toHaveLength(1);
+
+    // A taken username gets a number; a new email in Google is kept, the account stays the same.
+    await register(app, 'rui.costa');
+    const rui = await google(app, googleToken({ sub: '2002', email: 'rui.costa@lusiaves.pt', name: 'Rui Costa' }));
+    expect(rui.body).toMatchObject({ created: true, username: 'rui.costa2', user: { name: 'Rui Costa' } });
+    const renamed = await google(app, googleToken({ email: 'ana.pereira@lusiaves.pt' }));
+    expect(renamed.body).toMatchObject({ created: false, username: 'ana.sofia' });
+    expect((await api(app, 'GET', '/api/account', undefined, auth(first.body))).body).toMatchObject({ google: 'ana.pereira@lusiaves.pt' });
+  });
+
+  it('only takes tokens Google made for this app, for accounts of the company', async () => {
+    const { app, fake } = await withGoogle();
+    const now = Math.floor(Date.now() / 1000);
+    const refused = async (credential: string) => {
+      const r = await google(app, credential);
+      return [r.status, r.body.error];
+    };
+    // Another domain, or a Google account that only uses a company email (not the company's Workspace).
+    expect(await refused(googleToken({ hd: 'gmail.com', email: 'ana@gmail.com' }))).toEqual([403, 'wrong_domain']);
+    expect(await refused(googleToken({ hd: undefined }))).toEqual([403, 'wrong_domain']);
+    expect(await refused(googleToken({ aud: 'another-app.apps.googleusercontent.com' }))).toEqual([401, 'invalid_token']);
+    expect(await refused(googleToken({ iss: 'https://evil.example' }))).toEqual([401, 'invalid_token']);
+    expect(await refused(googleToken({ exp: now - 3600, iat: now - 7200 }))).toEqual([401, 'invalid_token']);
+    expect(await refused(googleToken({ email_verified: false }))).toEqual([401, 'invalid_token']);
+    const { privateKey: stranger } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    expect(await refused(googleToken({}, { key: stranger }))).toEqual([401, 'invalid_token']);
+    expect(await refused(googleToken({}, { kid: 'unknown-key' }))).toEqual([401, 'invalid_token']);
+    const [head, body] = googleToken().split('.');
+    const none = `${Buffer.from(JSON.stringify({ alg: 'none', kid: 'fake-google-key-1' })).toString('base64url')}.${body}.x`;
+    expect(await refused(none)).toEqual([401, 'invalid_token']);
+    expect(await refused(`${head}.${Buffer.from('{"sub":"1"}').toString('base64url')}.x`)).toEqual([401, 'invalid_token']);
+    expect(await refused('not-a-token')).toEqual([400, 'invalid_request']);
+    // Unknown keys do not make the server ask Google again and again.
+    await refused(googleToken({}, { kid: 'another-unknown-key' }));
+    expect(fake.hits.filter((h) => h.startsWith('/google/certs')).length).toBeLessThanOrEqual(2);
+    // Nothing was created.
+    expect((await google(app, googleToken())).body.created).toBe(true);
+  });
+
+  it('keeps the profile someone already uses in rooms', async () => {
+    const { app } = await withGoogle();
+    const guest = { ...user('ana', 'Aninhas'), unit: 'Savinor' };
+    const roomId = await createRoom(app, 'Turma A');
+    (await join(app, roomId, guest)).s.disconnect();
+    const created = await google(app, googleToken(), {
+      profile: { name: guest.name, color: guest.color, avatar: guest.avatar, unit: guest.unit },
+      id: guest.id,
+      secret: guest.secret,
+      rooms: [{ id: roomId, visitedAt: 1000 }],
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.user).toMatchObject({ id: guest.id, secret: guest.secret, name: 'Aninhas', unit: 'Savinor' });
+    expect(created.body.rooms).toEqual([{ id: roomId, name: 'Turma A', visitedAt: 1000 }]);
+    // A profile without a name gets the one from Google.
+    const rui = await google(app, googleToken({ sub: '3003', email: 'rui@lusiaves.pt', name: 'Rui Costa' }), {
+      profile: { name: '', color: '#ff0066', avatar: '🐙' },
+    });
+    expect(rui.body.user).toMatchObject({ name: 'Rui Costa', color: '#ff0066', avatar: '🐙' });
+    // An identity must come with its secret.
+    expect((await google(app, googleToken({ sub: '4004' }), { id: guest.id })).status).toBe(400);
+  });
+
+  it('links a Google account to an account with a password', async () => {
+    const { app } = await withGoogle();
+    const ana = (await register(app, 'ana')).body;
+    const bruno = (await register(app, 'bruno')).body;
+    const link = (r: LoginResult | null, credential: string) =>
+      api(app, 'POST', '/api/account/google', { credential }, r ? auth(r) : undefined);
+
+    expect((await link(null, googleToken())).status).toBe(401);
+    expect(await link(ana, googleToken({ aud: 'x' }))).toEqual({ status: 401, body: { error: 'invalid_token' } });
+    expect(await link(ana, googleToken())).toEqual({ status: 200, body: { ok: true, google: 'ana.sofia@lusiaves.pt' } });
+    expect(await link(ana, googleToken())).toMatchObject({ status: 200 });
+    expect((await api(app, 'GET', '/api/account', undefined, auth(ana))).body).toMatchObject({ google: 'ana.sofia@lusiaves.pt', password: true });
+
+    // Google now signs in to the same account (and the password still works).
+    const signed = await google(app, googleToken());
+    expect(signed.body).toMatchObject({ created: false, username: 'ana' });
+    expect(signed.body.user).toEqual(ana.user);
+    expect((await login(app, 'ana')).status).toBe(200);
+
+    expect(await link(bruno, googleToken())).toEqual({ status: 409, body: { error: 'google_taken' } });
+    expect(await link(ana, googleToken({ sub: '5005', email: 'outra@lusiaves.pt' }))).toEqual({
+      status: 409,
+      body: { error: 'google_linked' },
+    });
+  });
+
+  it('opens the app behind the community code for accounts of the company only', async () => {
+    const { app } = await withGoogle({ communityCode: 'frango-2026' });
+    expect((await api(app, 'GET', '/api/auth/providers')).body.google).toMatchObject({ domains: ['lusiaves.pt'] });
+    const outsider = await google(app, googleToken({ hd: 'gmail.com', email: 'ana@gmail.com' }));
+    expect(outsider.status).toBe(403);
+    expect(outsider.res.headers.get('set-cookie')).toBeNull();
+
+    const colleague = await google(app, googleToken());
+    expect(colleague.status).toBe(201);
+    const setCookie = colleague.res.headers.get('set-cookie')!;
+    expect(setCookie).toMatch(/^atl_access=.+HttpOnly/);
+    const cookie = setCookie.split(';')[0];
+    expect(await (await fetch(`${app.url}/api/community/status`, { headers: { cookie } })).json()).toEqual({
+      required: true,
+      unlocked: true,
+    });
+
+    // Without GOOGLE_DOMAIN any Google account would get in: then only the code opens it.
+    const { app: open } = await withGoogle({ communityCode: 'frango-2026' }, []);
+    expect(await google(open, googleToken({ hd: 'gmail.com' }))).toMatchObject({ status: 401, body: { error: 'community_locked' } });
+    // Once in (with the code), any Google account can sign in there.
+    const unlocked = await fetch(`${open.url}/api/community/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'frango-2026' }),
+    });
+    const openCookie = unlocked.headers.get('set-cookie')!.split(';')[0];
+    expect((await google(open, googleToken({ hd: undefined, email: 'ana@gmail.com' }), {}, { cookie: openCookie })).status).toBe(201);
+  });
+
+  it.runIf(process.env.TEST_DATABASE_URL)('keeps the Google links in PostgreSQL', async () => {
+    const fake = await startFakeTmdb();
+    cleanups.push(fake.close);
+    const dir = await tmpDir();
+    const opts = { google: { clientId: FAKE_GOOGLE_CLIENT_ID, domains: ['lusiaves.pt'], certsUrl: fake.googleCertsUrl } };
+    // The test database outlives the tests: a Google account of its own for each run.
+    const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    const token = googleToken({ sub: `pg${tag}`, email: `pg.${tag}@lusiaves.pt` });
+    const app1 = await start(dir, process.env.TEST_DATABASE_URL, opts);
+    const first = await google(app1, token);
+    expect(first.body).toMatchObject({ created: true, username: `pg.${tag}` });
+    await app1.close();
+    const app2 = await start(dir, process.env.TEST_DATABASE_URL, opts);
+    const again = await google(app2, token);
+    expect(again.body).toMatchObject({ created: false, username: `pg.${tag}` });
+    expect(again.body.user).toEqual(first.body.user);
+  });
+
+  it('lets ADMINS name the email of a Google account', async () => {
+    const { app } = await withGoogle({ admins: ['ana.sofia@lusiaves.pt'] });
+    const ana = (await google(app, googleToken())).body;
+    const s = client(app);
+    const joined = await emit<JoinAck>(s, 'join', { roomId: 'sitios', user: ana.user, account: ana.username });
+    expect(joined.ok && joined.admin).toBe(true);
+    const rui = (await register(app, 'rui')).body;
+    const r = client(app);
+    const other = await emit<JoinAck>(r, 'join', { roomId: 'sitios', user: rui.user, account: 'rui' });
+    expect(other.ok && other.admin).toBeFalsy();
   });
 });
 

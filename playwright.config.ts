@@ -2,6 +2,15 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT ?? 4477);
 const TMDB_PORT = PORT + 2;
+/** The same app behind a community code (COMMUNITY_CODE). */
+const LOCKED_PORT = PORT + 4;
+
+// "Continuar com Google" with the fake Google keys (tests/fake-google.ts; the button is faked in the spec).
+const GOOGLE = {
+  GOOGLE_CLIENT_ID: '1234-fake.apps.googleusercontent.com',
+  GOOGLE_DOMAIN: 'lusiaves.pt',
+  GOOGLE_CERTS_URL: `http://127.0.0.1:${TMDB_PORT}/google/certs`,
+};
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -19,7 +28,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   webServer: [
     {
-      // A fake TMDB (series and movies), Open Library (books) and Photon (map), so the tests run offline.
+      // A fake TMDB (series and movies), Open Library (books), Photon (map) and Google sign-in, so the tests run offline.
       command: `npx tsx tests/fake-tmdb.ts ${TMDB_PORT}`,
       url: `http://127.0.0.1:${TMDB_PORT}/3/configuration`,
       reuseExistingServer: false,
@@ -38,6 +47,20 @@ export default defineConfig({
         // The same fake answers as Open Library (books) and Photon (restaurants and places).
         OPENLIBRARY_URL: `http://127.0.0.1:${TMDB_PORT}/ol`,
         PHOTON_URL: `http://127.0.0.1:${TMDB_PORT}/photon`,
+        ...GOOGLE,
+      },
+    },
+    {
+      // Colleagues only: the code, or a Google account of the company, opens it.
+      command: `node -e "require('fs').rmSync('.e2e-data-locked', { recursive: true, force: true })" && node dist/server/index.js`,
+      url: `http://127.0.0.1:${LOCKED_PORT}/api/health`,
+      reuseExistingServer: false,
+      env: {
+        PORT: String(LOCKED_PORT),
+        HOST: '127.0.0.1',
+        DATA_DIR: '.e2e-data-locked',
+        COMMUNITY_CODE: 'frango-e2e',
+        ...GOOGLE,
       },
     },
   ],

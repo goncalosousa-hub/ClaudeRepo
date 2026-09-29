@@ -2,7 +2,7 @@
 
 Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver, a ler e a descobrir: **filmes, séries, anime, livros, restaurantes e sítios**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas, com uma secção por categoria. Cada secção é uma lista de **recomendações**: carregas em "Recomendar", escolhes o filme, livro, restaurante ou sítio e dás as tuas **estrelas** (de 1 a 5), a tua **opinião** e **fotos**; todos veem as dos outros, ao vivo. Não há nada para arrastar. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**, que também podem ter uma tierlist.
 
-Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
+Não é obrigatório criar conta: crias uma sala, partilhas o link (ou o QR code) e pronto. Com uma **conta** (a conta Google do email da Lusiaves, ou utilizador e palavra-passe) és sempre a mesma pessoa, em qualquer link ou dispositivo, e ficas com a lista das tuas salas.
 
 ---
 
@@ -137,6 +137,8 @@ Sem conta, o teu perfil fica guardado só no browser e **só para aquele endere�
 2. **Noutro link ou dispositivo, entra na conta.** Na página inicial carrega em **Entrar**; se abrires o link de uma sala, escolhe **Já tenho conta**. Recuperas o teu perfil e a lista das tuas salas.
 3. Cada sala em que entras com a conta fica guardada em **As tuas salas**, na página inicial de qualquer dispositivo.
 
+Com o login da Google ligado, o mais simples é **Continuar com Google**: a conta é criada sozinha na primeira vez, sem utilizador nem palavra-passe para decorar ([vê abaixo](#-entrar-com-a-google-contas-da-lusiaves)).
+
 Algumas notas:
 - **Primeiro cria a conta, depois entra nos outros sítios.** Se entrares numa conta num dispositivo que já tinha outro perfil sem conta, esse dispositivo passa a usar o perfil da conta.
 - Os perfis criados antes, noutros links, continuam nas salas como membros offline: eram pessoas "diferentes" para a app.
@@ -170,13 +172,41 @@ Com a variável `COMMUNITY_CODE`, a app pede esse código uma vez em cada dispos
 2. **No Render**: *Environment → Add Environment Variable*, com `COMMUNITY_CODE` e o código, e guarda. **No teu PC**: acrescenta `COMMUNITY_CODE=o-código` ao `.env` e reinicia. O terminal mostra `Acesso: só com o código da comunidade`.
 3. Partilha o código pelos canais internos (por exemplo, a intranet ou o email da empresa), não em sítios públicos.
 
-Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a todos, apaga a variável.
+Se o código mudar, toda a gente tem de o voltar a escrever. Para abrir a app a todos, apaga a variável. Com o [login da Google](#-entrar-com-a-google-contas-da-lusiaves) e `GOOGLE_DOMAIN`, os colegas também podem entrar com a conta Google do trabalho, sem o código.
+
+---
+
+## 🔑 Entrar com a Google (contas da Lusiaves)
+
+Com `GOOGLE_CLIENT_ID` aparece o botão **Continuar com Google**: os colegas entram com a conta Google do email do trabalho, sem inventar um utilizador nem decorar mais uma palavra-passe, e são sempre a mesma pessoa em qualquer dispositivo.
+
+Com `GOOGLE_DOMAIN=grupolusiaves.pt,lusiaves.pt` só entram as contas do Google Workspace do grupo (é lá que estão os emails `@grupolusiaves.pt` e `@lusiaves.pt`). O servidor confirma a assinatura da Google e o domínio que a própria Google indica no token (`hd`, o domínio da organização no Workspace); um Gmail pessoal, ou uma conta Google criada com um email da empresa mas fora do Workspace, é recusado. Quem sai da empresa e perde a conta do Workspace deixa de conseguir entrar com a Google. Se outras empresas do grupo tiverem domínios próprios, junta-os com vírgulas.
+
+- **Na primeira vez a conta é criada sozinha.** O utilizador vem do email (`ana.sofia@lusiaves.pt` → `@ana.sofia`; se já existir, `@ana.sofia2`) e o nome vem da Google (muda-se no perfil). Se o browser já tinha um perfil sem conta, a conta fica com ele: o mesmo membro, nas mesmas salas.
+- **Quem já tem conta com palavra-passe** pode ligá-la à Google em *O teu perfil → Ligar à conta Google*. Depois entra com qualquer das duas.
+- **Com o código da comunidade** (`COMMUNITY_CODE`), o ecrã do código também mostra o botão: uma conta Google da Lusiaves abre a app sem o código. Isto só acontece com `GOOGLE_DOMAIN` definido; sem ele, qualquer conta Google podia entrar, por isso aí só o código abre a app.
+- `ADMINS` também aceita o email da conta Google (ex.: `ADMINS=ana.sofia@lusiaves.pt`).
+
+**Configurar na Google (uma vez):**
+
+1. Em [console.cloud.google.com](https://console.cloud.google.com) cria um projeto (ex.: *LusiHub*).
+2. Abre **Google Auth Platform → Branding**: nome da app *LusiHub*, email de suporte e email de contacto. Em **App domain**: *Application home page* `https://lusihub.onrender.com` e *Application privacy policy link* `https://lusihub.onrender.com/privacidade` (a política de privacidade da app, aberta a todos, mesmo sem o código da comunidade). Em **Authorized domains** junta `lusihub.onrender.com` (o `onrender.com` é um sufixo público, por isso cada app do Render conta como um domínio próprio). Os termos de utilização são opcionais. Não carregues um logótipo: com logótipo a Google pede verificação.
+3. **Audience**: *External* (com uma conta pessoal não há a opção *Internal*). Depois carrega em **Publish app**: enquanto estiver em *Testing*, só entram as contas da lista de *test users*. Como a app só pede o nome e o email, não é preciso a verificação da Google.
+4. **Clients → Create client → Web application**. Em **Authorized JavaScript origins** põe o endereço da app, `https://lusihub.onrender.com` (e, para experimentar no teu PC, `http://localhost:3000` e `http://localhost`). Os *Authorized redirect URIs* não são precisos. Se um dia a app tiver outro endereço (ex.: `lusihub.lusiaves.pt`), acrescenta-o aqui.
+5. Copia o **Client ID** (acaba em `.apps.googleusercontent.com`). Não é secreto: aparece na própria página. O *Client secret* não é preciso; não o partilhes.
+6. **No Render**, `GOOGLE_CLIENT_ID` e `GOOGLE_DOMAIN` já vêm no `render.yaml`. **No teu PC**, acrescenta-os ao `.env` e reinicia: o terminal mostra `Google: "Continuar com Google" ativado (só contas @grupolusiaves.pt, @lusiaves.pt)`.
+
+---
+
+## 🔏 Privacidade
+
+A política de privacidade está em **`/privacidade`** (`src/client/components/PrivacyPage.tsx`), aberta a todos, mesmo quando a app pede o código da comunidade: é o link que a Google pede para publicar o login com a Google, e aparece também no ecrã do código, junto ao botão da Google e no rodapé das Salas. Diz que dados a app guarda (perfil, conta, email e identificador da conta Google, o que cada um partilha, fotos sem EXIF), com quem (alojamento, Google, catálogos públicos) e como pedir para os ver ou apagar. O contacto é `CONTACT_EMAIL`, em `src/shared/brand.ts`. Se a app passar a guardar outras coisas, atualiza o texto e a data.
 
 ---
 
 ## 🎨 Marca
 
-- **Nome**: `APP_NAME` e `COMMUNITY` em `src/shared/brand.ts`.
+- **Nome**: `APP_NAME` e `COMMUNITY` em `src/shared/brand.ts`. Lá está também `CONTACT_EMAIL`, o contacto da [política de privacidade](#-privacidade).
 - **Cores**: tema claro e quente com o vermelho da Lusiaves. O vermelho do logótipo (`#c31315`) fica para a marca; nos botões e destaques usa-se uma versão um pouco mais escura e suave (`--color-accent`, `#b52a2f`) com um coral (`--color-accent-2`) nos degradês. Os fundos são brancos quentes e o texto grafite. Está tudo nas variáveis de `src/client/index.css`.
 - **Logótipo**: o da Lusiaves, em `public/logo.png` (usado por `LogoMark` em `src/client/components/Logo.tsx`), `public/favicon.png` e `public/apple-touch-icon.png`.
 
@@ -225,8 +255,10 @@ Todas as variáveis são opcionais. Podes pô-las num ficheiro **`.env`** na pas
 | `TMDB_API_KEY` | — | Chave do TMDB (API Key ou API Read Access Token) para as salas de séries e filmes |
 | `COMMUNITY_CODE` | — | Código da comunidade: se definido, só quem o souber usa a app |
 | `PHOTOS_MAX_MB` | `300` | Espaço máximo para todas as fotos, em MB |
-| `ADMINS` | — | Contas (nomes de utilizador, separados por vírgulas) que podem apagar qualquer título ou foto na comunidade |
-| `OPENLIBRARY_URL`, `PHOTON_URL` | serviços públicos | Outro servidor para os livros ou para o mapa (usado nos testes) |
+| `ADMINS` | — | Contas (nomes de utilizador ou emails das contas Google, separados por vírgulas) que podem apagar qualquer título ou foto na comunidade |
+| `GOOGLE_CLIENT_ID` | — | Client ID da Google (Google Cloud): ativa o botão **Continuar com Google** |
+| `GOOGLE_DOMAIN` | — | Só as contas Google destes domínios do Google Workspace entram com a Google (ex.: `grupolusiaves.pt,lusiaves.pt`). Com `COMMUNITY_CODE`, também abrem a app sem o código |
+| `OPENLIBRARY_URL`, `PHOTON_URL`, `GOOGLE_CERTS_URL` | serviços públicos | Outro servidor para os livros, o mapa ou as chaves da Google (usado nos testes) |
 | `TRUST_PROXY` | redes privadas | Definição `trust proxy` do Express, para obter o IP real atrás de um proxy |
 
 ---
@@ -268,7 +300,7 @@ src/
     media.ts     tipos de sala (filmes e séries, anime, livros, restaurantes, sítios…) e de cada título
     catalog.ts   géneros do TMDB e dos livros, tipos de sítios e respostas das rotas dos catálogos
     owner.ts     regras do dono da sala
-    brand.ts     nome da app e da comunidade
+    brand.ts     nome da app e da comunidade, contacto da política de privacidade
     ops.ts       reducer das operações (a lógica central)
     schema.ts    validação de tudo o que o servidor recebe
     stats.ts     médias, tierlist "Média", afinidade, recomendações
@@ -277,8 +309,9 @@ src/
     app.ts       Express + Socket.IO (+ Vite em desenvolvimento)
     realtime.ts  eventos em tempo real (entrar, operações, presença, cursores)
     rooms.ts     salas em memória, gravação e autenticação
-    accounts.ts  contas: palavras-passe (scrypt), perfil e "As tuas salas"
-    account-routes.ts  API das contas (criar, entrar, perfil, palavra-passe)
+    accounts.ts  contas: palavras-passe (scrypt), contas Google, perfil e "As tuas salas"
+    account-routes.ts  API das contas (criar, entrar, entrar com a Google, perfil, palavra-passe)
+    google.ts    entrar com a Google: verifica o token (assinatura, app, validade, domínio)
     tmdb.ts      séries e filmes: pedidos ao TMDB, cache e conversão para o formato da app
     books.ts     livros: pesquisa na Open Library
     places.ts    restaurantes e sítios: pesquisa no OpenStreetMap (Photon)
@@ -303,7 +336,7 @@ npm run typecheck      # verificação de tipos (TypeScript)
 npm run build && npm run test:e2e   # dois browsers a usar a mesma sala (Playwright)
 ```
 
-- Os testes E2E simulam a API do AniList, o TMDB, a Open Library e o Photon (`tests/fake-tmdb.ts` e `tests/fake-catalogs.ts`), por isso correm sem internet e sem chave. Na primeira vez instala o browser com `npx playwright install chromium`.
+- Os testes E2E simulam a API do AniList, o TMDB, a Open Library, o Photon e o login da Google (`tests/fake-tmdb.ts`, `tests/fake-catalogs.ts` e `tests/fake-google.ts`, com chaves próprias e um botão da Google falso), por isso correm sem internet e sem chave. Na primeira vez instala o browser com `npx playwright install chromium`.
 - Para testar também a gravação em PostgreSQL: `TEST_DATABASE_URL=postgres://utilizador:senha@localhost:5432/base npm test`.
 
 ---

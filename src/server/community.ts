@@ -5,7 +5,8 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { rateLimit } from './http';
 
 export const ACCESS_COOKIE = 'atl_access';
-const OPEN_PATHS = new Set(['/health', '/community/status', '/community/unlock']);
+// Signing in with Google opens the app too, for accounts of the company (see account-routes.ts).
+const OPEN_PATHS = new Set(['/health', '/community/status', '/community/unlock', '/auth/providers', '/auth/google']);
 
 const digest = (code: string) => createHash('sha256').update(`lusiaves-tierlist:${code.trim()}`).digest('base64url');
 

@@ -30,6 +30,7 @@ class MemoryStorage implements Storage {
   readonly label = 'memory';
   rooms = new Map<string, RoomDoc>();
   accounts = new Map<string, AccountDoc>();
+  google = new Map<string, string>();
   async init() {}
   async load(id: string) {
     return this.rooms.get(id) ?? null;
@@ -50,6 +51,14 @@ class MemoryStorage implements Storage {
   }
   async saveAccount(d: AccountDoc) {
     this.accounts.set(d.username, d);
+  }
+  async googleAccount(sub: string) {
+    return this.google.get(sub) ?? null;
+  }
+  async linkGoogle(sub: string, username: string) {
+    if (this.google.has(sub)) return false;
+    this.google.set(sub, username);
+    return true;
   }
   async savePhoto() {}
   async loadPhoto() {
@@ -103,11 +112,21 @@ describe('storage helpers', () => {
     // Usernames become file names: anything that is not a valid username is refused.
     await expect(files.loadAccount('../rooms/room0001')).rejects.toThrow('invalid username');
 
+    // A Google account signs in to one account only; its link comes along to the database.
+    const sub = '10987654321098765432Ab';
+    expect(await files.googleAccount(sub)).toBeNull();
+    expect(await files.linkGoogle(sub, 'ana')).toBe(true);
+    expect(await files.linkGoogle(sub, 'bruno')).toBe(false);
+    expect(await files.googleAccount(sub)).toBe('ana');
+    expect(await files.googleAccount(sub.toLowerCase())).toBeNull();
+    await files.saveAccount({ ...updated, google: { sub, email: 'ana@lusiaves.pt' } });
+
     const target = new MemoryStorage();
     target.accounts.set('bruno', account('bruno', 'Already in the database'));
     expect(await importFileAccounts(dir, target)).toBe(1);
     expect(target.accounts.get('ana')?.profile.name).toBe('Ana Sofia');
     expect(target.accounts.get('bruno')?.profile.name).toBe('Already in the database');
+    expect(await target.googleAccount(sub)).toBe('ana');
     expect(await importFileAccounts(dir, target)).toBe(0);
   });
 

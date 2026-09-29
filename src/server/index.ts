@@ -16,6 +16,15 @@ const admins = (process.env.ADMINS ?? '')
   .map((u) => u.trim().toLowerCase())
   .filter(Boolean);
 const photosMaxMb = Number(process.env.PHOTOS_MAX_MB) > 0 ? Number(process.env.PHOTOS_MAX_MB) : undefined;
+const google = {
+  clientId: process.env.GOOGLE_CLIENT_ID?.trim() || undefined,
+  // Several domains separated by commas (e.g. "lusiaves.pt,outra.pt").
+  domains: (process.env.GOOGLE_DOMAIN ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean),
+  certsUrl: process.env.GOOGLE_CERTS_URL?.trim() || undefined,
+};
 
 let app: Awaited<ReturnType<typeof createApp>>;
 try {
@@ -29,6 +38,7 @@ try {
     places: { baseUrl: process.env.PHOTON_URL?.trim() || undefined },
     photosMaxMb,
     admins,
+    google,
   });
 } catch (err) {
   if (!databaseUrl) throw err;
@@ -59,9 +69,15 @@ httpServer.listen(port, host, () => {
       : '  ➜ Séries e filmes: desativados — falta TMDB_API_KEY no .env (vê o README)',
   );
   console.log(`  ➜ Fotos:       até ${photosMaxMb ?? 300} MB (PHOTOS_MAX_MB)${admins.length ? ` · moderação: ${admins.join(', ')}` : ''}`);
+  const domains = google.domains.map((d) => `@${d}`).join(', ');
+  console.log(
+    google.clientId
+      ? `  ➜ Google:      "Continuar com Google" ativado${domains ? ` (só contas ${domains})` : ' (qualquer conta Google: define GOOGLE_DOMAIN)'}`
+      : `  ➜ Google:      desativado${domains ? ' — falta GOOGLE_CLIENT_ID (vê o README)' : ' (define GOOGLE_CLIENT_ID para entrar com a Google)'}`,
+  );
   console.log(
     gate.enabled
-      ? '  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)'
+      ? `  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)${google.clientId && domains ? ` ou uma conta Google ${domains}` : ''}`
       : '  ➜ Acesso: aberto a quem tiver o link (define COMMUNITY_CODE para ser só para colaboradores)',
   );
   console.log(`\n  Colegas noutra rede? Cria um túnel:  cloudflared tunnel --url http://localhost:${port}\n`);

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { CommunityGate } from './components/CommunityGate';
 import { Home } from './components/Home';
+import { PRIVACY_PATH, PrivacyPage } from './components/PrivacyPage';
 import { RoomPage } from './components/RoomPage';
 import { useToast } from './components/Toasts';
 import { communityLocked } from './lib/community';
+import { googleConfig, type GoogleConfig } from './lib/google';
 import { importProfileFromHash, saveUser, useUser } from './lib/identity';
 import { sectionAt, usePath } from './lib/router';
 
@@ -13,9 +15,14 @@ export function App() {
   const toast = useToast();
   // null while asking the server whether this browser still needs the community code.
   const [locked, setLocked] = useState<boolean | null>(null);
+  // Whether colleagues can get in with Google instead (only asked when the code is needed).
+  const [google, setGoogle] = useState<GoogleConfig | null>(null);
 
   useEffect(() => {
-    void communityLocked().then(setLocked);
+    void communityLocked().then(async (needsCode) => {
+      if (needsCode) setGoogle(await googleConfig());
+      setLocked(needsCode);
+    });
   }, []);
 
   useEffect(() => {
@@ -26,8 +33,10 @@ export function App() {
     }
   }, [toast]);
 
+  // The privacy policy is for everyone, also without the community code (Google's sign-in links to it).
+  if (path.replace(/\/+$/, '') === PRIVACY_PATH) return <PrivacyPage />;
   if (locked === null) return null;
-  if (locked) return <CommunityGate onUnlocked={() => setLocked(false)} />;
+  if (locked) return <CommunityGate google={google} onUnlocked={() => setLocked(false)} />;
 
   const room = path.match(/^\/r\/([a-z0-9]{6,16})\/?$/i);
   if (room) return <RoomPage key={room[1]} roomId={room[1].toLowerCase()} user={user} setUser={setUser} />;

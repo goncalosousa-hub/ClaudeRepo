@@ -1,5 +1,6 @@
-// Accounts: a username + password that gives back the same profile (and the list of rooms) on any
-// link or device. The browser proves who it is with the profile's secret.
+// Accounts: a username + password (or a Google account) that gives back the same profile (and the
+// list of rooms) on any link or device. The browser proves who it is with the profile's secret.
+import { APP_NAME, COMPANY } from '../../shared/brand';
 import { ROOM_ID_RE } from '../../shared/constants';
 import type { LocalUser } from './identity';
 
@@ -19,6 +20,10 @@ export interface AccountInfo {
   username: string;
   profile: { name: string; color: string; avatar: string; unit?: string };
   rooms: AccountRoom[];
+  /** Email of the Google account that also signs in, if any */
+  google: string | null;
+  /** Whether it has a password (accounts made with Google have none) */
+  password: boolean;
 }
 
 type Profile = Pick<LocalUser, 'name' | 'color' | 'avatar' | 'unit'>;
@@ -35,6 +40,13 @@ const MESSAGES: Record<string, string> = {
   network: 'Sem ligação ao servidor. Verifica a internet.',
   invalid_request: 'Pedido inválido.',
   server_error: 'Erro no servidor. Tenta outra vez.',
+  google_off: 'Entrar com a Google não está ativo neste servidor.',
+  invalid_token: 'A Google não confirmou quem és. Tenta outra vez.',
+  wrong_domain: `Essa conta Google não é da ${COMPANY}. Escolhe a conta do email do trabalho.`,
+  google_unreachable: 'Não foi possível falar com a Google. Tenta daqui a pouco.',
+  google_taken: `Essa conta Google já entra noutra conta do ${APP_NAME}.`,
+  google_linked: 'Esta conta já está ligada a outra conta Google.',
+  community_locked: 'Primeiro escreve o código da comunidade.',
 };
 
 export class AccountError extends Error {
@@ -60,21 +72,41 @@ async function request<T>(method: string, url: string, body?: unknown, user?: Si
 
 export const hasAccount = (u: LocalUser | null): u is SignedIn => !!u?.account;
 
+type Current = { user: LocalUser; rooms: { id: string; visitedAt: number }[] };
+
+/** The identity this browser already uses and the rooms it has been in with it, for a new account. */
+function identityOf(current?: Current) {
+  if (!current) return {};
+  const rooms = current.rooms
+    .filter((r) => ROOM_ID_RE.test(r.id) && Number.isInteger(r.visitedAt) && r.visitedAt >= 0)
+    .slice(0, 50);
+  return { id: current.user.id, secret: current.user.secret, rooms };
+}
+
 /**
  * Creates an account. With `current` (the profile this browser already uses), the account keeps it,
  * so the person stays the same member in the rooms they were already in (listed in `rooms`).
  */
-export function register(
-  username: string,
-  password: string,
-  profile: Profile,
-  current?: { user: LocalUser; rooms: { id: string; visitedAt: number }[] },
-) {
-  const rooms = current?.rooms
-    .filter((r) => ROOM_ID_RE.test(r.id) && Number.isInteger(r.visitedAt) && r.visitedAt >= 0)
-    .slice(0, 50);
-  const identity = current ? { id: current.user.id, secret: current.user.secret, rooms } : {};
-  return request<LoginResult>('POST', '/api/auth/register', { username, password, ...profile, ...identity });
+export function register(username: string, password: string, profile: Profile, current?: Current) {
+  return request<LoginResult>('POST', '/api/auth/register', { username, password, ...profile, ...identityOf(current) });
+}
+
+/**
+ * Signs in with the ID token from the Google button: to the account of that Google account, or to a
+ * new one (`created`). A new account starts with `profile` (without a name, the one from Google) and
+ * keeps `current`, as in `register`. Behind the community code it also opens the app.
+ */
+export function googleSignIn(credential: string, profile?: Profile, current?: Current) {
+  return request<LoginResult & { created: boolean }>('POST', '/api/auth/google', {
+    credential,
+    ...(profile ? { profile: { ...profile, unit: profile.unit ?? '' } } : {}),
+    ...identityOf(current),
+  });
+}
+
+/** Links a Google account to the signed-in account, so it signs in with either. */
+export function linkGoogle(user: SignedIn, credential: string) {
+  return request<{ ok: true; google: string }>('POST', '/api/account/google', { credential }, user);
 }
 
 export function login(username: string, password: string) {

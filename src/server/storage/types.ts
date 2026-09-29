@@ -17,12 +17,14 @@ export interface AccountDoc {
   /** The identity used in rooms */
   userId: string;
   secret: string;
-  /** "scrypt$N$r$p$salt$hash" */
+  /** "scrypt$N$r$p$salt$hash", or '' for an account that only signs in with Google */
   password: string;
   profile: { name: string; color: string; avatar: string; unit?: string };
   /** Rooms this account has been in: room id -> last visit */
   rooms: Record<string, { name: string; visitedAt: number }>;
   createdAt: number;
+  /** The Google account that also signs in to this account ("Continuar com Google") */
+  google?: { sub: string; email: string };
 }
 
 /** A photo someone added to a title: the full image and a small one for lists (both JPEG). */
@@ -48,6 +50,10 @@ export interface Storage {
   /** Adds a new account; returns false (and changes nothing) when the username is taken. */
   createAccount(doc: AccountDoc): Promise<boolean>;
   saveAccount(doc: AccountDoc): Promise<void>;
+  /** The username of the account a Google account (its "sub") signs in to, null when none. */
+  googleAccount(sub: string): Promise<string | null>;
+  /** Links a Google account to an account; false (and nothing changes) when it is linked already. */
+  linkGoogle(sub: string, username: string): Promise<boolean>;
   savePhoto(photo: StoredPhoto): Promise<void>;
   /** The JPEG of a photo (or of its small version), null when it does not exist. */
   loadPhoto(id: string, thumb: boolean): Promise<Buffer | null>;

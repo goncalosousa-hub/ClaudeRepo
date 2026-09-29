@@ -99,6 +99,7 @@ const noop = () => {};
 const asAck = <T>(fn: unknown): Ack<T> => (typeof fn === 'function' ? (fn as Ack<T>) : noop);
 
 export function attachRealtime(io: Server, rooms: RoomManager, accounts?: AccountManager, admins: Set<string> = new Set()) {
+  const emailAdmins = [...admins].some((a) => a.includes('@'));
   io.on('connection', (socket: Socket) => {
     let ctx: { room: LiveRoom; userId: string; admin: boolean } | null = null;
     let joining = false;
@@ -126,13 +127,14 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
       if (!room) return ack({ ok: false, error: 'room_not_found' });
       if (socket.disconnected) return;
       if (!rooms.authenticate(room, user.id, user.secret)) return ack({ ok: false, error: 'auth_failed' });
-      // An admin proves it with the account: its identity must be this one.
+      // An admin proves it with the account: its identity must be this one. ADMINS can also name the
+      // email of the account's Google account.
       let admin = false;
-      if (account && accounts && admins.has(account)) {
+      if (account && accounts && (admins.has(account) || emailAdmins)) {
         joining = true;
         const doc = await accounts.authenticate(account, user.secret).catch(() => null);
         joining = false;
-        admin = doc?.userId === user.id;
+        admin = doc?.userId === user.id && (admins.has(doc.username) || (!!doc.google && admins.has(doc.google.email)));
         if (socket.disconnected) return;
       }
 

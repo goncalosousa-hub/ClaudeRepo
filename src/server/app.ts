@@ -12,6 +12,7 @@ import { AccountManager } from './accounts';
 import { accountRouter } from './account-routes';
 import { catalogRouter } from './catalog-routes';
 import { CommunityGate } from './community';
+import { GoogleAuth, type GoogleOptions } from './google';
 import { Tmdb, type TmdbOptions } from './tmdb';
 import { Books, type BooksOptions } from './books';
 import { Places, type PlacesOptions } from './places';
@@ -36,22 +37,29 @@ export interface AppOptions {
   places?: PlacesOptions;
   /** Space for all the photos together, in MB (default 300: the free Neon database has 512 MB) */
   photosMaxMb?: number;
-  /** Account usernames that can remove any photo or title in the community */
+  /** Account usernames (or the emails of their Google accounts) that can remove any photo or title in the community */
   admins?: string[];
+  /** Sign in with Google (off without a client id) */
+  google?: GoogleOptions;
 }
 
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' ws: wss: https://graphql.anilist.co https://api.jikan.moe",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
+/** With Google sign-in on, the page may also load Google's button (script, styles and its frame). */
+function contentSecurityPolicy(google: boolean) {
+  const gsi = google ? ' https://accounts.google.com/gsi/' : '';
+  return [
+    "default-src 'self'",
+    `script-src 'self'${google ? ' https://accounts.google.com/gsi/client' : ''}`,
+    `style-src 'self' 'unsafe-inline'${google ? ' https://accounts.google.com/gsi/style' : ''}`,
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' ws: wss: https://graphql.anilist.co https://api.jikan.moe${gsi}`,
+    ...(google ? [`frame-src${gsi}`] : []),
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
 
 export async function createApp(opts: AppOptions) {
   const storage = createStorage(opts);
@@ -71,6 +79,8 @@ export async function createApp(opts: AppOptions) {
   const books = new Books(opts.books);
   const places = new Places(opts.places);
   const gate = new CommunityGate(opts.communityCode);
+  const google = new GoogleAuth(opts.google);
+  const csp = contentSecurityPolicy(google.enabled);
 
   const app = express();
   app.disable('x-powered-by');
@@ -79,7 +89,7 @@ export async function createApp(opts: AppOptions) {
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    if (!opts.dev) res.setHeader('Content-Security-Policy', CSP);
+    if (!opts.dev) res.setHeader('Content-Security-Policy', csp);
     next();
   });
   app.use(compression());
@@ -103,7 +113,7 @@ export async function createApp(opts: AppOptions) {
 
   app.use('/api', gate.router());
   app.use('/api', gate.middleware());
-  app.use('/api', accountRouter(accounts, rooms));
+  app.use('/api', accountRouter(accounts, rooms, google, gate));
   app.use('/api', catalogRouter(tmdb, books, places));
   app.use('/api', photoRouter(rooms, storage, { maxBytes: (opts.photosMaxMb ?? 300) * 1024 * 1024, publish }));
   app.use('/api', apiRouter(rooms));
@@ -153,5 +163,5 @@ export async function createApp(opts: AppOptions) {
     await storage.close();
   }
 
-  return { app, httpServer, io, rooms, accounts, tmdb, gate, storage, imported, importedAccounts, close };
+  return { app, httpServer, io, rooms, accounts, tmdb, gate, google, storage, imported, importedAccounts, close };
 }
