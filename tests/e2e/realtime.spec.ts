@@ -7,6 +7,8 @@ const shots = process.env.E2E_SCREENSHOTS;
 const FAKE = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4477) + 2}`;
 /** The app behind the community code "frango-e2e". */
 const LOCKED = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4477) + 4}`;
+/** The app where only Google accounts get in (GOOGLE_ONLY). */
+const GOOGLE_ONLY = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 4477) + 6}`;
 
 /**
  * Google's button script, faked: its button signs in with the token in window.__googleCredential
@@ -488,6 +490,46 @@ test('behind the community code, a colleague gets in with the Google account of 
   await expect(visitor.getByText('Só para colaboradores')).toHaveCount(0);
   await expect(visitor).toHaveTitle('Política de privacidade · LusiHub');
   await shot(visitor, '33-privacy');
+});
+
+test('with GOOGLE_ONLY everyone signs in with Google: no profiles without an account, no passwords', async ({ browser }) => {
+  const tag = Date.now().toString(36);
+  const joana = { sub: `go${tag}`, email: `joana.${tag}@lusiaves.pt`, name: 'Joana Google' };
+  const page = await newPerson(browser);
+  // A browser that had a profile without an account (from before the switch).
+  await page.goto(GOOGLE_ONLY);
+  const guest = { id: `u_guest${tag}`, secret: `secret-guest-${tag}-0123456789`, name: `Convidada ${tag}`, color: '#3366ff', avatar: '🦊' };
+  await page.evaluate(`localStorage.setItem('atl:user', ${JSON.stringify(JSON.stringify(guest))})`);
+  await page.reload();
+
+  // Just the Google button: no code, no "continuar sem conta".
+  const gate = page.locator('form');
+  await expect(gate.getByRole('heading', { name: 'Só para colaboradores' })).toBeVisible();
+  await expect(gate.getByText('Entra com a conta Google do email do trabalho.')).toBeVisible();
+  await expect(page.getByLabel('Código da comunidade')).toHaveCount(0);
+  await shot(page, '34-google-only');
+  await signInWithGoogle(page, gate, joana);
+
+  // In, as the profile this browser already had.
+  await expect(page.getByRole('heading', { name: 'Recomendações', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'O teu perfil' }).click();
+  const profile = page.getByRole('dialog', { name: 'Perfil' });
+  await expect(profile.getByLabel('Nome', { exact: true })).toHaveValue(`Convidada ${tag}`);
+  await expect(profile.getByText(`Entra com «Continuar com Google» (joana.${tag}@lusiaves.pt)`)).toBeVisible();
+  await expect(profile.getByRole('button', { name: 'Mudar palavra-passe' })).toHaveCount(0);
+
+  // Signing out goes back to the sign-in screen; signing in again, the same account.
+  await profile.getByRole('button', { name: 'Terminar sessão' }).click();
+  await expect(gate.getByRole('heading', { name: 'Só para colaboradores' })).toBeVisible();
+  await signInWithGoogle(page, gate, joana);
+  await page.getByRole('button', { name: 'O teu perfil' }).click();
+  await expect(page.getByRole('dialog', { name: 'Perfil' }).getByLabel('Nome', { exact: true })).toHaveValue(`Convidada ${tag}`);
+
+  // No way around it: usernames and passwords are refused, even from inside.
+  const register = await page.request.post(`${GOOGLE_ONLY}/api/auth/register`, {
+    data: { username: `x${tag}`, password: 'segredo-123', name: 'X', color: '#3366ff', avatar: '' },
+  });
+  expect(register.status()).toBe(403);
 });
 
 test('an admin deletes test profiles and rooms on the admin page', async ({ browser }) => {

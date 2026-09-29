@@ -4,6 +4,8 @@ const PORT = Number(process.env.E2E_PORT ?? 4477);
 const TMDB_PORT = PORT + 2;
 /** The same app behind a community code (COMMUNITY_CODE). */
 const LOCKED_PORT = PORT + 4;
+/** The same app where only Google accounts get in (GOOGLE_ONLY). */
+const GOOGLE_ONLY_PORT = PORT + 6;
 
 // "Continuar com Google" with the fake Google keys (tests/fake-google.ts; the button is faked in the spec).
 const GOOGLE = {
@@ -62,6 +64,19 @@ export default defineConfig({
         HOST: '127.0.0.1',
         DATA_DIR: '.e2e-data-locked',
         COMMUNITY_CODE: 'frango-e2e',
+        ...GOOGLE,
+      },
+    },
+    {
+      // Only Google accounts: no profiles without an account, no passwords, no code.
+      command: `node -e "require('fs').rmSync('.e2e-data-google', { recursive: true, force: true })" && node dist/server/index.js`,
+      url: `http://127.0.0.1:${GOOGLE_ONLY_PORT}/api/health`,
+      reuseExistingServer: false,
+      env: {
+        PORT: String(GOOGLE_ONLY_PORT),
+        HOST: '127.0.0.1',
+        DATA_DIR: '.e2e-data-google',
+        GOOGLE_ONLY: 'true',
         ...GOOGLE,
       },
     },

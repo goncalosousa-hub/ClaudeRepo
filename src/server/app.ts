@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -42,6 +43,11 @@ export interface AppOptions {
   admins?: string[];
   /** Sign in with Google (off without a client id) */
   google?: GoogleOptions;
+  /**
+   * Only Google accounts use the app (GOOGLE_ONLY): no profiles without an account, no usernames and
+   * passwords, no community code. Needs Google sign-in to be on.
+   */
+  googleOnly?: boolean;
 }
 
 /** With Google sign-in on, the page may also load Google's button (script, styles and its frame). */
@@ -79,8 +85,15 @@ export async function createApp(opts: AppOptions) {
   const tmdb = new Tmdb(opts.tmdb);
   const books = new Books(opts.books);
   const places = new Places(opts.places);
-  const gate = new CommunityGate(opts.communityCode);
   const google = new GoogleAuth(opts.google);
+  const googleOnly = !!opts.googleOnly && google.enabled;
+  // The access cookie is made from a secret the server creates once and keeps (so a restart signs
+  // nobody out); with the code, from the code.
+  const gate = new CommunityGate({
+    code: opts.communityCode,
+    googleOnly,
+    secret: googleOnly ? await storage.setting('access-secret', () => randomBytes(32).toString('base64url')) : undefined,
+  });
   const csp = contentSecurityPolicy(google.enabled);
 
   const app = express();
@@ -105,7 +118,7 @@ export async function createApp(opts: AppOptions) {
   });
   io.use((socket, next) => (gate.allows(socket.request.headers.cookie) ? next() : next(new Error('community_locked'))));
   const admins = new Set(opts.admins ?? []);
-  attachRealtime(io, rooms, accounts, admins);
+  attachRealtime(io, rooms, accounts, admins, { requireGoogle: googleOnly });
 
   const publish = (room: Parameters<typeof rooms.apply>[0], op: Parameters<typeof rooms.apply>[1], by: string) => {
     const env = rooms.apply(room, op, by);
@@ -127,7 +140,8 @@ export async function createApp(opts: AppOptions) {
       io,
       info: {
         google: google.publicConfig ? { domains: google.domains } : null,
-        communityCode: gate.enabled,
+        communityCode: gate.enabled && !googleOnly,
+        googleOnly,
         tmdb: tmdb.configured,
         admins: [...admins],
         photosMaxBytes,

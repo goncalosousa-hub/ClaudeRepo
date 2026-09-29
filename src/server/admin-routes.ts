@@ -17,6 +17,8 @@ const USER_ID_RE = /^[A-Za-z0-9_-]{8,32}$/;
 export interface AdminInfo {
   google: { domains: string[] } | null;
   communityCode: boolean;
+  /** Only Google accounts get in (GOOGLE_ONLY) */
+  googleOnly: boolean;
   tmdb: boolean;
   admins: string[];
   photosMaxBytes: number;

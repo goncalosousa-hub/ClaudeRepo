@@ -1,12 +1,21 @@
 // Colleagues only: with COMMUNITY_CODE set, the API and the live connections need that code once
-// per browser. The page itself loads for anyone and asks for the code.
+// per browser. The page itself loads for anyone and asks for the code. With GOOGLE_ONLY there is no
+// code: only signing in with Google gives the access cookie.
 import { createHash, timingSafeEqual } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { rateLimit } from './http';
 
 export const ACCESS_COOKIE = 'atl_access';
-// Signing in with Google opens the app too, for accounts of the company (see account-routes.ts).
-const OPEN_PATHS = new Set(['/health', '/community/status', '/community/unlock', '/auth/providers', '/auth/google']);
+// Signing in with Google (or adding it to an account) opens the app too, for accounts of the company
+// (see account-routes.ts).
+const OPEN_PATHS = new Set([
+  '/health',
+  '/community/status',
+  '/community/unlock',
+  '/auth/providers',
+  '/auth/google',
+  '/account/google',
+]);
 
 const digest = (code: string) => createHash('sha256').update(`lusiaves-tierlist:${code.trim()}`).digest('base64url');
 
@@ -27,9 +36,19 @@ function sameText(a: string, b: string) {
 export class CommunityGate {
   /** What the access cookie holds: a hash of the code, so changing the code signs everyone out. */
   private readonly token: string | null;
+  /** Only Google accounts: no code opens the app. */
+  readonly googleOnly: boolean;
 
-  constructor(code?: string) {
-    this.token = code?.trim() ? digest(code) : null;
+  /** `secret`: with `googleOnly`, what the cookie is made from (kept by the server, never shown). */
+  constructor(opts: { code?: string; googleOnly?: boolean; secret?: string } = {}) {
+    this.googleOnly = !!opts.googleOnly;
+    if (this.googleOnly) {
+      if (!opts.secret) throw new Error('googleOnly needs a secret');
+      // Not the code's cookie: whoever got in with the code signs in with Google once.
+      this.token = digest(`google-only:${opts.secret}`);
+    } else {
+      this.token = opts.code?.trim() ? digest(opts.code) : null;
+    }
   }
 
   get enabled() {
@@ -44,7 +63,7 @@ export class CommunityGate {
   }
 
   check(code: string) {
-    return this.token !== null && sameText(digest(code), this.token);
+    return !this.googleOnly && this.token !== null && sameText(digest(code), this.token);
   }
 
   cookie(secure: boolean) {
@@ -66,6 +85,7 @@ export class CommunityGate {
     });
     router.post('/community/unlock', rateLimit(20, 15 * 60_000), (req, res) => {
       const code = typeof req.body?.code === 'string' ? req.body.code.slice(0, 200) : '';
+      if (this.googleOnly) return void res.status(403).json({ error: 'google_only' });
       if (!this.enabled) return void res.json({ ok: true });
       if (!this.check(code)) return void res.status(401).json({ error: 'wrong_code' });
       res.setHeader('Set-Cookie', this.cookie(req.secure));

@@ -76,6 +76,8 @@ export interface Storage {
   /** Links a Google account to an account; false (and nothing changes) when it is linked already. */
   linkGoogle(sub: string, username: string): Promise<boolean>;
   unlinkGoogle(sub: string): Promise<void>;
+  /** A server setting (e.g. the secret behind the access cookie): the saved value, or `create()` saved now. */
+  setting(key: string, create: () => string): Promise<string>;
   savePhoto(photo: StoredPhoto): Promise<void>;
   /** The JPEG of a photo (or of its small version), null when it does not exist. */
   loadPhoto(id: string, thumb: boolean): Promise<Buffer | null>;

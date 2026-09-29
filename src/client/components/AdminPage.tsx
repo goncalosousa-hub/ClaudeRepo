@@ -219,6 +219,15 @@ function OverviewTab({ overview: o }: { overview: AdminOverview }) {
             }
           />
           <Setting
+            on={o.config.googleOnly}
+            name="Só com a Google (GOOGLE_ONLY)"
+            text={
+              o.config.googleOnly
+                ? 'Ativo: só se entra com a conta Google (sem perfis sem conta, sem palavras-passe)'
+                : 'Desligado: também há perfis sem conta e contas com palavra-passe'
+            }
+          />
+          <Setting
             on={o.config.communityCode}
             name="Código da comunidade"
             text={o.config.communityCode ? 'Ativo: só entra quem sabe o código (ou tem conta Google do grupo)' : 'Desligado: qualquer pessoa com o link entra'}

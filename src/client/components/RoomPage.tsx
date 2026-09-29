@@ -4,6 +4,7 @@ import { COMPANY } from '../../shared/brand';
 import { communitySection } from '../../shared/constants';
 import { newUser, type LocalUser } from '../lib/identity';
 import { errorMessage } from '../lib/format';
+import { NEEDS_GOOGLE_EVENT } from '../lib/google';
 import { forgetRoom } from '../lib/recent-rooms';
 import { cacheRoom, cachedRoom, prefetchCommunity } from '../lib/room-cache';
 import { RoomClient, type RoomSnapshot } from '../lib/room-client';
@@ -98,6 +99,7 @@ function ConnectedRoom({ roomId, user, setUser }: { roomId: string; user: LocalU
             : undefined
         }
         onForget={snap.error === 'room_not_found' ? () => forgetRoom(roomId) : undefined}
+        onGoogle={snap.error === 'login_required' ? () => window.dispatchEvent(new Event(NEEDS_GOOGLE_EVENT)) : undefined}
       />
     );
   }
@@ -152,7 +154,17 @@ function Loading({ text }: { text: string }) {
   );
 }
 
-function ErrorScreen({ code, onNewProfile, onForget }: { code: string; onNewProfile?: () => void; onForget?: () => void }) {
+function ErrorScreen({
+  code,
+  onNewProfile,
+  onForget,
+  onGoogle,
+}: {
+  code: string;
+  onNewProfile?: () => void;
+  onForget?: () => void;
+  onGoogle?: () => void;
+}) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-5 px-6 text-center">
       <Logo />
@@ -164,6 +176,11 @@ function ErrorScreen({ code, onNewProfile, onForget }: { code: string; onNewProf
           {onNewProfile && (
             <Button variant="primary" onClick={onNewProfile}>
               Criar perfil novo
+            </Button>
+          )}
+          {onGoogle && (
+            <Button variant="primary" onClick={onGoogle}>
+              Entrar com a Google
             </Button>
           )}
           <Button

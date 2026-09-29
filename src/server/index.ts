@@ -25,6 +25,8 @@ const google = {
     .filter(Boolean),
   certsUrl: process.env.GOOGLE_CERTS_URL?.trim() || undefined,
 };
+// Only Google accounts use the app (no profiles without an account, no passwords, no code).
+const googleOnly = /^(1|true|yes|sim)$/i.test(process.env.GOOGLE_ONLY?.trim() ?? '');
 
 let app: Awaited<ReturnType<typeof createApp>>;
 try {
@@ -39,6 +41,7 @@ try {
     photosMaxMb,
     admins,
     google,
+    googleOnly,
   });
 } catch (err) {
   if (!databaseUrl) throw err;
@@ -75,10 +78,13 @@ httpServer.listen(port, host, () => {
       ? `  ➜ Google:      "Continuar com Google" ativado${domains ? ` (só contas ${domains})` : ' (qualquer conta Google: define GOOGLE_DOMAIN)'}`
       : `  ➜ Google:      desativado${domains ? ' — falta GOOGLE_CLIENT_ID (vê o README)' : ' (define GOOGLE_CLIENT_ID para entrar com a Google)'}`,
   );
+  if (googleOnly && !google.clientId) console.log('  ⚠ GOOGLE_ONLY sem GOOGLE_CLIENT_ID: ignorado (vê o README)');
   console.log(
-    gate.enabled
-      ? `  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)${google.clientId && domains ? ` ou uma conta Google ${domains}` : ''}`
-      : '  ➜ Acesso: aberto a quem tiver o link (define COMMUNITY_CODE para ser só para colaboradores)',
+    gate.googleOnly
+      ? `  ➜ Acesso: só com a conta Google${domains ? ` (${domains})` : ' — qualquer conta Google: define GOOGLE_DOMAIN'} (GOOGLE_ONLY)`
+      : gate.enabled
+        ? `  ➜ Acesso: só com o código da comunidade (COMMUNITY_CODE)${google.clientId && domains ? ` ou uma conta Google ${domains}` : ''}`
+        : '  ➜ Acesso: aberto a quem tiver o link (define COMMUNITY_CODE ou GOOGLE_ONLY para ser só para colaboradores)',
   );
   console.log(`\n  Colegas noutra rede? Cria um túnel:  cloudflared tunnel --url http://localhost:${port}\n`);
 });

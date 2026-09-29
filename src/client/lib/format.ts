@@ -132,6 +132,7 @@ const ERRORS: Record<string, string> = {
   invalid_name: 'Nome inválido.',
   empty_message: 'Mensagem vazia.',
   not_joined: 'Ainda não estás ligado à sala.',
+  login_required: 'Entra com a tua conta Google para continuar.',
   timeout: 'O servidor não respondeu. Verifica a ligação.',
   server_error: 'Erro no servidor. Tenta outra vez.',
 };

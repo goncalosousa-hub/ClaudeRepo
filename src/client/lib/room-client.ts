@@ -52,7 +52,9 @@ interface PendingOp {
   attempts: number;
 }
 
-const FATAL_ERRORS = new Set(['room_not_found', 'auth_failed', 'invalid_payload', 'limit_members']);
+// Trying again would not help: the room is gone, the profile is not accepted there, or (with
+// GOOGLE_ONLY) it is not an account signed in with Google.
+const FATAL_ERRORS = new Set(['room_not_found', 'auth_failed', 'invalid_payload', 'limit_members', 'login_required']);
 
 type Listener = () => void;
 type CursorListener = (userId: string, cursor: CursorState | null) => void;

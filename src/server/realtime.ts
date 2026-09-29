@@ -4,6 +4,7 @@ import { ownerAway } from '../shared/owner';
 import { cursorSchema, joinSchema, opMessageSchema, presencePatchSchema } from '../shared/schema';
 import { GROUP_BOARD, type AckError, type JoinAck, type Op, type OpAck, type SyncAck } from '../shared/types';
 import { isAdminAccount, type AccountManager } from './accounts';
+import type { AccountDoc } from './storage';
 import type { LiveRoom, RoomManager } from './rooms';
 
 /** Simple token bucket to stop a misbehaving client from flooding the room. */
@@ -98,8 +99,15 @@ type Ack<T> = (res: T) => void;
 const noop = () => {};
 const asAck = <T>(fn: unknown): Ack<T> => (typeof fn === 'function' ? (fn as Ack<T>) : noop);
 
-export function attachRealtime(io: Server, rooms: RoomManager, accounts?: AccountManager, admins: Set<string> = new Set()) {
+export function attachRealtime(
+  io: Server,
+  rooms: RoomManager,
+  accounts?: AccountManager,
+  admins: Set<string> = new Set(),
+  opts: { requireGoogle?: boolean } = {},
+) {
   const emailAdmins = [...admins].some((a) => a.includes('@'));
+  const requireGoogle = !!opts.requireGoogle && !!accounts;
   io.on('connection', (socket: Socket) => {
     let ctx: { room: LiveRoom; userId: string; admin: boolean } | null = null;
     let joining = false;
@@ -126,17 +134,20 @@ export function attachRealtime(io: Server, rooms: RoomManager, accounts?: Accoun
       }
       if (!room) return ack({ ok: false, error: 'room_not_found' });
       if (socket.disconnected) return;
-      if (!rooms.authenticate(room, user.id, user.secret)) return ack({ ok: false, error: 'auth_failed' });
-      // An admin proves it with the account: its identity must be this one. ADMINS can also name the
-      // email of the account's Google account.
-      let admin = false;
-      if (account && accounts && (admins.has(account) || emailAdmins)) {
+      // The account behind this identity, when it matters: with GOOGLE_ONLY only an account signed in
+      // with Google gets in, and admins prove who they are with theirs (its identity must be this
+      // one). ADMINS can also name the email of the account's Google account.
+      let doc: AccountDoc | null = null;
+      if (account && accounts && (requireGoogle || admins.has(account) || emailAdmins)) {
         joining = true;
-        const doc = await accounts.authenticate(account, user.secret).catch(() => null);
+        const found = await accounts.authenticate(account, user.secret).catch(() => null);
         joining = false;
-        admin = !!doc && doc.userId === user.id && isAdminAccount(doc, admins);
         if (socket.disconnected) return;
+        doc = found?.userId === user.id ? found : null;
       }
+      if (requireGoogle && !doc?.google) return ack({ ok: false, error: 'login_required' });
+      if (!rooms.authenticate(room, user.id, user.secret)) return ack({ ok: false, error: 'auth_failed' });
+      const admin = !!doc && isAdminAccount(doc, admins);
 
       const existing = room.doc.state.members[user.id];
       const changed =

@@ -71,6 +71,10 @@ export function accountRouter(
   const failed = new FailedLogins(10, 15 * 60_000);
   const unauthorized = (res: Response) => res.status(401).json({ error: 'unauthorized' });
 
+  // A Google account opens the app behind the code only when it has to be one of the company
+  // (GOOGLE_DOMAIN), and always with GOOGLE_ONLY (where Google is the only way in).
+  const opensGate = () => google.domains.length > 0 || gate.googleOnly;
+
   /** Whose the Google token is; on failure the error is sent and the result is null. */
   const googleIdentity = async (credential: string, res: Response): Promise<GoogleIdentity | null> => {
     try {
@@ -103,7 +107,15 @@ export function accountRouter(
     return c ? { ...c, doc: await accounts.authenticate(c.username, c.secret) } : null;
   };
 
+  // With GOOGLE_ONLY accounts are made and used with Google only.
+  const googleOnly = (res: Response) => {
+    if (!gate.googleOnly) return false;
+    res.status(403).json({ error: 'google_only' });
+    return true;
+  };
+
   router.post('/auth/register', rateLimit(60, 60 * 60_000), async (req, res) => {
+    if (googleOnly(res)) return;
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
       const field = parsed.error.issues[0]?.path[0];
@@ -122,9 +134,10 @@ export function accountRouter(
     res.status(201).json(loginResult(doc));
   });
 
-  // Whether "Continuar com Google" is on, for which Google Workspace domains (open to everyone).
+  // Whether "Continuar com Google" is on, for which Google Workspace domains, and whether it is the
+  // only way in (open to everyone).
   router.get('/auth/providers', (_req, res) => {
-    res.json({ google: google.publicConfig });
+    res.json({ google: google.publicConfig && { ...google.publicConfig, only: gate.googleOnly } });
   });
 
   // Sign in with the ID token from the Google button: to the linked account, or a new one. Behind the
@@ -132,7 +145,7 @@ export function accountRouter(
   // A generous limit: a whole office signs in from one IP, and only real Google tokens get anywhere.
   router.post('/auth/google', rateLimit(300, 10 * 60_000), async (req, res) => {
     const locked = !gate.allows(req.headers.cookie);
-    if (locked && !google.domains.length) {
+    if (locked && !opensGate()) {
       res.status(401).json({ error: 'community_locked' });
       return;
     }
@@ -157,6 +170,7 @@ export function accountRouter(
   });
 
   router.post('/auth/login', rateLimit(200, 10 * 60_000), async (req, res) => {
+    if (googleOnly(res)) return;
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(401).json({ error: 'invalid_credentials' });
@@ -190,10 +204,16 @@ export function accountRouter(
     });
   });
 
-  // Links a Google account to the signed-in account: from then on either signs in.
+  // Links a Google account to the signed-in account: from then on either signs in. It works before
+  // getting in (like signing in with Google), so an account made with a password can move to Google.
   router.post('/account/google', rateLimit(30, 10 * 60_000), async (req, res) => {
     const c = credentials(req);
     const parsed = googleLinkSchema.safeParse(req.body);
+    const locked = !gate.allows(req.headers.cookie);
+    if (locked && !opensGate()) {
+      res.status(401).json({ error: 'community_locked' });
+      return;
+    }
     if (!c) return void unauthorized(res);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid_request' });
@@ -207,6 +227,7 @@ export function accountRouter(
       res.status(409).json({ error: result === 'taken' ? 'google_taken' : 'google_linked' });
       return;
     }
+    if (locked) res.setHeader('Set-Cookie', gate.cookie(req.secure));
     res.json({ ok: true, google: who.email });
   });
 
@@ -224,6 +245,7 @@ export function accountRouter(
   });
 
   router.post('/account/password', async (req, res) => {
+    if (googleOnly(res)) return;
     const c = credentials(req);
     const parsed = passwordChangeSchema.safeParse(req.body);
     if (!c) return void unauthorized(res);

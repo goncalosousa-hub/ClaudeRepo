@@ -7,6 +7,7 @@
 # GOOGLE_CLIENT_ID + GOOGLE_DOMAIN: "Continuar com Google", só para as contas Google do trabalho
 # (@grupolusiaves.pt e @lusiaves.pt; outros domínios do grupo juntam-se com vírgulas). Vê o README.
 # O Client ID não é secreto (aparece na página); o Client secret não é preciso.
+# GOOGLE_ONLY: só se entra com a conta Google (sem perfis sem conta, sem palavras-passe, sem código).
 services:
   - type: web
     # O nome dá o link (lusihub.onrender.com) e não se muda depois: outro nome cria outro serviço.
@@ -31,3 +32,5 @@ services:
         value: 54331493217-j8ipq4n6rrdfp5pqnhmoqklqvvsq8nd5.apps.googleusercontent.com
       - key: GOOGLE_DOMAIN
         value: grupolusiaves.pt,lusiaves.pt
+      - key: GOOGLE_ONLY
+        value: "true"

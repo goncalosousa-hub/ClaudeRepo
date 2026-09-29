@@ -16,6 +16,7 @@ export interface AdminOverview {
   config: {
     google: { domains: string[] } | null;
     communityCode: boolean;
+    googleOnly: boolean;
     tmdb: boolean;
     admins: string[];
     photosMaxBytes: number;

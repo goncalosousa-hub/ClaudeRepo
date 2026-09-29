@@ -5,6 +5,8 @@ export interface GoogleConfig {
   clientId: string;
   /** Only accounts of these Google Workspace domains can sign in (empty: any Google account). */
   domains: string[];
+  /** The only way in (GOOGLE_ONLY): no profiles without an account, no passwords, no code. */
+  only?: boolean;
 }
 
 interface GisButtonOptions {
@@ -39,6 +41,9 @@ declare global {
 }
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
+
+/** Sent when the server wants this browser to sign in with Google (see App.tsx). */
+export const NEEDS_GOOGLE_EVENT = 'atl:needs-google';
 
 let config: Promise<GoogleConfig | null> | null = null;
 

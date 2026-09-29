@@ -1,8 +1,10 @@
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { Server } from 'socket.io';
 import { createApp } from '../src/server/app';
 import { RoomClient, type RoomSnapshot } from '../src/client/lib/room-client';
 import { GROUP_BOARD } from '../src/shared/types';
@@ -128,5 +130,25 @@ describe('RoomClient', () => {
     const c = makeClient(url, 'zzzzzzzz', 'ana');
     const s = await waitFor(c, (x) => x.status === 'error');
     expect(s.error).toBe('room_not_found');
+  });
+
+  it('stops at "login_required" (only Google accounts) instead of trying again and again', async () => {
+    const httpServer = createServer();
+    const io = new Server(httpServer);
+    let joins = 0;
+    io.on('connection', (socket) =>
+      socket.on('join', (_payload: unknown, ack: (res: unknown) => void) => {
+        joins++;
+        ack({ ok: false, error: 'login_required' });
+      }),
+    );
+    await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
+    cleanups.push(() => new Promise<void>((resolve) => io.close(() => resolve())));
+    const url = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`;
+    const c = makeClient(url, 'comunidade', 'ana');
+    const s = await waitFor(c, (x) => x.status === 'error');
+    expect(s.error).toBe('login_required');
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(joins).toBe(1);
   });
 });
