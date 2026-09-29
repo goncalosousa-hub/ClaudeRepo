@@ -5,8 +5,8 @@
 # ADMINS (opcional): contas que podem apagar qualquer título ou foto na comunidade (ex.: ana,rui).
 services:
   - type: web
-    # Nome de quando a app se chamava LusiMovies: mudá-lo cria outro serviço, com outro link.
-    name: lusimovies
+    # O nome dá o link (lusihub.onrender.com) e não se muda depois: outro nome cria outro serviço.
+    name: lusihub
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build
