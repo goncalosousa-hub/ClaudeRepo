@@ -12,6 +12,7 @@ import { forgetRoom, recentRooms, type RecentRoom } from '../lib/recent-rooms';
 import { navigate, parseRoomInput } from '../lib/router';
 import { KINDS, kindInfo } from '../lib/words';
 import { Avatar, Button, cn, Spinner, inputClass } from './ui';
+import { PRIVACY_PATH } from './PrivacyPage';
 import { ProfileDialog, type ProfileDialogMode } from './ProfileDialog';
 import { Logo } from './Logo';
 import { useToast } from './Toasts';
@@ -388,6 +389,10 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
 
         <footer className="mt-12 text-xs text-faint">
           Um espaço para os colaboradores do {COMMUNITY}: sê simpático, é tudo entre colegas.{' '}
+          <a className="underline hover:text-muted" href={PRIVACY_PATH} target="_blank" rel="noreferrer">
+            Política de privacidade
+          </a>
+          .{' '}
           Dados de anime: <a className="underline hover:text-muted" href="https://anilist.co" target="_blank" rel="noreferrer">AniList</a>{' '}
           (com <a className="underline hover:text-muted" href="https://jikan.moe" target="_blank" rel="noreferrer">Jikan/MyAnimeList</a> como alternativa).
           Séries e filmes:{' '}

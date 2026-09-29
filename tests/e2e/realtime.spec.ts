@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { CONTACT_EMAIL } from '../../src/shared/brand';
 import { mockAniList } from './anilist-mock';
 
 const shots = process.env.E2E_SCREENSHOTS;
@@ -460,6 +461,7 @@ test('behind the community code, a colleague gets in with the Google account of 
   const gate = marta.locator('form');
   await expect(gate.getByRole('heading', { name: 'Só para colaboradores' })).toBeVisible();
   await expect(gate.getByText('Com o email da Lusiaves (@lusiaves.pt).')).toBeVisible();
+  await expect(marta.getByRole('link', { name: 'Política de privacidade' })).toHaveAttribute('href', '/privacidade');
   await shot(marta, '32-gate-google');
   await signInWithGoogle(marta, gate, { sub: `m${tag}`, email: `marta.${tag}@lusiaves.pt`, name: 'Marta Gomes' });
   // In and signed in at once: no code, no profile to fill in.
@@ -477,6 +479,15 @@ test('behind the community code, a colleague gets in with the Google account of 
   await guestGate.getByLabel('Código da comunidade').fill('frango-e2e');
   await guestGate.getByRole('button', { name: 'Entrar' }).click();
   await expect(guest.getByRole('dialog', { name: 'Perfil' })).toBeVisible();
+
+  // The privacy policy (linked from Google's sign-in screen) opens for anyone, without the code.
+  const visitor = await newPerson(browser, { width: 390, height: 844 });
+  await visitor.goto(`${LOCKED}/privacidade`);
+  await expect(visitor.getByRole('heading', { name: 'Política de privacidade' })).toBeVisible();
+  await expect(visitor.getByRole('link', { name: CONTACT_EMAIL }).first()).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`);
+  await expect(visitor.getByText('Só para colaboradores')).toHaveCount(0);
+  await expect(visitor).toHaveTitle('Política de privacidade · LusiHub');
+  await shot(visitor, '33-privacy');
 });
 
 test('series and movies rooms use the TMDB catalogue', async ({ browser }) => {

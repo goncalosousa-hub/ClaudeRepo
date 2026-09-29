@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CommunityGate } from './components/CommunityGate';
 import { Home } from './components/Home';
+import { PRIVACY_PATH, PrivacyPage } from './components/PrivacyPage';
 import { RoomPage } from './components/RoomPage';
 import { useToast } from './components/Toasts';
 import { communityLocked } from './lib/community';
@@ -32,6 +33,8 @@ export function App() {
     }
   }, [toast]);
 
+  // The privacy policy is for everyone, also without the community code (Google's sign-in links to it).
+  if (path.replace(/\/+$/, '') === PRIVACY_PATH) return <PrivacyPage />;
   if (locked === null) return null;
   if (locked) return <CommunityGate google={google} onUnlocked={() => setLocked(false)} />;
 

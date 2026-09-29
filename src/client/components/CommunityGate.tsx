@@ -8,6 +8,7 @@ import { loadUser, saveUser } from '../lib/identity';
 import { recentRooms } from '../lib/recent-rooms';
 import { GoogleButton } from './GoogleButton';
 import { Logo } from './Logo';
+import { PRIVACY_PATH } from './PrivacyPage';
 import { useToast } from './Toasts';
 import { Button, Divider, Spinner, inputClass } from './ui';
 
@@ -122,6 +123,9 @@ export function CommunityGate({ google, onUnlocked }: { google: GoogleConfig | n
           {busy && <Spinner size={16} />} Entrar
         </Button>
       </form>
+      <a className="text-xs text-faint underline underline-offset-2 hover:text-muted" href={PRIVACY_PATH} target="_blank" rel="noreferrer">
+        Política de privacidade
+      </a>
     </div>
   );
 }

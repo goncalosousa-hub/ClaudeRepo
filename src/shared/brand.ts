@@ -3,3 +3,5 @@
 export const APP_NAME = 'LusiHub';
 export const COMMUNITY = 'Grupo Lusiaves';
 export const COMPANY = 'Lusiaves';
+/** Who to write to about personal data (shown on the privacy page, /privacidade). */
+export const CONTACT_EMAIL = 'goncalo.sousa@grupolusiaves.pt';

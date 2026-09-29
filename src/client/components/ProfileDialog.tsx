@@ -19,6 +19,7 @@ import { usePrefs } from '../lib/prefs';
 import { copyText } from '../lib/clipboard';
 import { clearRecentRooms, recentRooms } from '../lib/recent-rooms';
 import { GoogleButton } from './GoogleButton';
+import { PRIVACY_PATH } from './PrivacyPage';
 import { Avatar, Button, Divider, Modal, ModalHeader, Segmented, Spinner, cn, inputClass } from './ui';
 import { useToast } from './Toasts';
 
@@ -468,7 +469,10 @@ function GoogleSignIn({
           <p className="text-center text-xs text-muted">
             {config.domains.length
               ? `Com o email da ${COMPANY} (${domainsText(config.domains)}): és sempre tu, em qualquer dispositivo, sem mais uma palavra-passe.`
-              : 'Com a tua conta Google: és sempre tu, em qualquer dispositivo, sem mais uma palavra-passe.'}
+              : 'Com a tua conta Google: és sempre tu, em qualquer dispositivo, sem mais uma palavra-passe.'}{' '}
+            <a className="underline underline-offset-2 hover:text-fg" href={PRIVACY_PATH} target="_blank" rel="noreferrer">
+              Privacidade
+            </a>
           </p>
         )
       )}
