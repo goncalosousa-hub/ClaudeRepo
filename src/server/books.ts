@@ -11,7 +11,7 @@ const MAX_CACHE = 500;
 const PAGE_SIZE = 20;
 const FIELDS = 'key,title,author_name,first_publish_year,cover_i,subject,number_of_pages_median,ratings_average,ratings_count';
 // Open Library asks apps to say who they are.
-const USER_AGENT = 'LusiMovies (https://github.com/goncalosousa-hub/ClaudeRepo)';
+const USER_AGENT = 'LusiHub (https://github.com/goncalosousa-hub/ClaudeRepo)';
 
 export interface BooksOptions {
   /** For tests: another server that speaks the Open Library API */

@@ -168,7 +168,7 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
                   A <b className="text-fg">firewall do Windows</b> pode estar a bloquear. Abre o PowerShell como administrador e
                   corre:
                   <code className="mt-1 block rounded bg-surface-3 p-2 font-mono text-[11px] break-all text-fg select-all">
-                    New-NetFirewallRule -DisplayName "Anime Tierlist" -Direction Inbound -Protocol TCP -LocalPort{' '}
+                    New-NetFirewallRule -DisplayName "LusiHub" -Direction Inbound -Protocol TCP -LocalPort{' '}
                     {location.port || 80} -Action Allow
                   </code>
                 </li>

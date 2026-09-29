@@ -5,6 +5,7 @@
 # ADMINS (opcional): contas que podem apagar qualquer título ou foto na comunidade (ex.: ana,rui).
 services:
   - type: web
+    # Nome de quando a app se chamava LusiMovies: mudá-lo cria outro serviço, com outro link.
     name: lusimovies
     runtime: node
     plan: free

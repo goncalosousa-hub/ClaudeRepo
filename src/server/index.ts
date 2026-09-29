@@ -42,7 +42,7 @@ const { httpServer, storage, tmdb, gate, imported, importedAccounts, close } = a
 httpServer.listen(port, host, () => {
   const lan = lanAddresses();
   const real = lan.filter((a) => !a.virtual);
-  console.log(`\n  🎌 ${APP_NAME}${dev ? ' (dev)' : ''}`);
+  console.log(`\n  ✨ ${APP_NAME}${dev ? ' (dev)' : ''}`);
   console.log(`  ➜ Local:       http://localhost:${port}   (só funciona neste computador)`);
   real.forEach((a, i) =>
     console.log(`  ➜ Rede local:  http://${a.address}:${port}${i === 0 ? '   ← envia este aos colegas na mesma rede' : ''}`),

@@ -1,4 +1,4 @@
-# Imagem de produção: docker build -t anime-tierlist . && docker run -p 3000:3000 -v tierlist-data:/data anime-tierlist
+# Imagem de produção: docker build -t lusihub . && docker run -p 3000:3000 -v lusihub-data:/data lusihub
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
