@@ -1,4 +1,4 @@
-# 🎬 Lusiaves Tierlist
+# 🎬 LusiMovies
 
 Uma **webapp** para os colaboradores do **Grupo Lusiaves** partilharem o que andam a ver: **anime, séries e filmes**. O site abre na **Comunidade**, um espaço de toda a gente, sem salas: cada pessoa adiciona títulos, põe-nos na sua tierlist e dá a sua **nota**, **opinião** e **recomendação**, e todos veem as dos outros, ao vivo. A tierlist da Comunidade é a média das tierlists de todos. Para grupos mais pequenos (uma equipa, um turno), há as **Salas**.
 
@@ -114,7 +114,7 @@ Recebes um link `https://….trycloudflare.com` para enviar aos colegas. Funcion
 | Onde | Como | Custo |
 |---|---|---|
 | **Railway** | *New Project → Deploy from GitHub repo*. Adiciona um **Volume** montado em `/data` e a variável `DATA_DIR=/data`. | Período de teste; depois ~5 USD/mês |
-| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
+| **Render + Neon** | Cria uma base de dados PostgreSQL grátis no [Neon](https://neon.tech) e copia a *connection string*. No [Render](https://render.com) escolhe *New → Blueprint* com este repositório (usa o `render.yaml`, que cria o serviço `lusimovies`, com o link `https://lusimovies.onrender.com` se estiver livre) e cola a string em `DATABASE_URL`. Para séries e filmes, põe também a chave do TMDB em `TMDB_API_KEY`. | Grátis (o Render adormece após 15 min sem uso; o primeiro acesso demora ~1 min) |
 | **Docker / VPS** | `docker build -t anime-tierlist .` e `docker run -d -p 3000:3000 -v tierlist-data:/data anime-tierlist` | Depende do servidor |
 
 > Os planos grátis sem disco persistente (como o do Render) apagam os ficheiros quando reiniciam. Nesses casos usa sempre `DATABASE_URL` (PostgreSQL). Como estudante, o [GitHub Student Developer Pack](https://education.github.com/pack) também te dá créditos em vários serviços de alojamento.
