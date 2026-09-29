@@ -109,7 +109,8 @@ export type ActivityKind =
   | 'copy'
   | 'clear'
   | 'owner'
-  | 'listed';
+  | 'listed'
+  | 'kind';
 
 export interface Activity {
   id: string;
@@ -175,6 +176,7 @@ export type Op =
   | { type: 'room.rename'; name: string }
   | { type: 'room.owner'; to: string }
   | { type: 'room.listed'; listed: boolean }
+  | { type: 'room.kind'; kind: RoomKind }
   | { type: 'member.join'; member: MemberInput }
   | { type: 'member.update'; name: string; color: string; avatar: string; unit?: string }
   | { type: 'chat.send'; id: string; text: string };

@@ -43,6 +43,7 @@ function authorize(op: Op, userId: string, room: LiveRoom): string | null {
       return !op.place || op.place.board === GROUP_BOARD || op.place.board === userId ? null : 'forbidden';
     case 'room.rename':
     case 'room.listed':
+    case 'room.kind':
       return s.createdBy === userId ? null : 'not_owner';
     case 'room.owner': {
       if (s.createdBy === userId) return null;
@@ -73,6 +74,7 @@ function authorizeCommunity(op: Op, userId: string, room: LiveRoom): string | nu
     case 'tiers.set':
     case 'room.rename':
     case 'room.listed':
+    case 'room.kind':
     case 'room.owner':
       return 'forbidden';
     default:

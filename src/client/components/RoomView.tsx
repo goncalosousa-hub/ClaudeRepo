@@ -16,6 +16,7 @@ import { AnimeDialog } from './AnimeDialog';
 import { ExploreTab } from './ExploreTab';
 import { MembersTab } from './MembersTab';
 import { ProfileDialog } from './ProfileDialog';
+import { RoomKindDialog } from './RoomKindDialog';
 import { RankingTab } from './RankingTab';
 import { RoomContext, useRoom, type RoomContextValue } from './RoomContext';
 import { RoomHeader } from './RoomHeader';
@@ -64,6 +65,7 @@ export function RoomView({
   const [dialog, setDialog] = useState<{ key: string; meta: AnimeMeta } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [kindOpen, setKindOpen] = useState(false);
   const [panel, setPanel] = useState<SidebarPanel>('chat');
 
   const setTab = useCallback(
@@ -165,6 +167,7 @@ export function RoomView({
       setTab,
       board,
       setBoard,
+      openKindDialog: () => setKindOpen(true),
       inRoom: (a) => (room.anime[a.key] ? a.key : a.idMal != null ? (malIndex.get(a.idMal) ?? null) : null),
     }),
     [client, snap, room, me, user, prefs, setPrefs, summaries, dispatch, openAnime, visibleTab, setTab, board, malIndex],
@@ -205,6 +208,7 @@ export function RoomView({
       <AnimeDialog target={dialog} onClose={() => setDialog(null)} />
       <ProfileDialog open={profileOpen} user={user} onSave={setUser} onClose={() => setProfileOpen(false)} />
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} />
+      {!room.global && <RoomKindDialog open={kindOpen} onClose={() => setKindOpen(false)} />}
     </RoomContext.Provider>
   );
 }

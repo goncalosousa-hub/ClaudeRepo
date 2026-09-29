@@ -45,7 +45,7 @@ export function RoomPage({
           onSave={setUser}
           welcome={
             roomId === GLOBAL_ROOM_ID
-              ? `Na Comunidade ${COMPANY} partilhas o que andas a ver (anime, séries e filmes), dás a tua nota e opinião e vês o que os colegas recomendam.`
+              ? `Na Comunidade ${COMPANY} partilhas o que andas a ver (filmes, séries e anime), dás a tua nota e opinião e vês o que os colegas recomendam.`
               : undefined
           }
         />

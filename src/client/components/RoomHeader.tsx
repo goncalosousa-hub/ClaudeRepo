@@ -10,7 +10,7 @@ import { useRoom } from './RoomContext';
 import { Avatar, Button, cn } from './ui';
 
 export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProfile: () => void }) {
-  const { room, me, user, snap, dispatch, titleOf, kind } = useRoom();
+  const { room, me, user, snap, dispatch, titleOf, kind, openKindDialog } = useRoom();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(room.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +85,16 @@ export function RoomHeader({ onShare, onProfile }: { onShare: () => void; onProf
                 <> · 🌍 Espaço de toda a gente</>
               ) : (
                 <>
-                  · {kindInfo(kind).emoji} {kindInfo(kind).label}
+                  {' · '}
+                  {room.createdBy === me ? (
+                    <button className="hover:text-fg hover:underline" onClick={openKindDialog} title="Mudar o tipo da sala">
+                      {kindInfo(kind).emoji} {kindInfo(kind).label}
+                    </button>
+                  ) : (
+                    <>
+                      {kindInfo(kind).emoji} {kindInfo(kind).label}
+                    </>
+                  )}
                   {room.listed && ' · 🔓 Aberta'}
                 </>
               )}

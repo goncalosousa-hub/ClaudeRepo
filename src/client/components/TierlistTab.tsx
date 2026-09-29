@@ -14,7 +14,7 @@ const ADD_HINT: Record<RoomKind, string> = {
   anime: 'Pesquisa qualquer anime do AniList.',
   series: 'Pesquisa qualquer série do TMDB.',
   movies: 'Pesquisa qualquer filme do TMDB.',
-  all: 'Pesquisa animes, séries e filmes.',
+  all: 'Pesquisa filmes, séries e animes.',
 };
 
 export function TierlistTab({ onShare }: { onShare: () => void }) {

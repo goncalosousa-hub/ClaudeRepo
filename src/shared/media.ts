@@ -7,7 +7,8 @@ const KIND_MEDIA: Record<RoomKind, MediaType[]> = {
   anime: ['anime'],
   series: ['tv'],
   movies: ['movie'],
-  all: ['anime', 'tv', 'movie'],
+  // Also the order of the catalogue tabs in the room: films, series, anime.
+  all: ['movie', 'tv', 'anime'],
 };
 
 /** The media type is part of the key: "al:1" / "mal:1" → anime, "tv:1" → series, "mv:1" → movie. */

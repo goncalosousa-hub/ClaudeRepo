@@ -4,7 +4,7 @@ import { APP_NAME, COMMUNITY, COMPANY } from '../../shared/brand';
 import { LIMITS } from '../../shared/constants';
 import type { AnimeMeta, CommunityRoom, RoomKind } from '../../shared/types';
 import { browseAnime } from '../lib/anime-api';
-import { browseTmdb, tmdbAvailable } from '../lib/tmdb-api';
+import { TMDB_OFF, browseTmdb, tmdbAvailable } from '../lib/tmdb-api';
 import { plural, timeAgo } from '../lib/format';
 import { AccountError, fetchAccount, forgetAccountRoom, hasAccount, type AccountRoom } from '../lib/account-api';
 import { saveUser, type LocalUser } from '../lib/identity';
@@ -18,11 +18,13 @@ import { useToast } from './Toasts';
 
 export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: LocalUser) => void }) {
   const [roomName, setRoomName] = useState('');
-  const [kind, setKind] = useState<RoomKind>('anime');
+  const [kind, setKind] = useState<RoomKind>('all');
   const [listed, setListed] = useState(true);
   const [community, setCommunity] = useState<CommunityRoom[] | null>(null);
   const [showAllCommunity, setShowAllCommunity] = useState(false);
   const [tmdb, setTmdb] = useState<boolean | null>(null);
+  // Series-only or films-only rooms need the TMDB key; mixed rooms can still take anime.
+  const needsTmdb = (kind === 'series' || kind === 'movies') && tmdb === false;
   const [code, setCode] = useState('');
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<{ mode: ProfileDialogMode; focusAccount?: boolean } | null>(null);
@@ -101,7 +103,7 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
       ]);
       if (!alive || (!tv.length && !movies.length)) return;
       const mixed: AnimeMeta[] = [];
-      for (let i = 0; mixed.length < 24 && i < 24; i++) for (const list of [anime, tv, movies]) if (list[i]) mixed.push(list[i]);
+      for (let i = 0; mixed.length < 24 && i < 24; i++) for (const list of [movies, tv, anime]) if (list[i]) mixed.push(list[i]);
       setCovers(mixed.slice(0, 24));
     })();
     return () => {
@@ -223,20 +225,21 @@ export function Home({ user, setUser }: { user: LocalUser | null; setUser: (u: L
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
               />
-              <Button type="submit" variant="primary" disabled={creating || (kind !== 'anime' && tmdb === false)}>
+              <Button type="submit" variant="primary" disabled={creating || needsTmdb}>
                 {creating ? <Spinner size={16} /> : <ArrowRight size={18} />}
                 Criar
               </Button>
             </div>
-            {kind !== 'anime' && tmdb === false && (
-              <p className="mt-2 text-xs text-amber-200">
-                As séries e os filmes ainda não estão ativos neste servidor: falta a chave do TMDB (TMDB_API_KEY). O
-                README explica como a obter, de graça.
-              </p>
-            )}
-            {kind === 'all' && tmdb !== false && (
-              <p className="mt-2 text-xs text-faint">Anime, séries e filmes na mesma tierlist.</p>
-            )}
+            {needsTmdb && <p className="mt-2 text-xs text-amber-200">{TMDB_OFF}</p>}
+            {kind === 'all' &&
+              (tmdb === false ? (
+                <p className="mt-2 text-xs text-amber-200">
+                  Para já só dá para adicionar anime: os filmes e as séries precisam da chave do TMDB (TMDB_API_KEY) no
+                  servidor.
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-faint">Filmes, séries e anime na mesma tierlist.</p>
+              ))}
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
               <input
                 type="checkbox"

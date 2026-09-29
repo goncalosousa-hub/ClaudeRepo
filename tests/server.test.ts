@@ -583,6 +583,7 @@ describe('community space', () => {
     for (const o of [
       { type: 'room.rename', name: 'A minha comunidade' },
       { type: 'room.listed', listed: true },
+      { type: 'room.kind', kind: 'movies' },
       { type: 'room.owner', to: b.userId },
       { type: 'tiers.set', tiers: [{ id: 's', label: 'S', color: '#ff0000' }] },
     ]) {
@@ -722,6 +723,26 @@ describe('series and movies', () => {
       body: JSON.stringify({ name: 'Livros', kind: 'books' }),
     });
     expect(bad.status).toBe(400);
+  });
+
+  it('only the owner changes the room type, and only to one its titles fit', async () => {
+    const app = await start(await tmpDir());
+    const roomId = await createListedRoom(app, 'Sala da equipa', 'anime');
+    const a = await join(app, roomId, user('ana'));
+    const b = await join(app, roomId, user('rui'));
+    expect(await op(a.s, { type: 'anime.add', anime: anime(1) })).toMatchObject({ ok: true });
+
+    expect(await op(b.s, { type: 'room.kind', kind: 'all' })).toEqual({ ok: false, error: 'not_owner' });
+    expect(await op(a.s, { type: 'room.kind', kind: 'movies' })).toEqual({ ok: false, error: 'kind_conflict' });
+    expect(await op(a.s, { type: 'room.kind', kind: 'books' })).toMatchObject({ ok: false });
+    const seen = next<OpEnvelope>(b.s, 'op', (e) => e.op.type === 'room.kind');
+    expect(await op(a.s, { type: 'room.kind', kind: 'all' })).toMatchObject({ ok: true });
+    expect((await seen).op).toEqual({ type: 'room.kind', kind: 'all' });
+
+    // Now films go in too, and the room says so everywhere.
+    expect(await op(b.s, { type: 'anime.add', anime: title('movie', 238, 'O Padrinho') })).toMatchObject({ ok: true });
+    expect((await (await fetch(`${app.url}/api/rooms/${roomId}`)).json()).kind).toBe('all');
+    expect((await communityRooms(app))[0]).toMatchObject({ id: roomId, kind: 'all', titles: 2 });
   });
 
   it('a series room only takes series', async () => {
